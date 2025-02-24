@@ -56,48 +56,6 @@ if (!fs.existsSync(REPOS_PATH)) {
   fs.mkdirSync(REPOS_PATH, { recursive: true });
 }
 
-/* 
-* LNURL auth routes (existing code, kept for reference)
-  app.post('/api/auth/lnurl/challenge', (req, res) => {
-    // Generate a random k1 challenge
-    const k1 = crypto.randomBytes(32).toString('hex');
-    
-    // Store the challenge with a timestamp
-    pendingChallenges.set(k1, {
-      timestamp: Date.now(),
-      verified: false,
-      pubkey: null
-    });
-
-    console.log('Generated challenge:', k1);
-
-    res.json({
-      k1,
-      tag: 'login',
-      callback: `http://localhost:3000/api/auth/lnurl/callback`
-    });
-  });
-
-  app.post('/api/auth/lnurl/callback', async (req, res) => {
-    const { k1, sig, key } = req.body;
-    console.log('Received callback:', { k1, sig, key });
-
-    if (!pendingChallenges.has(k1)) {
-      return res.status(400).json({ status: 'error', reason: 'Invalid or expired challenge' });
-    }
-
-    // Update challenge status
-    pendingChallenges.set(k1, {
-      ...pendingChallenges.get(k1),
-      verified: true,
-      pubkey: key || '0223f455e3d594963895b30ee2d0d3bd0087340694d82cd7d3362459815e1349e9' // Alice's pubkey
-    });
-
-    console.log('Challenge verified:', k1);
-    res.json({ status: 'OK' });
-  });
-*/
-
 app.get('/api/auth/:type/status', (req, res) => {
   const { type } = req.params;
   const { k1 } = req.query;
