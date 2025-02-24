@@ -1,0 +1,15 @@
+version: "3.7"
+
+services:
+  mgit-repo:
+    build: .
+    container_name: mgit-repo
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    networks:
+      static_network:
+
+networks:
+  static_network:
+    driver: bridge
