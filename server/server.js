@@ -841,3 +841,10 @@ app.get('*', (req, res, next) => {
   // Serve the main index.html for all non-API routes to support client-side routing
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Start the server
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Access the application at http://localhost:${PORT}`);
+});
