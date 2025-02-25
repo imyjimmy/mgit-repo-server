@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MGit Nostr Signing Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        pre { background: #f4f4f4; padding: 10px; overflow: auto; }
+        button { padding: 8px 16px; margin: 5px 0; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>MGit Nostr Authentication Test</h1>
+    <h2>instructions: python -m http.server 8000</h2>
+    <div>
+        <h2>Step 1: Get Challenge</h2>
+        <p>Repository ID: <input id="repoId" value="hello-world"></p>
+        <button id="getChallenge">Get Challenge</button>
+        <pre id="challengeResult">Challenge will appear here...</pre>
+    </div>
+    
+    <div>
+        <h2>Step 2: Sign Challenge with Nostr</h2>
+        <p>Challenge: <input id="challenge" placeholder="Paste challenge here"></p>
+        <button id="signChallenge">Sign with nos2x</button>
+        <pre id="signedEvent">Signed event will appear here...</pre>
+    </div>
+    
+    <div>
+        <h2>Step 3: Verify and Get Token</h2>
+        <button id="verifySignature">Verify Signature</button>
+        <pre id="tokenResult">Token will appear here...</pre>
+    </div>
+    
+    <div>
+        <h2>Step 4: Test Access with Token</h2>
+        <p>Token: <input id="token" placeholder="Paste token here"></p>
+        <button id="testAccess">Test Repository Access</button>
+        <pre id="accessResult">Result will appear here...</pre>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:3001';
+        let currentChallenge = '';
+        let currentSignedEvent = null;
+        let currentRepoId = '';
+        
+        // Step 1: Get Challenge
+        document.getElementById('getChallenge').addEventListener('click', async () => {
+            const repoId = document.getElementById('repoId').value;
+            currentRepoId = repoId;
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/mgit/auth/challenge`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({repoId})
+                });
+                
+                const data = await response.json();
+                currentChallenge = data.challenge;
+                
+                document.getElementById('challengeResult').textContent = JSON.stringify(data, null, 2);
+                document.getElementById('challenge').value = data.challenge;
+            } catch (error) {
+                document.getElementById('challengeResult').textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        // Step 2: Sign Challenge
+        document.getElementById('signChallenge').addEventListener('click', async () => {
+            const challenge = document.getElementById('challenge').value;
+            
+            if (!window.nostr) {
+                document.getElementById('signedEvent').textContent = 'Error: No nostr provider found. Install nos2x or another nostr browser extension.';
+                return;
+            }
+            
+            try {
+                // Create event to sign
+                const event = {
+                    kind: 22242,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [],
+                    content: `MGit auth challenge: ${challenge}`
+                };
+                
+                // Sign with nos2x
+                const signedEvent = await window.nostr.signEvent(event);
+                currentSignedEvent = signedEvent;
+                
+                document.getElementById('signedEvent').textContent = JSON.stringify(signedEvent, null, 2);
+            } catch (error) {
+                document.getElementById('signedEvent').textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        // Step 3: Verify Signature
+        document.getElementById('verifySignature').addEventListener('click', async () => {
+            if (!currentSignedEvent) {
+                document.getElementById('tokenResult').textContent = 'Error: No signed event available. Complete Step 2 first.';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/mgit/auth/verify`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        signedEvent: currentSignedEvent,
+                        challenge: currentChallenge,
+                        repoId: currentRepoId
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('tokenResult').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.token) {
+                    document.getElementById('token').value = data.token;
+                }
+            } catch (error) {
+                document.getElementById('tokenResult').textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        // Step 4: Test Access
+        document.getElementById('testAccess').addEventListener('click', async () => {
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                document.getElementById('accessResult').textContent = 'Error: No token available. Complete Step 3 first.';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/mgit/repos/${currentRepoId}/info`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                document.getElementById('accessResult').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('accessResult').textContent = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

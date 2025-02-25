@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync, exec } = require('child_process');
 const jwt = require('jsonwebtoken');
+const { bech32 } = require('bech32');
 
 // nostr
 const { verifyEvent, validateEvent, getEventHash } = require('nostr-tools');
@@ -23,13 +24,38 @@ app.use(cors());
 const security = configureSecurity(app);
 
 // JWT secret key for authentication tokens
-const JWT_SECRET = process.env.JWT_SECRET || 'mgit-jwt-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+
+// Token expiration time in seconds (30 minutes)
+const TOKEN_EXPIRATION = 30 * 60;
+
+// Store pending challenges in memory (use a database in production)
+const pendingChallenges = new Map();
 
 // Path to repositories storage - secure path verified by security module
 const REPOS_PATH = security.ensureSecurePath();
 
-// Store pending challenges in memory (use a database in production)
-const pendingChallenges = new Map();
+// In-memory repository configuration - in production, use a database
+// This would store which nostr pubkeys are authorized for each repository
+let repoConfigurations = {
+  'hello-world': {
+    authorized_keys: [
+      { pubkey: 'npub19jlhl9twyjajarvrjeeh75a5ylzngv4tj8y9wgffsguylz9eh73qd85aws', access: 'admin' }, // admin, read-write, read-only
+      { pubkey: 'npub1gpqpv9rsdt04jhqgz3w3sh4xr8ns0zz8677j3uzhpw8w6qq3za8sdqhh2f', access: 'read-only' }
+    ]
+  },
+};
+
+// Load repository configurations from file if available
+try {
+  const configPath = path.join(__dirname, 'repo-config.json');
+  if (fs.existsSync(configPath)) {
+    repoConfigurations = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    console.log('Loaded repository configurations from file');
+  }
+} catch (error) {
+  console.error('Error loading repository configurations:', error);
+}
 
 // Auth middleware
 const authenticateJWT = (req, res, next) => {
@@ -48,6 +74,50 @@ const authenticateJWT = (req, res, next) => {
     });
   } else {
     res.status(401).json({ status: 'error', reason: 'No authentication token provided' });
+  }
+};
+
+// keeping this as is for now--
+const validateMGitToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ 
+      status: 'error', 
+      reason: 'Authentication required' 
+    });
+  }
+
+  const token = authHeader.split(' ')[1];
+  
+  try {
+    // Verify the token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Add the decoded token to the request object for route handlers to use
+    req.user = decoded;
+    
+    // Check if the token matches the requested repository
+    if (req.params.repoId && req.params.repoId !== decoded.repoId) {
+      return res.status(403).json({ 
+        status: 'error', 
+        reason: 'Token not valid for this repository' 
+      });
+    }
+    
+    next();
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        status: 'error', 
+        reason: 'Token expired' 
+      });
+    }
+    
+    return res.status(401).json({ 
+      status: 'error', 
+      reason: 'Invalid token' 
+    });
   }
 };
 
@@ -246,256 +316,462 @@ app.get('/api/nostr/nip05/verify', async (req, res) => {
   }
 });
 
+// NEW ENDPOINTS FOR MGIT REPOSITORY-SPECIFIC AUTH
+
+/* hex and bech32 helper functions */
+function hexToBech32(hexStr, hrp = 'npub') {
+  // Validate hex input
+  if (!/^[0-9a-fA-F]{64}$/.test(hexStr)) {
+    throw new Error('Invalid hex format for Nostr public key');
+  }
+  
+  const bytes = Buffer.from(hexStr, 'hex');
+  const words = bech32.toWords(bytes);
+  return bech32.encode(hrp, words);
+}
+
+function bech32ToHex(bech32Str) {
+  const decoded = bech32.decode(bech32Str);
+  const bytes = bech32.fromWords(decoded.words);
+  if (bytes.length !== 32) throw new Error('Invalid public key length');
+  return Buffer.from(bytes).toString('hex');
+}
+
+// 1. Repository-specific challenge generation
+app.post('/api/mgit/auth/challenge', (req, res) => {
+  const { repoId } = req.body;
+  
+  if (!repoId) {
+    return res.status(400).json({ 
+      status: 'error', 
+      reason: 'Repository ID is required' 
+    });
+  }
+
+  // Check if the repository exists in our configuration
+  if (!repoConfigurations[repoId]) {
+    return res.status(404).json({ 
+      status: 'error', 
+      reason: 'Repository not found' 
+    });
+  }
+  
+  const challenge = crypto.randomBytes(32).toString('hex');
+  
+  // Store the challenge with repository info
+  pendingChallenges.set(challenge, {
+    timestamp: Date.now(),
+    verified: false,
+    pubkey: null,
+    repoId,
+    type: 'mgit'
+  });
+
+  console.log(`Generated MGit challenge for repo ${repoId}:`, challenge);
+
+  res.json({
+    challenge,
+    repoId
+  });
+});
+
+// 2. Verify signature and check repository authorization
+app.post('/api/mgit/auth/verify', async (req, res) => {
+  const { signedEvent, challenge, repoId } = req.body;
+  
+  // Validate request parameters
+  if (!signedEvent || !challenge || !repoId) {
+    return res.status(400).json({ 
+      status: 'error', 
+      reason: 'Missing required parameters' 
+    });
+  }
+
+  // Check if the challenge exists
+  if (!pendingChallenges.has(challenge)) {
+    return res.status(400).json({ 
+      status: 'error', 
+      reason: 'Invalid or expired challenge' 
+    });
+  }
+
+  const challengeData = pendingChallenges.get(challenge);
+  
+  // Verify the challenge is for the requested repository
+  if (challengeData.repoId !== repoId) {
+    return res.status(400).json({ 
+      status: 'error', 
+      reason: 'Challenge does not match repository' 
+    });
+  }
+  
+  try {
+    // Validate the event format
+    if (!validateEvent(signedEvent)) {
+      return res.status(400).json({ 
+        status: 'error', 
+        reason: 'Invalid event format' 
+      });
+    }
+
+    // Verify the event signature
+    if (!verifyEvent(signedEvent)) {
+      return res.status(400).json({ 
+        status: 'error', 
+        reason: 'Invalid signature' 
+      });
+    }
+
+    // Check the event content (should contain the challenge)
+    if (!signedEvent.content.includes(challenge)) {
+      return res.status(400).json({ 
+        status: 'error', 
+        reason: 'Challenge mismatch in signed content' 
+      });
+    }
+
+    // Check if the pubkey is authorized for the repository
+    const pubkey = signedEvent.pubkey;
+    const repoConfig = repoConfigurations[repoId];
+    
+    if (!repoConfig) {
+      return res.status(404).json({ 
+        status: 'error', 
+        reason: 'Repository not found' 
+      });
+    }
+
+    // Find the authorization entry for this pubkey
+    const bech32pubkey = hexToBech32(pubkey);
+    console.log('the pubkey is: ', pubkey, 'bech32 version: ', bech32pubkey);
+    const authEntry = repoConfig.authorized_keys.find(entry => entry.pubkey === bech32pubkey);
+    
+    if (!authEntry) {
+      return res.status(403).json({ 
+        status: 'error', 
+        reason: 'Not authorized for this repository' 
+      });
+    }
+
+    // Update challenge status
+    pendingChallenges.set(challenge, {
+      ...challengeData,
+      verified: true,
+      pubkey
+    });
+
+    // Generate a temporary access token for repository operations
+    const token = jwt.sign({
+      pubkey,
+      repoId,
+      access: authEntry.access
+    }, JWT_SECRET, {
+      expiresIn: TOKEN_EXPIRATION
+    });
+
+    console.log(`MGit auth successful - pubkey ${pubkey} granted ${authEntry.access} access to repo ${repoId}`);
+    
+    res.json({ 
+      status: 'OK',
+      token,
+      access: authEntry.access,
+      expiresIn: TOKEN_EXPIRATION
+    });
+
+  } catch (error) {
+    console.error('MGit auth verification error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      reason: 'Verification failed: ' + error.message 
+    });
+  }
+});
+
+// Sample endpoint for repository info - protected by token validation
+app.get('/api/mgit/repos/:repoId/info', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { pubkey, access } = req.user;
+  
+  // The user is already authenticated and authorized via the middleware
+  // Could fetch actual repository information here
+  
+  res.json({
+    id: repoId,
+    name: `${repoId}`,
+    access: access,
+    authorized_pubkey: pubkey
+  });
+});
+
+app.get('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { pubkey, access } = req.user;
+  
+  // Get physical repository path
+  const repoPath = path.join(REPOS_PATH, repoId);
+  
+  // Check if repository exists
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ 
+      status: 'error', 
+      reason: 'Repository not found' 
+    });
+  }
+  
+  // In a real implementation, this would invoke git-upload-pack on the repository
+  // ...
+});
+
 /*
  * MGit Repository API Endpoints
  */
 
 // Get list of available repositories
-app.get('/api/repos', authenticateJWT, (req, res) => {
-  try {
-    const repos = [];
+// app.get('/api/repos', authenticateJWT, (req, res) => {
+//   try {
+//     const repos = [];
     
-    // Get directories in the repos path
-    const owners = fs.readdirSync(REPOS_PATH, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
+//     // Get directories in the repos path
+//     const owners = fs.readdirSync(REPOS_PATH, { withFileTypes: true })
+//       .filter(dirent => dirent.isDirectory())
+//       .map(dirent => dirent.name);
     
-    // For each owner, get their repositories
-    owners.forEach(owner => {
-      const ownerPath = path.join(REPOS_PATH, owner);
-      const ownerRepos = fs.readdirSync(ownerPath, { withFileTypes: true })
-        .filter(dirent => dirent.isDirectory())
-        .map(dirent => dirent.name);
+//     // For each owner, get their repositories
+//     owners.forEach(owner => {
+//       const ownerPath = path.join(REPOS_PATH, owner);
+//       const ownerRepos = fs.readdirSync(ownerPath, { withFileTypes: true })
+//         .filter(dirent => dirent.isDirectory())
+//         .map(dirent => dirent.name);
       
-      // For each repo, get basic metadata
-      ownerRepos.forEach(repoName => {
-        const repoPath = path.join(ownerPath, repoName);
+//       // For each repo, get basic metadata
+//       ownerRepos.forEach(repoName => {
+//         const repoPath = path.join(ownerPath, repoName);
         
-        // Skip if not an mgit repository
-        if (!fs.existsSync(path.join(repoPath, '.mgit'))) {
-          return;
-        }
+//         // Skip if not an mgit repository
+//         if (!fs.existsSync(path.join(repoPath, '.mgit'))) {
+//           return;
+//         }
         
-        try {
-          // Get basic repo info using mgit commands
-          const description = getRepoDescription(repoPath);
-          const defaultBranch = getDefaultBranch(repoPath);
-          const updatedAt = getLastCommitDate(repoPath);
+//         try {
+//           // Get basic repo info using mgit commands
+//           const description = getRepoDescription(repoPath);
+//           const defaultBranch = getDefaultBranch(repoPath);
+//           const updatedAt = getLastCommitDate(repoPath);
           
-          repos.push({
-            id: `${owner}/${repoName}`,
-            name: repoName,
-            owner: owner,
-            description: description,
-            updated_at: updatedAt,
-            default_branch: defaultBranch,
-            // These could be computed from actual data in a real implementation
-            stars: Math.floor(Math.random() * 50),
-            forks: Math.floor(Math.random() * 20),
-            license: getLicense(repoPath)
-          });
-        } catch (err) {
-          console.error(`Error processing repo ${owner}/${repoName}:`, err);
-        }
-      });
-    });
+//           repos.push({
+//             id: `${owner}/${repoName}`,
+//             name: repoName,
+//             owner: owner,
+//             description: description,
+//             updated_at: updatedAt,
+//             default_branch: defaultBranch,
+//             // These could be computed from actual data in a real implementation
+//             stars: Math.floor(Math.random() * 50),
+//             forks: Math.floor(Math.random() * 20),
+//             license: getLicense(repoPath)
+//           });
+//         } catch (err) {
+//           console.error(`Error processing repo ${owner}/${repoName}:`, err);
+//         }
+//       });
+//     });
     
-    res.json(repos);
-  } catch (err) {
-    console.error('Error listing repositories:', err);
-    res.status(500).json({ error: 'Failed to list repositories' });
-  }
-});
+//     res.json(repos);
+//   } catch (err) {
+//     console.error('Error listing repositories:', err);
+//     res.status(500).json({ error: 'Failed to list repositories' });
+//   }
+// });
 
-// Get repository metadata
-app.get('/api/repos/:owner/:repo', authenticateJWT, (req, res) => {
-  const { owner, repo } = req.params;
-  const repoPath = path.join(REPOS_PATH, owner, repo);
+// // Get repository metadata
+// app.get('/api/repos/:owner/:repo', authenticateJWT, (req, res) => {
+//   const { owner, repo } = req.params;
+//   const repoPath = path.join(REPOS_PATH, owner, repo);
   
-  try {
-    if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
-      return res.status(404).json({ error: 'Repository not found' });
-    }
+//   try {
+//     if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
+//       return res.status(404).json({ error: 'Repository not found' });
+//     }
     
-    const defaultBranch = getDefaultBranch(repoPath);
-    const description = getRepoDescription(repoPath);
-    const updatedAt = getLastCommitDate(repoPath);
-    const createdAt = getRepoCreationDate(repoPath);
+//     const defaultBranch = getDefaultBranch(repoPath);
+//     const description = getRepoDescription(repoPath);
+//     const updatedAt = getLastCommitDate(repoPath);
+//     const createdAt = getRepoCreationDate(repoPath);
     
-    res.json({
-      id: `${owner}/${repo}`,
-      name: repo,
-      owner: owner,
-      full_name: `${owner}/${repo}`,
-      description: description,
-      default_branch: defaultBranch,
-      created_at: createdAt,
-      updated_at: updatedAt,
-      stars: Math.floor(Math.random() * 50),
-      forks: Math.floor(Math.random() * 20),
-      watchers: Math.floor(Math.random() * 30),
-      open_issues: Math.floor(Math.random() * 10),
-      license: getLicense(repoPath)
-    });
-  } catch (err) {
-    console.error(`Error getting repository ${owner}/${repo}:`, err);
-    res.status(500).json({ error: 'Failed to get repository metadata' });
-  }
-});
+//     res.json({
+//       id: `${owner}/${repo}`,
+//       name: repo,
+//       owner: owner,
+//       full_name: `${owner}/${repo}`,
+//       description: description,
+//       default_branch: defaultBranch,
+//       created_at: createdAt,
+//       updated_at: updatedAt,
+//       stars: Math.floor(Math.random() * 50),
+//       forks: Math.floor(Math.random() * 20),
+//       watchers: Math.floor(Math.random() * 30),
+//       open_issues: Math.floor(Math.random() * 10),
+//       license: getLicense(repoPath)
+//     });
+//   } catch (err) {
+//     console.error(`Error getting repository ${owner}/${repo}:`, err);
+//     res.status(500).json({ error: 'Failed to get repository metadata' });
+//   }
+// });
 
-// Get repository branches
-app.get('/api/repos/:owner/:repo/branches', authenticateJWT, (req, res) => {
-  const { owner, repo } = req.params;
-  const repoPath = path.join(REPOS_PATH, owner, repo);
+// // Get repository branches
+// app.get('/api/repos/:owner/:repo/branches', authenticateJWT, (req, res) => {
+//   const { owner, repo } = req.params;
+//   const repoPath = path.join(REPOS_PATH, owner, repo);
   
-  try {
-    if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
-      return res.status(404).json({ error: 'Repository not found' });
-    }
+//   try {
+//     if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
+//       return res.status(404).json({ error: 'Repository not found' });
+//     }
     
-    const defaultBranch = getDefaultBranch(repoPath);
-    const branches = getBranches(repoPath);
+//     const defaultBranch = getDefaultBranch(repoPath);
+//     const branches = getBranches(repoPath);
     
-    res.json(branches.map(branch => ({
-      name: branch,
-      isDefault: branch === defaultBranch
-    })));
-  } catch (err) {
-    console.error(`Error getting branches for ${owner}/${repo}:`, err);
-    res.status(500).json({ error: 'Failed to get repository branches' });
-  }
-});
+//     res.json(branches.map(branch => ({
+//       name: branch,
+//       isDefault: branch === defaultBranch
+//     })));
+//   } catch (err) {
+//     console.error(`Error getting branches for ${owner}/${repo}:`, err);
+//     res.status(500).json({ error: 'Failed to get repository branches' });
+//   }
+// });
 
-// Get repository contents
-app.get('/api/repos/:owner/:repo/contents', authenticateJWT, (req, res) => {
-  const { owner, repo } = req.params;
-  const { path: filePath = '', ref = '' } = req.query;
+// // Get repository contents
+// app.get('/api/repos/:owner/:repo/contents', authenticateJWT, (req, res) => {
+//   const { owner, repo } = req.params;
+//   const { path: filePath = '', ref = '' } = req.query;
   
-  // Validate path parameters to prevent path traversal attacks
-  if (!security.validatePath(owner) || !security.validatePath(repo) || !security.validatePath(filePath)) {
-    return res.status(400).json({ error: 'Invalid path parameters' });
-  }
+//   // Validate path parameters to prevent path traversal attacks
+//   if (!security.validatePath(owner) || !security.validatePath(repo) || !security.validatePath(filePath)) {
+//     return res.status(400).json({ error: 'Invalid path parameters' });
+//   }
   
-  const repoPath = path.join(REPOS_PATH, owner, repo);
+//   const repoPath = path.join(REPOS_PATH, owner, repo);
   
-  try {
-    if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
-      return res.status(404).json({ error: 'Repository not found' });
-    }
+//   try {
+//     if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
+//       return res.status(404).json({ error: 'Repository not found' });
+//     }
     
-    const branch = ref || getDefaultBranch(repoPath);
-    const contents = getRepoContents(repoPath, filePath, branch);
+//     const branch = ref || getDefaultBranch(repoPath);
+//     const contents = getRepoContents(repoPath, filePath, branch);
     
-    res.json(contents);
-  } catch (err) {
-    console.error(`Error getting contents for ${owner}/${repo}:`, err);
-    res.status(500).json({ error: 'Failed to get repository contents' });
-  }
-});
+//     res.json(contents);
+//   } catch (err) {
+//     console.error(`Error getting contents for ${owner}/${repo}:`, err);
+//     res.status(500).json({ error: 'Failed to get repository contents' });
+//   }
+// });
 
-// Get file content
-app.get('/api/repos/:owner/:repo/file', authenticateJWT, (req, res) => {
-  const { owner, repo } = req.params;
-  const { path: filePath, ref = '' } = req.query;
+// // Get file content
+// app.get('/api/repos/:owner/:repo/file', authenticateJWT, (req, res) => {
+//   const { owner, repo } = req.params;
+//   const { path: filePath, ref = '' } = req.query;
   
-  // Validate path parameters to prevent path traversal attacks
-  if (!security.validatePath(owner) || !security.validatePath(repo) || !security.validatePath(filePath)) {
-    return res.status(400).json({ error: 'Invalid path parameters' });
-  }
+//   // Validate path parameters to prevent path traversal attacks
+//   if (!security.validatePath(owner) || !security.validatePath(repo) || !security.validatePath(filePath)) {
+//     return res.status(400).json({ error: 'Invalid path parameters' });
+//   }
   
-  const repoPath = path.join(REPOS_PATH, owner, repo);
+//   const repoPath = path.join(REPOS_PATH, owner, repo);
   
-  try {
-    if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
-      return res.status(404).json({ error: 'Repository not found' });
-    }
+//   try {
+//     if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
+//       return res.status(404).json({ error: 'Repository not found' });
+//     }
     
-    if (!filePath) {
-      return res.status(400).json({ error: 'File path is required' });
-    }
+//     if (!filePath) {
+//       return res.status(400).json({ error: 'File path is required' });
+//     }
     
-    const branch = ref || getDefaultBranch(repoPath);
-    const fileContent = getFileContent(repoPath, filePath, branch);
+//     const branch = ref || getDefaultBranch(repoPath);
+//     const fileContent = getFileContent(repoPath, filePath, branch);
     
-    // Get file extension to determine content type
-    const ext = path.extname(filePath).toLowerCase();
-    const isBinary = isBinaryFile(ext);
+//     // Get file extension to determine content type
+//     const ext = path.extname(filePath).toLowerCase();
+//     const isBinary = isBinaryFile(ext);
     
-    if (isBinary) {
-      // For binary files, return a base64 encoded version
-      const base64Content = Buffer.from(fileContent).toString('base64');
-      res.json({
-        content: base64Content,
-        encoding: 'base64',
-        size: Buffer.byteLength(fileContent),
-        name: path.basename(filePath),
-        path: filePath,
-        sha: '', // Would normally compute this
-        isBinary: true,
-        type: 'file'
-      });
-    } else {
-      // For text files, return the content directly
-      res.json({
-        content: fileContent,
-        encoding: 'utf-8',
-        size: Buffer.byteLength(fileContent),
-        name: path.basename(filePath),
-        path: filePath,
-        sha: '', // Would normally compute this
-        isBinary: false,
-        type: 'file'
-      });
-    }
-  } catch (err) {
-    console.error(`Error getting file content for ${owner}/${repo}:`, err);
-    res.status(500).json({ error: 'Failed to get file content' });
-  }
-});
+//     if (isBinary) {
+//       // For binary files, return a base64 encoded version
+//       const base64Content = Buffer.from(fileContent).toString('base64');
+//       res.json({
+//         content: base64Content,
+//         encoding: 'base64',
+//         size: Buffer.byteLength(fileContent),
+//         name: path.basename(filePath),
+//         path: filePath,
+//         sha: '', // Would normally compute this
+//         isBinary: true,
+//         type: 'file'
+//       });
+//     } else {
+//       // For text files, return the content directly
+//       res.json({
+//         content: fileContent,
+//         encoding: 'utf-8',
+//         size: Buffer.byteLength(fileContent),
+//         name: path.basename(filePath),
+//         path: filePath,
+//         sha: '', // Would normally compute this
+//         isBinary: false,
+//         type: 'file'
+//       });
+//     }
+//   } catch (err) {
+//     console.error(`Error getting file content for ${owner}/${repo}:`, err);
+//     res.status(500).json({ error: 'Failed to get file content' });
+//   }
+// });
 
-// Get commit history
-app.get('/api/repos/:owner/:repo/commits', authenticateJWT, (req, res) => {
-  const { owner, repo } = req.params;
-  const { ref = '', path: filePath = '' } = req.query;
-  const repoPath = path.join(REPOS_PATH, owner, repo);
+// // Get commit history
+// app.get('/api/repos/:owner/:repo/commits', authenticateJWT, (req, res) => {
+//   const { owner, repo } = req.params;
+//   const { ref = '', path: filePath = '' } = req.query;
+//   const repoPath = path.join(REPOS_PATH, owner, repo);
   
-  try {
-    if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
-      return res.status(404).json({ error: 'Repository not found' });
-    }
+//   try {
+//     if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
+//       return res.status(404).json({ error: 'Repository not found' });
+//     }
     
-    const branch = ref || getDefaultBranch(repoPath);
-    const commits = getCommitHistory(repoPath, branch, filePath);
+//     const branch = ref || getDefaultBranch(repoPath);
+//     const commits = getCommitHistory(repoPath, branch, filePath);
     
-    res.json(commits);
-  } catch (err) {
-    console.error(`Error getting commit history for ${owner}/${repo}:`, err);
-    res.status(500).json({ error: 'Failed to get commit history' });
-  }
-});
+//     res.json(commits);
+//   } catch (err) {
+//     console.error(`Error getting commit history for ${owner}/${repo}:`, err);
+//     res.status(500).json({ error: 'Failed to get commit history' });
+//   }
+// });
 
-// Get specific commit detail
-app.get('/api/repos/:owner/:repo/commits/:sha', authenticateJWT, (req, res) => {
-  const { owner, repo, sha } = req.params;
-  const repoPath = path.join(REPOS_PATH, owner, repo);
+// // Get specific commit detail
+// app.get('/api/repos/:owner/:repo/commits/:sha', authenticateJWT, (req, res) => {
+//   const { owner, repo, sha } = req.params;
+//   const repoPath = path.join(REPOS_PATH, owner, repo);
   
-  try {
-    if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
-      return res.status(404).json({ error: 'Repository not found' });
-    }
+//   try {
+//     if (!fs.existsSync(repoPath) || !fs.existsSync(path.join(repoPath, '.mgit'))) {
+//       return res.status(404).json({ error: 'Repository not found' });
+//     }
     
-    const commit = getCommitDetail(repoPath, sha);
+//     const commit = getCommitDetail(repoPath, sha);
     
-    if (!commit) {
-      return res.status(404).json({ error: 'Commit not found' });
-    }
+//     if (!commit) {
+//       return res.status(404).json({ error: 'Commit not found' });
+//     }
     
-    res.json(commit);
-  } catch (err) {
-    console.error(`Error getting commit detail for ${owner}/${repo}:`, err);
-    res.status(500).json({ error: 'Failed to get commit detail' });
-  }
-});
+//     res.json(commit);
+//   } catch (err) {
+//     console.error(`Error getting commit detail for ${owner}/${repo}:`, err);
+//     res.status(500).json({ error: 'Failed to get commit detail' });
+//   }
+// });
 
 /*
  * Helper functions for MGit operations
