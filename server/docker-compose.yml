@@ -1,9 +1,9 @@
 version: "3.7"
 
 services:
-  mgit-repo:
+  mgit-repo-server:
     build: .
-    container_name: mgit-repo
+    container_name: mgit-repo-server
     restart: unless-stopped
     ports:
       - "3002:3002"
