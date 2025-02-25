@@ -8,7 +8,7 @@ RUN apk add --no-cache git
 WORKDIR /go/src/mgit
 # Create a placeholder script that will build mgit when the container starts
 RUN echo '#!/bin/sh' > /build-mgit.sh && \
-    echo 'cd /go/src/mgit && go build -o /usr/local/bin/mgit && chmod +x /usr/local/bin/mgit' >> /build-mgit.sh && \
+    echo 'cd /go/src/mgit && go build -buildvcs=false -o /usr/local/bin/mgit && chmod +x /usr/local/bin/mgit' >> /build-mgit.sh && \
     chmod +x /build-mgit.sh
 
 # Stage 2: Create the application container
