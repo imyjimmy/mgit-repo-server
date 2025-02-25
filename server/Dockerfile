@@ -4,32 +4,25 @@ FROM golang:1.20-alpine AS builder
 # Install required dependencies for building
 RUN apk add --no-cache git
 
-# We'll need to copy the mgit source code into the container
+# We'll add the source code later during run time
 WORKDIR /go/src/mgit
-# Since this is outside the immediate Docker context, we'll handle this in the docker-compose
-
-# Build the mgit binary once the source is mounted
-RUN if [ -d "/go/src/mgit" ]; then \
-        cd /go/src/mgit && \
-        go build -o /go/bin/mgit; \
-    else \
-        echo "Error: mgit source directory not found"; \
-        exit 1; \
-    fi
+# Create a placeholder script that will build mgit when the container starts
+RUN echo '#!/bin/sh' > /build-mgit.sh && \
+    echo 'cd /go/src/mgit && go build -o /usr/local/bin/mgit && chmod +x /usr/local/bin/mgit' >> /build-mgit.sh && \
+    chmod +x /build-mgit.sh
 
 # Stage 2: Create the application container
 FROM node:18-alpine
 
-RUN apk add --no-cache curl net-tools
+RUN apk add --no-cache curl net-tools go git
 
 WORKDIR /app
 
 # Create the private_repos directory
 RUN mkdir -p /private_repos
 
-# Copy the mgit binary from the builder stage
-COPY --from=builder /go/bin/mgit /usr/local/bin/
-RUN chmod +x /usr/local/bin/mgit
+# Copy the build script
+COPY --from=builder /build-mgit.sh /build-mgit.sh
 
 COPY package*.json ./
 RUN npm install
@@ -41,4 +34,5 @@ EXPOSE 3002
 # Set the REPOS_PATH environment variable to point to our created directory
 ENV REPOS_PATH=/private_repos
 ENV NODE_DEBUG=*
-CMD ["npm", "start"]
+# Run the build script then start the app
+CMD /build-mgit.sh && npm start

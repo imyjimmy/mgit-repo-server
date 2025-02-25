@@ -2,18 +2,14 @@ version: "3.7"
 
 services:
   mgit-repo-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - MGIT_SRC=../../mgit
+    build: .
     container_name: mgit-repo-server
     restart: unless-stopped
     ports:
       - "3002:3002"
     volumes:
       - ./private_repos:/private_repos
-      - ../../mgit:/go/src/mgit:ro  # Mount the mgit source code for building
+      - ../../mgit:/go/src/mgit:ro  # Mount the mgit source code
     networks:
       static_network:
 
