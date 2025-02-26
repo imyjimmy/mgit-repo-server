@@ -608,22 +608,153 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
   const { exec } = require('child_process');
   exec(`${mgitPath} show`, { cwd: repoPath }, (error, stdout, stderr) => {
     if (error) {
-      console.error(`Error executing mgit show: ${error.message}`);
+      console.error(`Error executing mgit clone: ${error.message}`);
       return res.status(500).json({ 
         status: 'error', 
-        reason: 'Failed to execute mgit show',
+        reason: 'Failed to execute mgit clone',
         details: error.message
       });
     }
     
     if (stderr) {
-      console.error(`mgit show stderr: ${stderr}`);
+      console.error(`mgit clone stderr: ${stderr}`);
     }
     
     // Return the output from mgit show
     res.setHeader('Content-Type', 'text/plain');
     res.send(stdout);
   });
+});
+
+// more clone endpoints
+// discovery phase
+app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const service = req.query.service;
+  
+  if (service !== 'git-upload-pack') {
+    return res.status(400).send('Service not supported');
+  }
+  
+  // Set appropriate headers
+  res.setHeader('Content-Type', `application/x-${service}-advertisement`);
+  
+  // Get repository path
+  const repoPath = path.join(REPOS_PATH, repoId);
+  
+  // Execute git update-server-info
+  const { spawn } = require('child_process');
+  const process = spawn('git', ['upload-pack', '--advertise-refs', repoPath]);
+  
+  // Send appropriate Git smart protocol header
+  res.write(`# service=${service}\n`);
+  res.write('0000');
+  
+  // Pipe output to response
+  process.stdout.pipe(res);
+});
+
+// Git protocol endpoint for git-upload-pack (needed for clone)
+// data transfer phase
+app.get('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { access } = req.user;
+  
+  // Check if the user has access to the repository
+  if (access !== 'admin' && access !== 'read-write' && access !== 'read-only') {
+    return res.status(403).json({ 
+      status: 'error', 
+      reason: 'Insufficient permissions to access repository' 
+    });
+  }
+  
+  // Get the repository path
+  const repoPath = path.join(REPOS_PATH, repoId);
+  
+  // Check if the repository exists
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ 
+      status: 'error', 
+      reason: 'Repository not found' 
+    });
+  }
+  
+  // Set appropriate headers for Git smart HTTP protocol
+  res.setHeader('Content-Type', 'application/x-git-upload-pack-result');
+  
+  // Find the mgit binary path
+  const mgitPath = process.env.MGIT_PATH || '/go/src/mgit/mgit';
+  
+  // Execute mgit upload-pack with the repository path
+  const { spawn } = require('child_process');
+  const uploadPack = spawn(mgitPath, ['upload-pack', '--stateless-rpc', repoPath]);
+  
+  // Log any errors
+  uploadPack.stderr.on('data', (data) => {
+    console.error(`mgit upload-pack stderr: ${data}`);
+  });
+  
+  // Pipe the request and response to/from the process
+  req.pipe(uploadPack.stdin);
+  uploadPack.stdout.pipe(res);
+  
+  // Handle process exit
+  uploadPack.on('exit', (code) => {
+    if (code !== 0) {
+      console.error(`mgit upload-pack exited with code ${code}`);
+      // The response has already been piped, so we can't send an error response here
+    }
+  });
+});
+
+// Endpoint to get MGit-specific metadata (e.g., nostr mappings)
+app.get('/api/mgit/repos/:repoId/metadata', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { access } = req.user;
+  
+  // Check if the user has access to the repository
+  if (access !== 'admin' && access !== 'read-write' && access !== 'read-only') {
+    return res.status(403).json({ 
+      status: 'error', 
+      reason: 'Insufficient permissions to access repository' 
+    });
+  }
+  
+  // Get the repository path
+  const repoPath = path.join(REPOS_PATH, repoId);
+  
+  // Check if the repository exists
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ 
+      status: 'error', 
+      reason: 'Repository not found' 
+    });
+  }
+  
+  // Check if the nostr mappings file exists
+  const nostrMappingsPath = path.join(repoPath, '.mgit', 'nostr_mappings.json');
+  if (!fs.existsSync(nostrMappingsPath)) {
+    return res.status(404).json({ 
+      status: 'error', 
+      reason: 'MGit metadata not found' 
+    });
+  }
+  
+  // Read the nostr mappings file
+  try {
+    const mappingsData = fs.readFileSync(nostrMappingsPath, 'utf8');
+    
+    // Set content type and send the mappings data
+    res.setHeader('Content-Type', 'application/json');
+    res.send(mappingsData);
+  } catch (err) {
+    console.error(`Error reading nostr mappings: ${err.message}`);
+    res.status(500).json({ 
+      status: 'error', 
+      reason: 'Failed to read MGit metadata',
+      details: err.message
+    });
+  }
 });
 
 // Get list of available repositories
