@@ -598,7 +598,7 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
   }
 
   // Find the mgit binary path
-  const mgitPath = process.env.MGIT_PATH || '/go/src/mgit/mgit';
+  const mgitPath = process.env.MGIT_PATH || '../../../mgit/mgit'; // workaround for now
   
   // For now, we'll use mgit show (as we discussed)
   // Later this will be replaced with the actual mgit clone implementation
