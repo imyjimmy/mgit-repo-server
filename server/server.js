@@ -574,6 +574,58 @@ app.get('/api/mgit/repos/:repoId/show', validateMGitToken, (req, res) => {
   });
 });
 
+app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { access } = req.user;
+  
+  // Check if the user has access to the repository
+  if (access !== 'admin' && access !== 'read-write' && access !== 'read-only') {
+    return res.status(403).json({ 
+      status: 'error', 
+      reason: 'Insufficient permissions to access repository' 
+    });
+  }
+  
+  // Get the repository path
+  const repoPath = path.join(REPOS_PATH, repoId);
+  
+  // Check if the repository exists
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ 
+      status: 'error', 
+      reason: 'Repository not found' 
+    });
+  }
+
+  // Find the mgit binary path
+  const mgitPath = process.env.MGIT_PATH || '/go/src/mgit/mgit';
+  
+  // For now, we'll use mgit show (as we discussed)
+  // Later this will be replaced with the actual mgit clone implementation
+  console.log(`Executing mgit show for repository ${repoId}`);
+  
+  // Execute mgit show command
+  const { exec } = require('child_process');
+  exec(`${mgitPath} show`, { cwd: repoPath }, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error executing mgit show: ${error.message}`);
+      return res.status(500).json({ 
+        status: 'error', 
+        reason: 'Failed to execute mgit show',
+        details: error.message
+      });
+    }
+    
+    if (stderr) {
+      console.error(`mgit show stderr: ${stderr}`);
+    }
+    
+    // Return the output from mgit show
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(stdout);
+  });
+});
+
 // Get list of available repositories
 // app.get('/api/repos', authenticateJWT, (req, res) => {
 //   try {
