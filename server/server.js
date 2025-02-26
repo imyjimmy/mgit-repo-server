@@ -627,7 +627,7 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
 });
 
 // more clone endpoints
-// discovery phase
+// discovery phase of git's https smart discovery protocol
 app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
   const { repoId } = req.params;
   const service = req.query.service;
@@ -638,72 +638,79 @@ app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
   
   // Set appropriate headers
   res.setHeader('Content-Type', `application/x-${service}-advertisement`);
+  res.setHeader('Cache-Control', 'no-cache');
   
   // Get repository path
   const repoPath = path.join(REPOS_PATH, repoId);
   
-  // Execute git update-server-info
-  const { spawn } = require('child_process');
-  const process = spawn('git', ['upload-pack', '--advertise-refs', repoPath]);
+  // Format the packet properly
+  // The format is: [4 hex digits of length][content]
+  // Length includes the 4 hex digits themselves
+  const serviceHeader = `# service=${service}\n`;
+  const length = (serviceHeader.length + 4).toString(16).padStart(4, '0');
   
-  // Send appropriate Git smart protocol header
-  res.write(`# service=${service}\n`);
+  // Write the packet
+  res.write(length + serviceHeader);
+  // Write the flush packet (0000)
   res.write('0000');
   
-  // Pipe output to response
+  // Now run git upload-pack to advertise refs
+  const { spawn } = require('child_process');
+  const process = spawn('git', ['upload-pack', '--stateless-rpc', '--advertise-refs', repoPath]);
+  
+  // Pipe stdout to response
   process.stdout.pipe(res);
+  
+  // Log any errors
+  process.stderr.on('data', (data) => {
+    console.error(`git stderr: ${data}`);
+  });
+  
+  process.on('error', (err) => {
+    console.error('Error spawning git process:', err);
+  });
 });
 
 // Git protocol endpoint for git-upload-pack (needed for clone)
 // data transfer phase
-app.get('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res) => {
+app.post('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res) => {
   const { repoId } = req.params;
-  const { access } = req.user;
   
-  // Check if the user has access to the repository
-  if (access !== 'admin' && access !== 'read-write' && access !== 'read-only') {
-    return res.status(403).json({ 
-      status: 'error', 
-      reason: 'Insufficient permissions to access repository' 
-    });
-  }
-  
-  // Get the repository path
+  // Get repository path
   const repoPath = path.join(REPOS_PATH, repoId);
   
-  // Check if the repository exists
-  if (!fs.existsSync(repoPath)) {
-    return res.status(404).json({ 
-      status: 'error', 
-      reason: 'Repository not found' 
-    });
-  }
-  
-  // Set appropriate headers for Git smart HTTP protocol
+  // Set content type for git response
   res.setHeader('Content-Type', 'application/x-git-upload-pack-result');
   
-  // Find the mgit binary path
-  const mgitPath = process.env.MGIT_PATH || '/go/src/mgit/mgit';
-  
-  // Execute mgit upload-pack with the repository path
+  // Spawn git upload-pack process
   const { spawn } = require('child_process');
-  const uploadPack = spawn(mgitPath, ['upload-pack', '--stateless-rpc', repoPath]);
+  const process = spawn('git', ['upload-pack', '--stateless-rpc', repoPath]);
   
-  // Log any errors
-  uploadPack.stderr.on('data', (data) => {
-    console.error(`mgit upload-pack stderr: ${data}`);
+  // Add better logging
+  console.log(`POST git-upload-pack for ${repoId}`);
+  
+  // Pipe the request body to git's stdin
+  req.pipe(process.stdin);
+  
+  // Pipe git's stdout to the response
+  process.stdout.pipe(res);
+  
+  // Log stderr
+  process.stderr.on('data', (data) => {
+    console.error(`git-upload-pack stderr: ${data.toString()}`);
   });
   
-  // Pipe the request and response to/from the process
-  req.pipe(uploadPack.stdin);
-  uploadPack.stdout.pipe(res);
+  // Handle errors
+  process.on('error', (err) => {
+    console.error(`git-upload-pack process error: ${err.message}`);
+    if (!res.headersSent) {
+      res.status(500).send('Git error');
+    }
+  });
   
   // Handle process exit
-  uploadPack.on('exit', (code) => {
-    if (code !== 0) {
-      console.error(`mgit upload-pack exited with code ${code}`);
-      // The response has already been piped, so we can't send an error response here
-    }
+  process.on('exit', (code) => {
+    console.log(`git-upload-pack process exited with code ${code}`);
   });
 });
 
