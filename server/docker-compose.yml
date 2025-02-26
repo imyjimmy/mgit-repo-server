@@ -6,7 +6,7 @@ services:
     container_name: mgit-repo-server
     restart: unless-stopped
     ports:
-      - "3002:3002"
+      - "3003:3003"
     volumes:
       - ./private_repos:/private_repos
       - ../../mgit:/go/src/mgit:ro  # Mount the mgit source code

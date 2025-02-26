@@ -64,7 +64,7 @@ docker-compose build
 docker-compose up -d
 ```
 
-The server will be available at http://localhost:3002
+The server will be available at http://localhost:3003
 
 ### Stopping the Container
 
@@ -195,6 +195,6 @@ docker exec -it mgit-repo-server sh
 
 ## Development Notes
 
-- The server is configured to run on port 3002 by default
+- The server is configured to run on port 3003 by default
 - JWT tokens expire after 30 minutes (configurable in server.js)
 - The Docker container builds MGit from source code

@@ -29,7 +29,7 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 3002
+EXPOSE 3003
 
 # Set the REPOS_PATH environment variable to point to our created directory
 ENV REPOS_PATH=/private_repos
