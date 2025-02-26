@@ -551,7 +551,8 @@ app.get('/api/mgit/repos/:repoId/show', validateMGitToken, (req, res) => {
     });
   }
   
-  const mgitPath = process.env.MGIT_PATH || '../../../mgit/mgit'; // workaround for now
+  console.log('MGITPATH set by system: ', process.env.MGITPATH)
+  const mgitPath = `${process.env.MGITPATH}/mgit` || '../mgit/mgit';
 
   // Execute mgit show command
   const { exec } = require('child_process');
@@ -599,8 +600,8 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
     });
   }
 
-  // Find the mgit binary path
-  const mgitPath = process.env.MGIT_PATH || '../../../mgit/mgit'; // workaround for now
+  console.log('MGITPATH set by system: ', process.env.MGITPATH)
+  const mgitPath = `${process.env.MGITPATH}/mgit` || '../mgit/mgit';
   
   // For now, we'll use mgit show (as we discussed)
   // Later this will be replaced with the actual mgit clone implementation
