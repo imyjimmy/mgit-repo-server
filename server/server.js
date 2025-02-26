@@ -526,6 +526,54 @@ app.get('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res)
  * MGit Repository API Endpoints
  */
 
+app.get('/api/mgit/repos/:repoId/show', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { access } = req.user;
+  
+  // Check access rights
+  if (access !== 'admin' && access !== 'read-write' && access !== 'read-only') {
+    return res.status(403).json({ 
+      status: 'error', 
+      reason: 'Insufficient permissions to view repository' 
+    });
+  }
+  
+  // Get the physical repository path
+  const repoPath = path.join(REPOS_PATH, repoId);
+  
+  // Check if repository exists
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ 
+      status: 'error', 
+      reason: 'Repository not found' 
+    });
+  }
+  
+  const mgitPath = process.env.MGIT_PATH || '../../../mgit/mgit'; // workaround for now
+
+  // Execute mgit show command
+  const { exec } = require('child_process');
+  // the current working directory of exec is private_repos/hello-world
+  exec(`${mgitPath} show`, { cwd: repoPath }, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error executing mgit show: ${error.message}`);
+      return res.status(500).json({ 
+        status: 'error', 
+        reason: 'Failed to execute mgit show',
+        details: error.message
+      });
+    }
+    
+    if (stderr) {
+      console.error(`mgit show stderr: ${stderr}`);
+    }
+    
+    // Return the output from mgit show
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(stdout);
+  });
+});
+
 // Get list of available repositories
 // app.get('/api/repos', authenticateJWT, (req, res) => {
 //   try {
@@ -1119,7 +1167,7 @@ app.get('*', (req, res, next) => {
 });
 
 // Start the server
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Access the application at http://localhost:${PORT}`);

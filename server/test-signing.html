@@ -39,6 +39,13 @@
         <pre id="accessResult">Result will appear here...</pre>
     </div>
 
+    <!-- New Step 5 for Clone functionality -->
+    <div id="cloneSection" class="hidden">
+        <h2>Step 5: Clone Repository</h2>
+        <button id="cloneRepo">Clone Repository</button>
+        <pre id="cloneResult">Clone result will appear here...</pre>
+    </div>
+
     <script>
         const baseUrl = 'http://localhost:3001';
         let currentChallenge = '';
@@ -145,6 +152,30 @@
                 document.getElementById('accessResult').textContent = JSON.stringify(data, null, 2);
             } catch (error) {
                 document.getElementById('accessResult').textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // Step 5: Clone Repository (currently using mgit show)
+        document.getElementById('cloneRepo').addEventListener('click', async () => {
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                document.getElementById('cloneResult').textContent = 'Error: No token available. Complete Step 3 first.';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/mgit/repos/${currentRepoId}/show`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.text();
+                document.getElementById('cloneResult').textContent = data;
+            } catch (error) {
+                document.getElementById('cloneResult').textContent = `Error: ${error.message}`;
             }
         });
     </script>
