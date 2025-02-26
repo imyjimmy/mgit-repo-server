@@ -3,10 +3,46 @@
 <head>
     <title>MGit Nostr Signing Test</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        pre { background: #f4f4f4; padding: 10px; overflow: auto; }
-        button { padding: 8px 16px; margin: 5px 0; }
-        input, textarea { width: 100%; padding: 8px; margin: 5px 0; }
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #121212; 
+            color: #e0e0e0; 
+        }
+        pre { 
+            background: #2a2a2a; 
+            padding: 10px; 
+            overflow: auto; 
+            color: #e0e0e0; 
+            border: 1px solid #444; 
+        }
+        button { 
+            padding: 8px 16px; 
+            margin: 5px 0; 
+            background-color: #333; 
+            color: #fff; 
+            border: 1px solid #666; 
+            cursor: pointer; 
+        }
+        button:hover {
+            background-color: #444;
+        }
+        input, textarea { 
+            width: 100%; 
+            padding: 8px; 
+            margin: 5px 0; 
+            background-color: #2a2a2a; 
+            color: #e0e0e0; 
+            border: 1px solid #666; 
+        }
+        h1, h2 {
+            color: #ffffff;
+        }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -40,7 +76,7 @@
     </div>
 
     <!-- New Step 5 for Clone functionality -->
-    <div id="cloneSection" class="hidden">
+    <div id="cloneSection">
         <h2>Step 5: Clone Repository</h2>
         <button id="cloneRepo">Clone Repository</button>
         <pre id="cloneResult">Clone result will appear here...</pre>
@@ -155,35 +191,9 @@
             }
         });
 
-        // git show example:
-        /*
+        // Step 5: Clone Repository
         document.getElementById('cloneRepo').addEventListener('click', async () => {
             const token = document.getElementById('token').value;
-            
-            if (!token) {
-                document.getElementById('cloneResult').textContent = 'Error: No token available. Complete Step 3 first.';
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${baseUrl}/api/mgit/repos/${currentRepoId}/show`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                const data = await response.text();
-                document.getElementById('cloneResult').textContent = data;
-            } catch (error) {
-                document.getElementById('cloneResult').textContent = `Error: ${error.message}`;
-            }
-        });
-        */
-       
-       // Step 5: Clone Repository
-       document.getElementById('cloneRepo').addEventListener('click', async () => {
-            const token = currentToken || document.getElementById('token').value;
             
             if (!token) {
                 document.getElementById('cloneResult').textContent = 'Error: No token available. Complete Step 3 first.';
