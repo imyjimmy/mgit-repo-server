@@ -76,7 +76,7 @@
     <div class="container">
         <header>
             <h1>MGit: (Medical) Git</h1>
-            <p>A Git wrapper powered by Nostr for secure, verifiable medical data exchange</p>
+            <p>A Git wrapper for secure, decentralized medical data exchange</p>
         </header>
 
         <section>
@@ -86,6 +86,22 @@
                 <a href="https://nostr.com/" target="_blank">Nostr</a> public key integration. MGit is designed 
                 specifically for secure, decentralized medical record management and transmission, giving patients 
                 and healthcare providers a verifiable way to store, share, and track medical data.
+            </p>
+        </section>
+
+        <section>
+            <h2>What is MGit Server?</h2>
+            <p>
+                MGit Server is a self-hosted service that stores a user's Medical Data. It authenticates users 
+                via Nostr and serves the MGit Repo back to the authenticated client.   
+            </p>
+        </section>
+        <section>
+            <h2>How does it all work together?</h2>
+            <p>
+                The MGit repo is--you guessed--a git repo, but its contents are a user's medical data. Together with 
+                a client App that understands how to render such data, the user essentially has a digital Medical Binder 
+                on their smartphone.
             </p>
         </section>
 
