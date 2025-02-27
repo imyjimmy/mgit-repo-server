@@ -9,7 +9,7 @@ services:
       - "3003:3003"
     volumes:
       - ./private_repos:/private_repos
-      - ../../mgit:/go/src/mgit:ro  # Mount the mgit source code
+      - ../mgit:/go/src/mgit:ro  # Mount the mgit source code
     networks:
       static_network:
 
