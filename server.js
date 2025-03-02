@@ -28,8 +28,8 @@ const security = configureSecurity(app);
 // JWT secret key for authentication tokens
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 
-// Token expiration time in seconds (30 minutes)
-const TOKEN_EXPIRATION = 30 * 60;
+// Token expiration time in seconds (2 hrs)
+const TOKEN_EXPIRATION = 120 * 60;
 
 // Store pending challenges in memory (use a database in production)
 const pendingChallenges = new Map();
@@ -505,24 +505,24 @@ app.get('/api/mgit/repos/:repoId/info', validateMGitToken, (req, res) => {
   });
 });
 
-app.get('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res) => {
-  const { repoId } = req.params;
-  const { pubkey, access } = req.user;
+// app.get('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res) => {
+//   const { repoId } = req.params;
+//   const { pubkey, access } = req.user;
   
-  // Get physical repository path
-  const repoPath = path.join(REPOS_PATH, repoId);
+//   // Get physical repository path
+//   const repoPath = path.join(REPOS_PATH, repoId);
   
-  // Check if repository exists
-  if (!fs.existsSync(repoPath)) {
-    return res.status(404).json({ 
-      status: 'error', 
-      reason: 'Repository not found' 
-    });
-  }
+//   // Check if repository exists
+//   if (!fs.existsSync(repoPath)) {
+//     return res.status(404).json({ 
+//       status: 'error', 
+//       reason: 'Repository not found' 
+//     });
+//   }
   
-  // In a real implementation, this would invoke git-upload-pack on the repository
-  // ...
-});
+//   // In a real implementation, this would invoke git-upload-pack on the repository
+//   // ...
+// });
 
 /*
  * MGit Repository API Endpoints
@@ -554,7 +554,7 @@ app.get('/api/mgit/repos/:repoId/show', validateMGitToken, (req, res) => {
   console.log('MGITPATH set by system: ', process.env.MGITPATH)
   const mgitPath = `${process.env.MGITPATH}/mgit` || '../mgit/mgit';
 
-  // Execute mgit show command
+  // Execute mgit status command for now
   const { exec } = require('child_process');
   // the current working directory of exec is private_repos/hello-world
   exec(`${mgitPath} show`, { cwd: repoPath }, (error, stdout, stderr) => {
@@ -603,13 +603,13 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
   console.log('MGITPATH set by system: ', process.env.MGITPATH)
   const mgitPath = `${process.env.MGITPATH}/mgit` || '../mgit/mgit';
   
-  // For now, we'll use mgit show (as we discussed)
+  // For now, we'll use mgit status (for now)
   // Later this will be replaced with the actual mgit clone implementation
-  console.log(`Executing mgit show for repository ${repoId}`);
+  console.log(`Executing mgit status for repository ${repoId}`);
   
   // Execute mgit show command
   const { exec } = require('child_process');
-  exec(`${mgitPath} show`, { cwd: repoPath }, (error, stdout, stderr) => {
+  exec(`${mgitPath} status`, { cwd: repoPath }, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error executing mgit clone: ${error.message}`);
       return res.status(500).json({ 
@@ -629,14 +629,31 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
   });
 });
 
-// more clone endpoints
+/* 
+  Functions needed to re-implement git's protocol for sending and receiving data
+*/
 // discovery phase of git's https smart discovery protocol
 app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
   const { repoId } = req.params;
   const service = req.query.service;
   
-  if (service !== 'git-upload-pack') {
-    return res.status(400).send('Service not supported');
+  // Support both upload-pack (clone) and receive-pack (push)
+  if (service !== 'git-upload-pack' && service !== 'git-receive-pack') {
+    return res.status(400).json({
+      status: 'error',
+      reason: 'Service not supported'
+    });
+  }
+  
+  // For push operations (git-receive-pack), check write permissions
+  if (service === 'git-receive-pack') {
+    const { access } = req.user;
+    if (access !== 'admin' && access !== 'read-write') {
+      return res.status(403).json({ 
+        status: 'error', 
+        reason: 'Insufficient permissions to push to repository' 
+      });
+    }
   }
   
   // Set appropriate headers
@@ -647,8 +664,6 @@ app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
   const repoPath = path.join(REPOS_PATH, repoId);
   
   // Format the packet properly
-  // The format is: [4 hex digits of length][content]
-  // Length includes the 4 hex digits themselves
   const serviceHeader = `# service=${service}\n`;
   const length = (serviceHeader.length + 4).toString(16).padStart(4, '0');
   
@@ -657,20 +672,33 @@ app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
   // Write the flush packet (0000)
   res.write('0000');
   
-  // Now run git upload-pack to advertise refs
+  // Extract the command name from the service
+  const gitCommand = service.replace('git-', ''); // 'upload-pack' or 'receive-pack'
+  
+  // Log what we're doing
+  console.log(`Advertising refs for ${repoId} using ${service}`);
+  
+  // Run git command to advertise refs
   const { spawn } = require('child_process');
-  const process = spawn('git', ['upload-pack', '--stateless-rpc', '--advertise-refs', repoPath]);
+  const process = spawn('git', [gitCommand, '--stateless-rpc', '--advertise-refs', repoPath]);
   
   // Pipe stdout to response
   process.stdout.pipe(res);
   
   // Log any errors
   process.stderr.on('data', (data) => {
-    console.error(`git stderr: ${data}`);
+    console.error(`git ${gitCommand} stderr: ${data}`);
   });
   
   process.on('error', (err) => {
-    console.error('Error spawning git process:', err);
+    console.error(`Error spawning git process: ${err}`);
+    if (!res.headersSent) {
+      res.status(500).json({
+        status: 'error',
+        reason: 'Error advertising refs',
+        details: err.message
+      });
+    }
   });
 });
 
@@ -717,6 +745,80 @@ app.post('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res
   });
 });
 
+// Git protocol endpoint for git-receive-pack (needed for push)
+app.post('/api/mgit/repos/:repoId/git-receive-pack', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { access } = req.user;
+  
+  // Check write permissions
+  if (access !== 'admin' && access !== 'read-write') {
+    return res.status(403).json({ 
+      status: 'error', 
+      reason: 'Insufficient permissions to push to repository' 
+    });
+  }
+  
+  // Get repository path
+  const repoPath = path.join(REPOS_PATH, repoId);
+  
+  // Check if the repository exists
+  if (!fs.existsSync(repoPath)) {
+    return res.status(404).json({ 
+      status: 'error', 
+      reason: 'Repository not found' 
+    });
+  }
+  
+  // Set content type for git response
+  res.setHeader('Content-Type', 'application/x-git-receive-pack-result');
+  
+  // Spawn git receive-pack process
+  const { spawn } = require('child_process');
+  const process = spawn('git', ['receive-pack', '--stateless-rpc', repoPath]);
+  
+  // Add better logging
+  console.log(`POST git-receive-pack for ${repoId}`);
+  
+  // Pipe the request body to git's stdin
+  req.pipe(process.stdin);
+  
+  // Pipe git's stdout to the response
+  process.stdout.pipe(res);
+  
+  // Log stderr
+  process.stderr.on('data', (data) => {
+    console.error(`git-receive-pack stderr: ${data.toString()}`);
+  });
+  
+  // Handle errors
+  process.on('error', (err) => {
+    console.error(`git-receive-pack process error: ${err.message}`);
+    if (!res.headersSent) {
+      res.status(500).json({
+        status: 'error',
+        reason: 'Git error',
+        details: err.message
+      });
+    }
+  });
+  
+  // Handle process exit
+  process.on('exit', (code) => {
+    console.log(`git-receive-pack process exited with code ${code}`);
+    
+    // If we wanted to extend this to handle MGit metadata, we would do it here
+    // after the git process completes successfully
+    if (code === 0) {
+      console.log(`Successfully processed push for repository ${repoId}`);
+      
+      // In the future, you might want to add code here to:
+      // 1. Extract commit info from the pushed data
+      // 2. Update nostr_mappings.json
+      // 3. Perform any other MGit-specific operations
+    }
+  });
+});
+
 // Endpoint to get MGit-specific metadata (e.g., nostr mappings)
 app.get('/api/mgit/repos/:repoId/metadata', validateMGitToken, (req, res) => {
   const { repoId } = req.params;
@@ -741,22 +843,48 @@ app.get('/api/mgit/repos/:repoId/metadata', validateMGitToken, (req, res) => {
     });
   }
   
-  // Check if the nostr mappings file exists
-  const nostrMappingsPath = path.join(repoPath, '.mgit', 'nostr_mappings.json');
-  if (!fs.existsSync(nostrMappingsPath)) {
-    return res.status(404).json({ 
-      status: 'error', 
-      reason: 'MGit metadata not found' 
-    });
+  // Updated path to check both potential locations for mappings
+  const mappingsPaths = [
+    path.join(repoPath, '.mgit', 'mappings', 'hash_mappings.json'),  // New location
+    path.join(repoPath, '.mgit', 'nostr_mappings.json')               // Old location
+  ];
+  
+  let mappingsPath = null;
+  
+  // Find the first existing mappings file
+  for (const path of mappingsPaths) {
+    if (fs.existsSync(path)) {
+      mappingsPath = path;
+      break;
+    }
   }
   
-  // Read the nostr mappings file
+  // If no mappings file exists
+  if (!mappingsPath) {
+    // Create an empty mappings file in the new location
+    mappingsPath = mappingsPaths[0];
+    const mgitDir = path.dirname(mappingsPath);
+    
+    if (!fs.existsSync(path.dirname(mgitDir))) {
+      fs.mkdirSync(path.dirname(mgitDir), { recursive: true });
+    }
+    
+    if (!fs.existsSync(mgitDir)) {
+      fs.mkdirSync(mgitDir, { recursive: true });
+    }
+    
+    fs.writeFileSync(mappingsPath, '[]');
+    console.log(`Created empty mappings file at ${mappingsPath}`);
+  }
+  
+  // Read the mappings file
   try {
-    const mappingsData = fs.readFileSync(nostrMappingsPath, 'utf8');
+    const mappingsData = fs.readFileSync(mappingsPath, 'utf8');
     
     // Set content type and send the mappings data
     res.setHeader('Content-Type', 'application/json');
     res.send(mappingsData);
+    console.log(`Successfully served mappings from ${mappingsPath}`);
   } catch (err) {
     console.error(`Error reading nostr mappings: ${err.message}`);
     res.status(500).json({ 

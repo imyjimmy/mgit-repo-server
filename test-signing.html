@@ -70,7 +70,7 @@
     
     <div>
         <h2>Step 4: Test Access with Token</h2>
-        <p>Token: <input id="token" placeholder="Paste token here"></p>
+        <p>Token: <textarea id="token" placeholder="Paste token here" rows="4" style="width: 100%;"></textarea></p>
         <button id="testAccess">Test Repository Access</button>
         <pre id="accessResult">Result will appear here...</pre>
     </div>
@@ -82,6 +82,21 @@
         <pre id="cloneResult">Clone result will appear here...</pre>
     </div>
 
+    <!-- New Step 6 for Push functionality -->
+    <div id="pushSection">
+        <h2>Step 6: Push to Repository</h2>
+        <p>To test pushing to the repository, follow these steps:</p>
+        <ol>
+            <li>Clone the repository using the command from Step 5</li>
+            <li>Make changes to files in the cloned repository</li>
+            <li>Run <code>mgit add .</code> to stage your changes</li>
+            <li>Run <code>mgit commit -m "Your commit message"</code> to commit changes</li>
+            <li>Run <code>mgit push</code> to push to the server</li>
+        </ol>
+        <p>Ensure your token is in <code>~/.mgitconfig/tokens.json</code> before pushing.</p>
+        <button id="checkPushEndpoint">Check Push Endpoint</button>
+        <pre id="pushEndpointResult">Push endpoint check result will appear here...</pre>
+    </div>
     <script>
         const baseUrl = 'http://localhost:3003';
         let currentChallenge = '';
@@ -219,6 +234,45 @@
                 }
             } catch (error) {
                 document.getElementById('cloneResult').textContent = `Error: ${error.message}`;
+            }
+        });
+
+        document.getElementById('testPush').addEventListener('click', async () => {
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                document.getElementById('pushResult').textContent = 'Error: No token available. Complete Step 3 first.';
+                return;
+            }
+        
+            try {
+                // Test the info/refs endpoint with git-receive-pack service
+                const response = await fetch(`${baseUrl}/api/mgit/repos/${currentRepoId}/info/refs?service=git-receive-pack`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.text();
+                let resultText = 'Git receive-pack discovery endpoint test:\n';
+                
+                if (response.ok) {
+                    resultText += "✅ Success! The server is correctly configured for push operations.\n\n";
+                    resultText += "The endpoint returned the proper Git protocol response.\n";
+                    resultText += "You can now use the mgit push command from the command line.\n\n";
+                    resultText += "Example steps:\n";
+                    resultText += `1. Clone: mgit clone ${baseUrl}/${currentRepoId}\n`;
+                    resultText += "2. Make changes and commit\n";
+                    resultText += "3. Push: mgit push";
+                } else {
+                    resultText += "❌ Error: The server is not correctly configured for push operations.\n";
+                    resultText += data;
+                }
+                
+                document.getElementById('pushResult').textContent = resultText;
+            } catch (error) {
+                document.getElementById('pushResult').textContent = `Error testing push endpoint: ${error.message}`;
             }
         });
     </script>
