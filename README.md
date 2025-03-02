@@ -92,25 +92,54 @@ docker-compose build --no-cache
 docker-compose down && docker-compose up -d
 ```
 
-## Setting Up a Test Repository
+## Setting Up a Medical Repository
+1. `git clone` this repo *and* the `mgit` repo.
 
-1. Create a directory for the repository in the `private_repos` directory:
+Have it set up as follows:
+```
+├── mgit
+│   ├── clone.go
+│   ├── cmd_config.go
+│   ...
+│   └── upload_pack.go
+├── mgit-repo-server
+│   ├── Dockerfile
+│   ├── README.md
+│   ├── docker-compose.yml
+│   ...
+│   ├── public
+│   ├── security.js
+│   ├── server.js
+│   └── test-signing.html
+├── private_repos // empty, just mkdir private_repos
+```
+
+2. build mgit go binary
+
+```bash
+cd mgit
+go build
+```
+
+make sure you have MGITPATH set up and included in $PATH:
+```bash
+export MGITPATH=/path/to/mgit/binary
+export PATH=/usr/bin:...:$MGITPATH:$PATH
+```
+
+3. Initialize an MGit repository:
+```bash
+cd ../private_repos/
+mgit init
+```
+
+4. Add some test content:
    ```bash
-   mkdir -p ../private_repos/hello-world
+   vim medical-history.json
+   // add whatever content you like, save
    ```
 
-2. Initialize an MGit repository:
-   ```bash
-   cd ../private_repos/hello-world
-   ../../mgit/mgit init
-   ```
-
-3. Add some test content:
-   ```bash
-   echo "# Hello World" > README.md
-   ../../mgit/mgit add README.md
-   ../../mgit/mgit commit -m "Initial commit"
-   ```
+5. Play around, there's a 1 to 1 mapping between mgit and git commands
 
 ## API Routes
 
