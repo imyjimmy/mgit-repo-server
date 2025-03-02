@@ -603,13 +603,11 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
   console.log('MGITPATH set by system: ', process.env.MGITPATH)
   const mgitPath = `${process.env.MGITPATH}/mgit` || '../mgit/mgit';
   
-  // For now, we'll use mgit status (for now)
-  // Later this will be replaced with the actual mgit clone implementation
   console.log(`Executing mgit status for repository ${repoId}`);
   
   // Execute mgit show command
   const { exec } = require('child_process');
-  exec(`${mgitPath} status`, { cwd: repoPath }, (error, stdout, stderr) => {
+  exec(`${mgitPath} log --oneline --graph --decorate=short --all`, { cwd: repoPath }, (error, stdout, stderr) => {
     if (error) {
       console.error(`Error executing mgit clone: ${error.message}`);
       return res.status(500).json({ 
