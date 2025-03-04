@@ -237,7 +237,7 @@
             }
         });
 
-        document.getElementById('testPush').addEventListener('click', async () => {
+        document.getElementById('checkPushEndpoint').addEventListener('click', async () => {
             const token = document.getElementById('token').value;
             
             if (!token) {
@@ -257,6 +257,7 @@
                 const data = await response.text();
                 let resultText = 'Git receive-pack discovery endpoint test:\n';
                 
+                console.log('server response: ', response);
                 if (response.ok) {
                     resultText += "✅ Success! The server is correctly configured for push operations.\n\n";
                     resultText += "The endpoint returned the proper Git protocol response.\n";
