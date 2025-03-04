@@ -129,27 +129,80 @@
         document.getElementById('signChallenge').addEventListener('click', async () => {
             const challenge = document.getElementById('challenge').value;
             
-            if (!window.nostr) {
-                document.getElementById('signedEvent').textContent = 'Error: No nostr provider found. Install nos2x or another nostr browser extension.';
-                return;
-            }
-            
-            try {
-                // Create event to sign
-                const event = {
-                    kind: 22242,
-                    created_at: Math.floor(Date.now() / 1000),
-                    tags: [],
-                    content: `MGit auth challenge: ${challenge}`
-                };
-                
-                // Sign with nos2x
-                const signedEvent = await window.nostr.signEvent(event);
-                currentSignedEvent = signedEvent;
-                
-                document.getElementById('signedEvent').textContent = JSON.stringify(signedEvent, null, 2);
-            } catch (error) {
-                document.getElementById('signedEvent').textContent = `Error: ${error.message}`;
+            // Check if window.nostr exists and has signEvent method
+            if (window.nostr && typeof window.nostr.signEvent === 'function') {
+                try {
+                    // Original code using window.nostr
+                    const event = {
+                        kind: 22242,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [],
+                        content: `MGit auth challenge: ${challenge}`
+                    };
+                    
+                    const signedEvent = await window.nostr.signEvent(event);
+                    currentSignedEvent = signedEvent;
+                    
+                    document.getElementById('signedEvent').textContent = JSON.stringify(signedEvent, null, 2);
+                } catch (error) {
+                    document.getElementById('signedEvent').textContent = `Error signing with extension: ${error.message}`;
+                }
+            } else {
+                // Fallback method - manual entry form
+                document.getElementById('signedEvent').innerHTML = `
+                    <div style="background-color: #2a2a2a; padding: 15px; border: 1px solid #444; margin-top: 10px;">
+                        <p>No compatible nostr extension detected. This is likely because:</p>
+                        <ul>
+                            <li>You're accessing this site over HTTP instead of HTTPS</li>
+                            <li>The nos2x extension only allows HTTPS sites or localhost</li>
+                        </ul>
+                        
+                        <p>Options:</p>
+                        <ol>
+                            <li>Access this page through localhost (e.g., python -m http.server 8000)</li>
+                            <li>Enter a manually signed event JSON below:</li>
+                        </ol>
+                        
+                        <textarea id="manualEvent" rows="10" style="width: 100%; background-color: #333; color: #e0e0e0; border: 1px solid #555; padding: 8px; font-family: monospace;" placeholder='{
+                            "id": "...",
+                            "pubkey": "...",
+                            "created_at": 1677673293,
+                            "kind": 22242,
+                            "tags": [],
+                            "content": "MGit auth challenge: ${challenge}",
+                            "sig": "..."
+                            }'></textarea>
+                        <button id="useManualEvent" style="margin-top: 10px; padding: 8px 16px; background-color: #444; color: #fff; border: 1px solid #666; cursor: pointer;">Use Manual Event</button>
+                    </div>
+                `;
+        
+                // Add event listener for manual event submission
+                document.getElementById('useManualEvent').addEventListener('click', () => {
+                    try {
+                        const eventJson = document.getElementById('manualEvent').value;
+                        if (!eventJson.trim()) {
+                            throw new Error("Please enter a signed event JSON");
+                        }
+                        
+                        currentSignedEvent = JSON.parse(eventJson);
+                        
+                        // Validate the basic structure of the event
+                        if (!currentSignedEvent.id || !currentSignedEvent.pubkey || 
+                            !currentSignedEvent.sig || !currentSignedEvent.content) {
+                            throw new Error("Invalid event format. Must include id, pubkey, content, and sig.");
+                        }
+                        
+                        document.getElementById('signedEvent').innerHTML = `
+                            <pre>${JSON.stringify(currentSignedEvent, null, 2)}</pre>
+                            <div style="margin-top: 10px; color: #4CAF50;">✓ Event accepted (validation will occur on the server)</div>
+                        `;
+                    } catch (error) {
+                        document.getElementById('signedEvent').innerHTML = `
+                            <div style="color: #F44336; margin-top: 10px;">Error: ${error.message}</div>
+                            <div style="margin-top: 5px;">Please make sure you've entered valid JSON format.</div>
+                        `;
+                    }
+                });
             }
         });
         
