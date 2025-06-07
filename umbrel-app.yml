@@ -1,0 +1,26 @@
+manifestVersion: 1
+id: mgit-repo-server
+name: MGit Repository Server
+version: "1.0.0"
+category: developer-tools
+tagline: Self-custodial medical data Git repositories with Nostr authentication
+description: >-
+  MGit Repository Server provides secure, self-custodial Git repositories
+  for medical data management using Nostr public keys for authentication.
+  Built as a specialized Git implementation for managing medical records
+  in a distributed, self-sovereign manner with enhanced security features.
+developer: imyjimmy
+website: https://github.com/imyjimmy/mgit-repo-server
+submitter: Jimmy Fan Zhang
+submission: https://github.com/imyjimmy/mgit-repo-server
+repo: https://github.com/imyjimmy/mgit-repo-server
+support: https://github.com/imyjimmy/mgit-repo-server/issues
+port: 3003
+gallery:
+  - doctor-patient-1.png
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+releaseNotes: >-
+  Initial release of MGit Repository Server featuring Nostr-based authentication,
+  medical data repository management, and self-custodial Git operations.
