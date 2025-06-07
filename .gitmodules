@@ -1,0 +1,3 @@
+[submodule "mgit"]
+	path = mgit
+	url = https://github.com/imyjimmy/mgit.git
