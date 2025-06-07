@@ -1,18 +1,18 @@
 version: "3.7"
 
 services:
-  mgit-repo-server:
+  app_proxy:
+    environment:
+      APP_HOST: mgit-repo-server_web_1
+      APP_PORT: 3003
+      
+  web:
     build: .
-    container_name: mgit-repo-server
-    restart: unless-stopped
-    ports:
-      - "3003:3003"
+    restart: on-failure
+    stop_grace_period: 1m
+    environment:
+      REPOS_PATH: /private_repos
+      NODE_ENV: production
+      PORT: 3003
     volumes:
-      - ./private_repos:/private_repos
-      - ../mgit:/go/src/mgit:ro  # Mount the mgit source code
-    networks:
-      static_network:
-
-networks:
-  static_network:
-    driver: bridge
+      - ${APP_DATA_DIR}/repos:/private_repos

@@ -1,38 +1,38 @@
-# Stage 1: Build the mgit binary
-FROM golang:1.20-alpine AS builder
+FROM node:18-buster-slim
 
-# Install required dependencies for building
-RUN apk add --no-cache git
+# Install system dependencies + Go
+RUN apt-get update && \
+    apt-get install -y curl git ca-certificates wget && \
+    rm -rf /var/lib/apt/lists/*
 
-# We'll add the source code later during run time
-WORKDIR /go/src/mgit
-# Create a placeholder script that will build mgit when the container starts
-RUN echo '#!/bin/sh' > /build-mgit.sh && \
-    echo 'cd /go/src/mgit && go build -buildvcs=false -o /usr/local/bin/mgit && chmod +x /usr/local/bin/mgit' >> /build-mgit.sh && \
-    chmod +x /build-mgit.sh
+# Install Go
+RUN wget -O go.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go.tar.gz && \
+    rm go.tar.gz
+ENV PATH="/usr/local/go/bin:${PATH}"
 
-# Stage 2: Create the application container
-FROM node:18-alpine
-
-RUN apk add --no-cache curl net-tools go git
+# Create non-root user
+RUN groupadd -r mgit && useradd -r -g mgit -u 1000 mgit
 
 WORKDIR /app
 
-# Create the private_repos directory
-RUN mkdir -p /private_repos
+# Copy and build mgit
+COPY mgit/ /go/src/mgit/
+RUN cd /go/src/mgit && \
+    go build -buildvcs=false -o /usr/local/bin/mgit && \
+    chmod +x /usr/local/bin/mgit
 
-# Copy the build script
-COPY --from=builder /build-mgit.sh /build-mgit.sh
-
+# Install Node dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci --only=production
 
+# Copy app code
 COPY . .
+RUN mkdir -p /private_repos && \
+    chown -R mgit:mgit /app /private_repos
 
+USER mgit
 EXPOSE 3003
 
-# Set the REPOS_PATH environment variable to point to our created directory
 ENV REPOS_PATH=/private_repos
-ENV NODE_DEBUG=*
-# Run the build script then start the app
-CMD /build-mgit.sh && npm start
+CMD ["npm", "start"]
