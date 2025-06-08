@@ -13,7 +13,7 @@ const { bech32 } = require('bech32');
 console.log('=== MGit Server Starting - Build Version 2025-06-08-v2 ===');
 
 // Add this constant after existing constants
-const USERS_PATH = process.env.USERS_PATH || path.join(__dirname, '..', 'users');
+const USERS_PATH = process.env.USERS_PATH || path.join(__dirname, 'users');
 
 // nostr
 const { verifyEvent, validateEvent, getEventHash } = require('nostr-tools');
