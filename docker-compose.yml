@@ -3,16 +3,16 @@ version: "3.7"
 services:
   app_proxy:
     environment:
-      APP_HOST: mgit-repo-server_web_1
+      APP_HOST: mgitreposerver-mgit-repo-server_web_1
       APP_PORT: 3003
       
   web:
-    build: .
+    image: imyjimmy/mgit-repo-server:latest
     restart: on-failure
     stop_grace_period: 1m
     environment:
       REPOS_PATH: /private_repos
       NODE_ENV: production
-      PORT: 3003
+      # PORT: 3003
     volumes:
       - ${APP_DATA_DIR}/repos:/private_repos
