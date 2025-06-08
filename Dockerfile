@@ -11,9 +11,7 @@ RUN wget -O go.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz && \
     rm go.tar.gz
 ENV PATH="/usr/local/go/bin:${PATH}"
 
-# Create non-root user
-RUN groupadd -r mgit && useradd -r -g mgit -u 1000 mgit
-
+# Use existing node user (UID 1000) instead of creating new one
 WORKDIR /app
 
 # Copy and build mgit
@@ -29,9 +27,9 @@ RUN npm ci --only=production
 # Copy app code
 COPY . .
 RUN mkdir -p /private_repos && \
-    chown -R mgit:mgit /app /private_repos
+    chown -R node:node /app /private_repos
 
-USER mgit
+USER node
 EXPOSE 3003
 
 ENV REPOS_PATH=/private_repos
