@@ -160,7 +160,7 @@ app.get('/api/auth/:type/status', (req, res) => {
 
 async function ensureUsersDirectory() {
   try {
-    await fs.mkdir(USERS_PATH, { recursive: true });
+    await fs.promises.mkdir(USERS_PATH, { recursive: true });
   } catch (err) {
     console.error('Error creating users directory:', err);
   }
