@@ -1,11 +1,19 @@
 
-let token = localStorage.getItem('mgit_token');
-let userPubkey = localStorage.getItem('mgit_pubkey');
+// Wait for DOM to load
+document.addEventListener('DOMContentLoaded', function() {
+  // Add event listeners instead of inline onclick
+  document.getElementById('loginBtn').addEventListener('click', login);
+  document.getElementById('logoutBtn').addEventListener('click', logout);
+  
+  let token = localStorage.getItem('mgit_token');
+  let userPubkey = localStorage.getItem('mgit_pubkey');
 
-// Check if already logged in
-if (token && userPubkey) {
-    showDashboard();
-}
+  // Check if already logged in
+  if (token && userPubkey) {
+      showDashboard();
+  }
+  
+});
 
 async function login() {
     try {

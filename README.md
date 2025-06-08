@@ -62,17 +62,18 @@ git push origin main
 
 2. Build and push new Docker image (on Umbrel)
 
+*Compromise Path*
 Note: We are uploading a prebuilt image to Docker instead of letting Umbrel install the image from the custom community store due to an Umbrel bug on 0.5.4 that corrupts Dockerfile path
 
 ```bash
 # SSH into Umbrel
 cd /path/to/mgit-repo-server  # or git pull latest changes
-git submodule update --init --recursive
+git submodule update --init --recursive # for first time after the git clone
 docker build --no-cache -t imyjimmy/mgit-repo-server:latest .
 docker push imyjimmy/mgit-repo-server:latest
 ```
 
-3. Sync to Umbrel app store (on macOS)
+3. Happy Path: Sync to Umbrel app store (on macOS)
 ```bash
 cd ../umbrel-community-app-store
 ./sync-mgit-repo-server.sh
@@ -81,7 +82,7 @@ git commit -m "Update mgit app with login UI"
 git push
 ```
 
-4. Update containers (on Umbrel)
+4. Compromise Path: Update containers (on Umbrel)
 ```bash
 # Stop the mgit containers
 docker stop mgitreposerver-mgit-repo-server_web_1
