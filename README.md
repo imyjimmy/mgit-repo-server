@@ -49,6 +49,62 @@ let repoConfigurations = {
 };
 ```
 
+## Deployment Steps
+
+1. Update mgit-repo-server (on macOS)
+```bash
+cd mgit-repo-server
+# Replace public/index.html with your new content
+git add public/index.html
+git commit -m "Add Nostr login/register UI"
+git push origin main
+```
+
+2. Build and push new Docker image (on Umbrel)
+
+Note: We are uploading a prebuilt image to Docker instead of letting Umbrel install the image from the custom community store due to an Umbrel bug on 0.5.4 that corrupts Dockerfile path
+
+```bash
+# SSH into Umbrel
+cd /path/to/mgit-repo-server  # or git pull latest changes
+git submodule update --init --recursive
+docker build --no-cache -t imyjimmy/mgit-repo-server:latest .
+docker push imyjimmy/mgit-repo-server:latest
+```
+
+3. Sync to Umbrel app store (on macOS)
+```bash
+cd ../umbrel-community-app-store
+./sync-mgit-repo-server.sh
+git add mgitreposerver-mgit-repo-server/
+git commit -m "Update mgit app with login UI"
+git push
+```
+
+4. Update containers (on Umbrel)
+```bash
+# Stop the mgit containers
+docker stop mgitreposerver-mgit-repo-server_web_1
+docker stop mgitreposerver-mgit-repo-server_tor_server_1  
+docker stop mgitreposerver-mgit-repo-server_app_proxy_1
+
+# Pull the new image
+docker pull imyjimmy/mgit-repo-server:latest
+
+# Remove the old web container and recreate with new image
+docker rm mgitreposerver-mgit-repo-server_web_1
+
+# Start new container with updated image
+docker run -d --name mgitreposerver-mgit-repo-server_web_1 \
+  --network umbrel_main_network \
+  -v /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos:/private_repos \
+  imyjimmy/mgit-repo-server:latest
+
+# Start the other containers back up
+docker start mgitreposerver-mgit-repo-server_app_proxy_1
+docker start mgitreposerver-mgit-repo-server_tor_server_1
+```
+
 ## Docker Setup
 
 ### Building and Starting the Container
