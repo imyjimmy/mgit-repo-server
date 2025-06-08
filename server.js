@@ -981,6 +981,16 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Add CSP headers to allow Nostr extension functionality
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', 
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-eval'; " +
+    "connect-src 'self'"
+  );
+  next();
+});
+
 // Start the server
 const PORT = process.env.PORT || 3003;
 app.listen(PORT, async () => {
