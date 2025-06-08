@@ -30,6 +30,9 @@ app.use(cors());
 // Apply security configurations
 const security = configureSecurity(app);
 
+// Trust proxy for Cloudflare Tunnel
+app.set('trust proxy', true);
+
 // JWT secret key for authentication tokens
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 
