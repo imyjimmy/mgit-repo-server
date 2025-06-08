@@ -10,6 +10,9 @@ const { execSync, exec } = require('child_process');
 const jwt = require('jsonwebtoken');
 const { bech32 } = require('bech32');
 
+// Add this constant after existing constants
+const USERS_PATH = process.env.USERS_PATH || path.join(__dirname, '..', 'users');
+
 // nostr
 const { verifyEvent, validateEvent, getEventHash } = require('nostr-tools');
 
@@ -149,9 +152,78 @@ app.get('/api/auth/:type/status', (req, res) => {
   });
 });
 
+/**
+ * Users utility functions
+ */
+
+async function ensureUsersDirectory() {
+  try {
+    await fs.mkdir(USERS_PATH, { recursive: true });
+  } catch (err) {
+    console.error('Error creating users directory:', err);
+  }
+}
+
+async function saveUser(pubkey, profile) {
+  const userFile = path.join(USERS_PATH, `${pubkey}.json`);
+  const userData = {
+    pubkey,
+    profile,
+    createdAt: new Date().toISOString(),
+    repositories: []
+  };
+  await fs.writeFile(userFile, JSON.stringify(userData, null, 2));
+  return userData;
+}
+
+async function getUser(pubkey) {
+  try {
+    const userFile = path.join(USERS_PATH, `${pubkey}.json`);
+    const data = await fs.readFile(userFile, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    return null;
+  }
+}
+
 /* 
-* NOSTR Login additions
+* NOSTR Login Functionality
+*
+* Flow:
+* User authenticates via existing /api/auth/nostr/verify → gets JWT token
+* Call /api/auth/register with token → creates user profile
+* User is now registered and logged in
 */
+
+app.post('/api/auth/register', validateMGitToken, async (req, res) => {
+  try {
+    const { pubkey } = req.user;
+    const { profile = {} } = req.body;
+
+    const existingUser = await getUser(pubkey);
+    if (existingUser) {
+      return res.json({ 
+        status: 'success', 
+        message: 'User already registered',
+        user: existingUser 
+      });
+    }
+
+    const newUser = await saveUser(pubkey, profile);
+    res.json({ 
+      status: 'success', 
+      message: 'User registered successfully',
+      user: newUser 
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      status: 'error', 
+      reason: 'Registration failed',
+      details: err.message 
+    });
+  }
+});
+
 app.post('/api/auth/nostr/challenge', (req, res) => {
   const challenge = crypto.randomBytes(32).toString('hex');
   
@@ -911,7 +983,8 @@ app.get('*', (req, res, next) => {
 
 // Start the server
 const PORT = process.env.PORT || 3003;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+  await ensureUsersDirectory();
   console.log(`Server running on port ${PORT}`);
   console.log(`Access the application at http://localhost:${PORT}`);
 });

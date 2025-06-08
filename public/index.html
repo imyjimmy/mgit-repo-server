@@ -3,179 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MGit - Medical Records over Git</title>
+    <title>MGit Medical Records</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f5f7fa;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-        h2 {
-            font-size: 1.8rem;
-            margin-top: 30px;
-            color: #3498db;
-            border-bottom: 2px solid #ecf0f1;
-            padding-bottom: 10px;
-        }
-        p {
-            margin-bottom: 20px;
-            font-size: 1.1rem;
-        }
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }
-        .feature-card {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            transition: transform 0.3s ease;
-        }
-        .feature-card:hover {
-            transform: translateY(-5px);
-        }
-        .feature-card h3 {
-            color: #3498db;
-            margin-top: 0;
-        }
-        footer {
-            text-align: center;
-            margin-top: 60px;
-            color: #7f8c8d;
-            font-size: 0.9rem;
-        }
-        code {
-            background-color: #f0f0f0;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .hidden { display: none; }
+        button { padding: 10px 20px; margin: 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .error { color: red; margin: 10px 0; }
+        .success { color: green; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>MGit: (Medical) Git</h1>
-            <p>A Git wrapper for secure, decentralized medical data exchange</p>
-        </header>
-
-        <section>
-            <h2>What is MGit?</h2>
-            <p>
-                MGit is a specialized Git wrapper built on top of git that extends Git's capabilities with 
-                <a href="https://nostr.com/" target="_blank">Nostr</a> public key integration. MGit is designed 
-                specifically for secure, decentralized medical record management and transmission, giving patients 
-                and healthcare providers a verifiable way to store, share, and track medical data.
-            </p>
-        </section>
-
-        <section>
-            <h2>What is MGit Server?</h2>
-            <p>
-                MGit Server is a self-hosted service that stores a user's Medical Data. It authenticates users 
-                via Nostr and serves the MGit Repo back to the authenticated client. MGit Server = MGit + Nostr  
-            </p>
-        </section>
-        <section>
-            <h2>How does it all work together?</h2>
-            <p>
-                The MGit repo is--you guessed--a git repo, but its contents are a user's medical data. Together with 
-                a client App that understands how to render such data, the user essentially has a digital Medical Binder 
-                on their smartphone.
-            </p>
-        </section>
-
-        <section>
-            <h2>Why Decentralized Medical Records?</h2>
-            <p>
-                Traditional Electronic Medical Record (EMR) systems face significant challenges:
-            </p>
-            <div class="features">
-                <div class="feature-card">
-                    <h3>Data Silos</h3>
-                    <p>Medical records are fragmented across different providers and systems, making it difficult for patients to access their complete health history.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Lack of Interoperability</h3>
-                    <p>Different EMR systems often cannot communicate effectively, leading to repeated tests, treatment delays, and potential medical errors.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Security Concerns</h3>
-                    <p>Centralized databases create single points of failure and attractive targets for data breaches.</p>
-                </div>
-            </div>
-        </section>
-
-        <section>
-            <h2>How MGit Works</h2>
-            <p>
-                MGit leverages Git's distributed version control capabilities and enhances them with cryptographic verification 
-                through Nostr public keys:
-            </p>
-            <div class="features">
-                <div class="feature-card">
-                    <h3>Nostr Authorship</h3>
-                    <p>Each commit is linked to a patient's Nostr public key, establishing data ownership.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Version History</h3>
-                    <p>Complete audit trail of all changes to medical records, ensuring accountability and enabling historical views of patient data.</p>
-                </div>
-                <div class="feature-card">
-                    <h3>Secure Sharing</h3>
-                    <p>Granular permission controls allow patients to share specific portions of their medical history with different providers.</p>
-                </div>
-            </div>
-        </section>
-
-        <section>
-            <h2>Getting Started</h2>
-            <p>
-                MGit provides a familiar command-line interface for those who already know Git:
-            </p>
-            <pre><code>$ mgit config --global user.name "Dr. Jane Smith"
-$ mgit config --global user.pubkey "npub19jlhl9twyjajarvrjeeh75a5ylzngv4tj8y9wgffsgu..."</code></pre>
-            <p>
-                After setup, MGit operates with the same basic commands as Git, but with enhanced security and verification for medical data.
-            </p>
-        </section>
-
-        <section>
-            <h2>Proof of Concept</h2>
-            <p>
-                This server is running a proof of concept implementation of the MGit system. It demonstrates:
-            </p>
-            <ul>
-                <li>Nostr-based authentication and authorization</li>
-                <li>Cryptographically verified medical record commits</li>
-                <li>Secure repository access controls</li>
-                <li>Transparent audit trail of all record changes</li>
-            </ul>
-        </section>
-
-        <footer>
-            <p>&copy; 2025 imyjimmy | MIT License | decentralized emr</p>
-        </footer>
+    <!-- Landing Page -->
+    <div id="landing">
+        <h1>MGit Medical Records</h1>
+        <p>Secure, self-custodial medical data management using Nostr authentication.</p>
+        <button onclick="login()">Login / Register</button>
     </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="hidden">
+        <h1>Your Medical Records</h1>
+        <p>Welcome! Your medical repositories will appear here.</p>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <div id="message"></div>
+
+    <script>
+        let token = localStorage.getItem('mgit_token');
+        let userPubkey = localStorage.getItem('mgit_pubkey');
+
+        // Check if already logged in
+        if (token && userPubkey) {
+            showDashboard();
+        }
+
+        async function login() {
+            try {
+                // Get challenge
+                const challengeRes = await fetch('/api/auth/nostr/challenge', { method: 'POST' });
+                const { challenge } = await challengeRes.json();
+
+                // Sign with Nostr extension
+                if (!window.nostr) {
+                    showMessage('Please install a Nostr browser extension like nos2x', 'error');
+                    return;
+                }
+
+                const signedEvent = await window.nostr.signEvent({
+                    kind: 1,
+                    content: challenge,
+                    tags: [['challenge', challenge]],
+                    created_at: Math.floor(Date.now() / 1000)
+                });
+
+                // Verify signature
+                const verifyRes = await fetch('/api/auth/nostr/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ signedEvent })
+                });
+
+                const { status, token: authToken, pubkey } = await verifyRes.json();
+                
+                if (status === 'OK') {
+                    // Register user
+                    await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({ profile: { name: 'User' } })
+                    });
+
+                    // Store credentials
+                    localStorage.setItem('mgit_token', authToken);
+                    localStorage.setItem('mgit_pubkey', pubkey);
+                    
+                    showDashboard();
+                    showMessage('Login successful!', 'success');
+                }
+            } catch (error) {
+                showMessage('Login failed: ' + error.message, 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('mgit_token');
+            localStorage.removeItem('mgit_pubkey');
+            showLanding();
+            showMessage('Logged out', 'success');
+        }
+
+        function showDashboard() {
+            document.getElementById('landing').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+        }
+
+        function showLanding() {
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('landing').classList.remove('hidden');
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = type;
+            setTimeout(() => msg.textContent = '', 3000);
+        }
+    </script>
 </body>
 </html>
