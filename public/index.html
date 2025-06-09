@@ -3,23 +3,498 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MGit Medical Records</title>
+    <title>MGit - Medical Records over Git</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .auth-controls {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            gap: 10px;
+        }
+        .auth-controls button {
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+        }
+        .auth-controls button:hover {
+            background-color: #2980b9;
+        }
+        .auth-controls button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
         .hidden { display: none; }
-        button { padding: 10px 20px; margin: 10px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #005a87; }
-        .error { color: red; margin: 10px 0; }
-        .success { color: green; margin: 10px 0; }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        h2 {
+            font-size: 1.8rem;
+            margin-top: 30px;
+            color: #3498db;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        h3 {
+            color: #3498db;
+            margin-top: 0;
+        }
+        p {
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .feature-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        .auth-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .auth-modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #000;
+        }
+        .auth-step {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .auth-step h4 {
+            margin-top: 0;
+            color: #3498db;
+        }
+        .auth-step input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+        .auth-step button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        .auth-step button:hover {
+            background-color: #2980b9;
+        }
+        .auth-step button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .auth-step pre {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            padding: 10px;
+            border-radius: 3px;
+            overflow: auto;
+            max-height: 200px;
+        }
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        .vision-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin: 40px 0;
+            text-align: center;
+        }
+        .vision-section h2 {
+            color: white;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+        }
+        .problem-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .problem-item {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-left: 4px solid #fdcb6e;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .solution-item {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
-    <!-- Landing Page -->
     <div id="landing">
-        <h1>MGit Medical Records</h1>
-        <p>Secure, self-custodial medical data management using Nostr authentication.</p>
-        <button id="loginBtn">Login / Register</button>
+        <div class="container">
+            <header>
+                <div class="auth-controls">
+                    <button id="loginBtn">Login / Register</button>
+                </div>
+                <h1>MGit: (Medical) Git</h1>
+                <p>A Git wrapper for secure, decentralized medical data exchange</p>
+            </header>
+
+            <section class="vision-section">
+                <h2>Revolutionizing Medical Record Management</h2>
+                <p>
+                    MGit enables patients to take control of their medical data through a decentralized, 
+                    cryptographically secure system built on Git and authenticated with Nostr public keys. 
+                    No more fragmented records, data silos, or loss of medical history when switching providers.
+                </p>
+            </section>
+
+            <section>
+                <h2>What is MGit?</h2>
+                <p>
+                    MGit is a specialized Git wrapper built on top of git that extends Git's capabilities with 
+                    <a href="https://nostr.com/" target="_blank">Nostr</a> public key integration. MGit is designed 
+                    specifically for secure, decentralized medical record management and transmission, giving patients 
+                    and healthcare providers a verifiable way to store, share, and track medical data.
+                </p>
+                <p>
+                    By using Git's robust version control features combined with Nostr's cryptographic identity system, MGit provides:
+                </p>
+                <div class="features">
+                    <div class="feature-card solution-item">
+                        <h3>Verifiable Authorship</h3>
+                        <p>Every medical record change is cryptographically signed with your Nostr public key, ensuring data integrity and establishing clear ownership.</p>
+                    </div>
+                    <div class="feature-card solution-item">
+                        <h3>Complete History</h3>
+                        <p>Full audit trail of all medical record updates, enabling historical views of patient data and accountability for all changes.</p>
+                    </div>
+                    <div class="feature-card solution-item">
+                        <h3>Secure, Distributed Storage</h3>
+                        <p>No single point of failure. Your medical data can be stored across multiple locations while maintaining your control.</p>
+                    </div>
+                    <div class="feature-card solution-item">
+                        <h3>Patient-Controlled Access</h3>
+                        <p>Granular permission controls allow you to share specific portions of your medical history with different providers as needed.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Why Decentralized Medical Records?</h2>
+                <p>
+                    Traditional Electronic Medical Record (EMR) systems face significant challenges that directly impact patient care and data ownership:
+                </p>
+                <div class="problem-grid">
+                    <div class="problem-item">
+                        <h3>Data Silos</h3>
+                        <p>Medical records are fragmented across different providers and systems, making it difficult for patients to access their complete health history or for new providers to get a full picture of patient care.</p>
+                    </div>
+                    <div class="problem-item">
+                        <h3>Lack of Interoperability</h3>
+                        <p>Different EMR systems often cannot communicate effectively, leading to repeated tests, treatment delays, potential medical errors, and unnecessary costs.</p>
+                    </div>
+                    <div class="problem-item">
+                        <h3>Security Concerns</h3>
+                        <p>Centralized databases create attractive targets for data breaches and single points of failure, putting sensitive medical information at risk.</p>
+                    </div>
+                    <div class="problem-item">
+                        <h3>Patient Lock-in</h3>
+                        <p>Patients often cannot easily transfer their complete medical history when switching providers, losing years of valuable health data.</p>
+                    </div>
+                    <div class="problem-item">
+                        <h3>Lack of Transparency</h3>
+                        <p>Patients have limited visibility into who has accessed their data, when changes were made, and by whom, reducing trust and accountability.</p>
+                    </div>
+                    <div class="problem-item">
+                        <h3>Vendor Dependencies</h3>
+                        <p>Healthcare providers are locked into specific EMR vendors, limiting innovation and creating dependencies on proprietary systems.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>What is MGit Server?</h2>
+                <p>
+                    MGit Server is a self-hosted service that stores a user's Medical Data. It authenticates users 
+                    via Nostr and serves the MGit Repo back to the authenticated client. <strong>MGit Server = MGit + Nostr</strong>
+                </p>
+                <p>
+                    The server provides secure repository hosting with role-based access control, ensuring that only 
+                    authorized healthcare providers can access specific portions of your medical records based on 
+                    permissions you set.
+                </p>
+            </section>
+
+            <section>
+                <h2>How does it all work together?</h2>
+                <p>
+                    The MGit repo is—you guessed it—a git repo, but its contents are a user's medical data. Together with 
+                    a client App that understands how to render such data, the user essentially has a <strong>digital Medical Binder 
+                    on their smartphone</strong>.
+                </p>
+                <p>
+                    This creates a paradigm where patients maintain self-custody of their medical records while still 
+                    enabling seamless sharing with healthcare providers. Think of it as having your complete medical 
+                    history in your pocket, with the ability to grant access to specific providers as needed.
+                </p>
+            </section>
+
+            <section>
+                <h2>Core Functionality</h2>
+                <p>MGit supports these operations with enhanced security and authentication:</p>
+                <ul>
+                    <li><code>mgit init</code> - Initialize a new medical record repository</li>
+                    <li><code>mgit clone &lt;url&gt; [path]</code> - Clone a repository with Nostr authentication</li>
+                    <li><code>mgit add &lt;files...&gt;</code> - Add medical files to staging</li>
+                    <li><code>mgit commit -m &lt;message&gt;</code> - Commit staged changes with Nostr public key attribution</li>
+                    <li><code>mgit push</code> - Push commits to remote repository</li>
+                    <li><code>mgit pull</code> - Pull changes from remote</li>
+                    <li><code>mgit status</code> - Show repository status</li>
+                    <li><code>mgit show [commit]</code> - Show commit details and changes with medical data context</li>
+                    <li><code>mgit config</code> - Get and set configuration values including Nostr keys</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Authentication & Security</h2>
+                <p>
+                    MGit uses a robust challenge-response authentication system based on Nostr cryptographic keys:
+                </p>
+                <ol>
+                    <li><strong>Challenge Request:</strong> The client requests a challenge from the server for a specific repository</li>
+                    <li><strong>Cryptographic Signing:</strong> The challenge is signed using the user's Nostr private key</li>
+                    <li><strong>Signature Verification:</strong> The server verifies the signature against known authorized public keys</li>
+                    <li><strong>Token Issuance:</strong> Upon successful verification, the server issues a JWT token for repository access</li>
+                    <li><strong>Authorized Operations:</strong> The token is used for all subsequent repository operations with role-based permissions</li>
+                </ol>
+                <p>
+                    This approach ensures that only authorized individuals can access medical repositories while 
+                    maintaining the decentralized nature of the system.
+                </p>
+            </section>
+
+            <section>
+                <h2>Getting Started</h2>
+                <p>
+                    MGit provides a familiar command-line interface for those who already know Git, with enhanced 
+                    security features for medical data:
+                </p>
+                <pre><code>$ mgit config --global user.name "Dr. Jane Smith"
+    $ mgit config --global user.email "jane.smith@clinic.com"
+    $ mgit config --global user.pubkey "npub19jlhl9twyjajarvrjeeh75a5ylzngv4tj8y9wgffsgu..."</code></pre>
+                <p>
+                    After setup, MGit operates with the same basic commands as Git, but with enhanced security, 
+                    verification, and medical data management capabilities.
+                </p>
+            </section>
+
+            <section>
+                <h2>Development Roadmap</h2>
+                <div class="features">
+                    <div class="feature-card">
+                        <h3>Current Implementation</h3>
+                        <ul>
+                            <li>Go-based implementation using go-git</li>
+                            <li>Node.js server components</li>
+                            <li>Nostr authentication integration</li>
+                            <li>Basic repository operations</li>
+                            <li>Role-based access control</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Web-Based Client</h3>
+                        <ul>
+                            <li>In-browser implementation using isomorphic-git</li>
+                            <li>Browser storage for repository data</li>
+                            <li>React-based UI for medical record management</li>
+                            <li>Drag-and-drop document upload</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card">
+                        <h3>Mobile Integration Strategy</h3>
+                        <ul>
+                            <li>Native module approach using libgit2</li>
+                            <li>Custom C library (libmgit2) implementing MGit functionality</li>
+                            <li>React Native integration for iOS and Android</li>
+                            <li>Full offline support for medical record access</li>
+                            <li>Biometric authentication integration</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Self-Custody of Medical Data</h2>
+                <p>
+                    The primary goal of MGit is to enable patients to maintain self-custody of their medical records. 
+                    This means:
+                </p>
+                <ul>
+                    <li><strong>Data Ownership:</strong> You own and control your medical data, not the healthcare provider or EMR vendor</li>
+                    <li><strong>Portability:</strong> Take your complete medical history with you when switching providers</li>
+                    <li><strong>Transparency:</strong> Full visibility into who has accessed your data and when</li>
+                    <li><strong>Granular Control:</strong> Share only the specific medical information relevant to each provider</li>
+                    <li><strong>Long-term Preservation:</strong> Your medical history is preserved regardless of provider changes or technology migrations</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Proof of Concept</h2>
+                <p>
+                    This server is running a proof of concept implementation of the MGit system. It demonstrates:
+                </p>
+                <ul>
+                    <li>Nostr-based authentication and authorization</li>
+                    <li>Cryptographically verified medical record commits</li>
+                    <li>Secure repository access controls with role-based permissions</li>
+                    <li>Transparent audit trail of all record changes</li>
+                    <li>Integration between Git version control and medical data management</li>
+                </ul>
+                <p>
+                    Click the "Login / Access Repository" button above to test the authentication system with your Nostr keys.
+                </p>
+            </section>
+
+            <footer>
+                <p>&copy; 2025 imyjimmy | MIT License | decentralized emr</p>
+            </footer>
+        </div>
     </div>
+
+    <!-- Authentication Modal
+    <div id="authModal" class="auth-modal">
+        <div class="auth-modal-content">
+            <span class="close">&times;</span>
+            <h2>MGit Repository Authentication</h2>
+            <p>Use your Nostr keys to authenticate and access your medical repository.</p>
+            
+            <div class="auth-step">
+                <h4>Step 1: Get Challenge</h4>
+                <p>Repository ID: <input id="repoId" value="hello-world" placeholder="Enter repository name"></p>
+                <button id="getChallenge">Get Challenge</button>
+                <pre id="challengeResult">Challenge will appear here...</pre>
+            </div>
+            
+            <div class="auth-step">
+                <h4>Step 2: Sign Challenge</h4>
+                <p>Sign the challenge with your Nostr browser extension (like nos2x):</p>
+                <button id="signChallenge" disabled>Sign with Nostr Extension</button>
+                <div id="signedEvent">Signed event will appear here...</div>
+            </div>
+            
+            <div class="auth-step">
+                <h4>Step 3: Verify & Get Token</h4>
+                <button id="verifySignature" disabled>Verify Signature & Get Access Token</button>
+                <pre id="tokenResult">Token will appear here...</pre>
+                <input type="hidden" id="token">
+            </div>
+            
+            <div class="auth-step">
+                <h4>Step 4: Test Repository Access</h4>
+                <button id="testAccess" disabled>Test Repository Access</button>
+                <pre id="accessResult">Access test results will appear here...</pre>
+            </div>
+        </div>
+    </div> -->
 
     <!-- Dashboard -->
     <div id="dashboard" class="hidden">
@@ -30,5 +505,209 @@
 
     <div id="message"></div>
     <script src="script.js"></script>
+    <!-- <script>
+        // Global variables for authentication flow
+        let currentChallenge = null;
+        let currentSignedEvent = null;
+        let currentRepoId = null;
+        const baseUrl = window.location.origin;
+
+        // Modal controls
+        const modal = document.getElementById('authModal');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const closeBtn = document.querySelector('.close');
+
+        loginBtn.onclick = function() {
+            modal.style.display = 'block';
+        }
+
+        registerBtn.onclick = function() {
+            alert('Repository registration feature coming soon! For now, contact the administrator to set up a new repository.');
+        }
+
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Step 1: Get Challenge
+        document.getElementById('getChallenge').addEventListener('click', async () => {
+            const repoId = document.getElementById('repoId').value;
+            
+            if (!repoId) {
+                document.getElementById('challengeResult').textContent = 'Error: Please enter a repository ID';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/mgit/auth/challenge`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({repoId: repoId})
+                });
+                
+                const data = await response.json();
+                
+                if (data.challenge) {
+                    currentChallenge = data.challenge;
+                    currentRepoId = repoId;
+                    document.getElementById('challengeResult').textContent = JSON.stringify(data, null, 2);
+                    document.getElementById('signChallenge').disabled = false;
+                    
+                    // Show success message
+                    showStatus('Challenge received successfully!', 'success');
+                } else {
+                    document.getElementById('challengeResult').textContent = 'Error: ' + JSON.stringify(data, null, 2);
+                    showStatus('Failed to get challenge', 'error');
+                }
+            } catch (error) {
+                document.getElementById('challengeResult').textContent = `Error: ${error.message}`;
+                showStatus('Network error occurred', 'error');
+            }
+        });
+
+        // Step 2: Sign Challenge
+        document.getElementById('signChallenge').addEventListener('click', async () => {
+            const challenge = currentChallenge;
+            
+            if (!challenge) {
+                showStatus('No challenge available. Complete Step 1 first.', 'error');
+                return;
+            }
+            
+            // Check if window.nostr exists and has signEvent method
+            if (window.nostr && typeof window.nostr.signEvent === 'function') {
+                try {
+                    const event = {
+                        kind: 22242,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: [],
+                        content: `MGit auth challenge: ${challenge}`
+                    };
+                    
+                    const signedEvent = await window.nostr.signEvent(event);
+                    currentSignedEvent = signedEvent;
+                    
+                    document.getElementById('signedEvent').innerHTML = `
+                        <pre>${JSON.stringify(signedEvent, null, 2)}</pre>
+                        <div class="status-success">✓ Event signed successfully</div>
+                    `;
+                    document.getElementById('verifySignature').disabled = false;
+                    showStatus('Challenge signed successfully!', 'success');
+                } catch (error) {
+                    document.getElementById('signedEvent').innerHTML = `
+                        <div class="status-error">Error signing with extension: ${error.message}</div>
+                    `;
+                    showStatus('Failed to sign challenge', 'error');
+                }
+            } else {
+                document.getElementById('signedEvent').innerHTML = `
+                    <div class="status-error">
+                        <p><strong>No compatible Nostr extension detected.</strong></p>
+                        <p>Please install a Nostr browser extension like <a href="https://github.com/fiatjaf/nos2x" target="_blank">nos2x</a> to continue.</p>
+                        <p>The extension provides the cryptographic signing capabilities needed for secure authentication.</p>
+                    </div>
+                `;
+                showStatus('Nostr extension required', 'error');
+            }
+        });
+
+        // Step 3: Verify Signature
+        document.getElementById('verifySignature').addEventListener('click', async () => {
+            if (!currentSignedEvent) {
+                showStatus('No signed event available. Complete Step 2 first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/mgit/auth/verify`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        signedEvent: currentSignedEvent,
+                        challenge: currentChallenge,
+                        repoId: currentRepoId
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('tokenResult').textContent = JSON.stringify(data, null, 2);
+                
+                if (data.token) {
+                    document.getElementById('token').value = data.token;
+                    document.getElementById('testAccess').disabled = false;
+                    showStatus(`Authentication successful! Access level: ${data.access}`, 'success');
+                } else {
+                    showStatus('Authentication failed', 'error');
+                }
+            } catch (error) {
+                document.getElementById('tokenResult').textContent = `Error: ${error.message}`;
+                showStatus('Verification failed', 'error');
+            }
+        });
+
+        // Step 4: Test Access
+        document.getElementById('testAccess').addEventListener('click', async () => {
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                showStatus('No token available. Complete Step 3 first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/mgit/repos/${currentRepoId}/info`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                document.getElementById('accessResult').textContent = JSON.stringify(data, null, 2);
+                
+                if (response.ok) {
+                    showStatus('Repository access confirmed!', 'success');
+                } else {
+                    showStatus('Repository access denied', 'error');
+                }
+            } catch (error) {
+                document.getElementById('accessResult').textContent = `Error: ${error.message}`;
+                showStatus('Access test failed', 'error');
+            }
+        });
+
+        // Helper function to show status messages
+        function showStatus(message, type) {
+            // Remove any existing status messages
+            const existingStatus = document.querySelector('.auth-modal .status-message');
+            if (existingStatus) {
+                existingStatus.remove();
+            }
+            
+            // Create new status message
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.textContent = message;
+            
+            // Insert at the top of modal content
+            const modalContent = document.querySelector('.auth-modal-content');
+            modalContent.insertBefore(statusDiv, modalContent.children[2]);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.remove();
+                }
+            }, 5000);
+        }
+    </script> -->
 </body>
 </html>

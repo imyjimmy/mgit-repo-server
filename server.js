@@ -292,49 +292,24 @@ app.post('/api/auth/nostr/verify', async (req, res) => {
       });
     }
 
-    // Create WebSocket connection to get metadata
-    const ws = new WebSocket('wss://relay.damus.io');
-    
-    const metadataPromise = new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        ws.close();
-        reject(new Error('Metadata fetch timeout'));
-      }, 5000);
-
-      ws.onopen = () => {
-        const req = JSON.stringify([
-          "REQ",
-          "metadata-query",
-          {
-            "kinds": [0],
-            "authors": [signedEvent.pubkey],
-            "limit": 1
-          }
-        ]);
-        ws.send(req);
-      };
-
-      ws.onmessage = (event) => {
-        const [type, _, eventData] = JSON.parse(event.data);
-        if (type === 'EVENT' && eventData.kind === 0) {
-          clearTimeout(timeout);
-          ws.close();
-          resolve(eventData);
-        }
-      };
-
-      ws.onerror = (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      };
-    });
-
+    // Fixed metadata fetching with proper error handling
     let metadata = null;
     try {
-      metadata = await metadataPromise;
+      console.log(`Fetching metadata for pubkey: ${signedEvent.pubkey}`);
+      metadata = await fetchNostrMetadata(signedEvent.pubkey);
+      
+      if (metadata) {
+        console.log('✅ Successfully fetched user metadata:', {
+          name: metadata.name,
+          display_name: metadata.display_name,
+          has_picture: !!metadata.picture
+        });
+      } else {
+        console.log('⚠️ No metadata found for this pubkey');
+      }
     } catch (error) {
       console.warn('Failed to fetch Nostr metadata:', error.message);
-      // Continue without metadata
+      // Continue without metadata - this is handled gracefully
     }
     
     // Generate JWT token
@@ -360,6 +335,137 @@ app.post('/api/auth/nostr/verify', async (req, res) => {
     });
   }
 });
+
+// Add this function right after your imports and before your routes
+// This is the corrected metadata fetching function based on your working test
+function fetchNostrMetadata(pubkey, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    // Try multiple relays in order of preference
+    const relays = [
+      'wss://relay.damus.io',
+      'wss://nos.lol',
+      'wss://relay.snort.social',
+      'wss://relay.nostr.band'
+    ];
+    
+    let currentRelayIndex = 0;
+    
+    function tryNextRelay() {
+      if (currentRelayIndex >= relays.length) {
+        reject(new Error('All relays failed to provide metadata'));
+        return;
+      }
+      
+      const relayUrl = relays[currentRelayIndex++];
+      console.log(`Trying relay: ${relayUrl}`);
+      
+      tryFetchFromRelay(relayUrl, pubkey, timeoutMs / relays.length)
+        .then(resolve)
+        .catch((error) => {
+          console.log(`Relay ${relayUrl} failed: ${error.message}`);
+          tryNextRelay();
+        });
+    }
+    
+    tryNextRelay();
+  });
+}
+
+function tryFetchFromRelay(relayUrl, pubkey, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(relayUrl);
+    let metadataReceived = false;
+    
+    const timeout = setTimeout(() => {
+      if (!metadataReceived) {
+        ws.close();
+        reject(new Error('Metadata fetch timeout'));
+      }
+    }, timeoutMs);
+
+    ws.onopen = () => {
+      const subscriptionId = `metadata-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const req = JSON.stringify([
+        "REQ",
+        subscriptionId,
+        {
+          "kinds": [0],
+          "authors": [pubkey],
+          "limit": 1
+        }
+      ]);
+      console.log(`Sending request to ${relayUrl}: ${req}`);
+      ws.send(req);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const [type, subscriptionId, eventData] = data;
+        
+        console.log(`Received from ${relayUrl}: ${event.data}`);
+        
+        if (type === 'EVENT' && eventData && eventData.kind === 0) {
+          // Found metadata!
+          metadataReceived = true;
+          clearTimeout(timeout);
+          ws.close();
+          
+          // Parse the metadata content
+          const parsedMetadata = parseMetadataContent(eventData.content);
+          resolve(parsedMetadata);
+          
+        } else if (type === 'EOSE') {
+          // End of stored events - no metadata found on this relay
+          if (!metadataReceived) {
+            clearTimeout(timeout);
+            ws.close();
+            reject(new Error('No metadata found on this relay'));
+          }
+        }
+      } catch (parseError) {
+        console.log(`Parse error from ${relayUrl}: ${parseError.message}`);
+        // Continue listening for more messages
+      }
+    };
+
+    ws.onerror = (error) => {
+      clearTimeout(timeout);
+      reject(new Error(`WebSocket error: ${error.message || 'Connection failed'}`));
+    };
+
+    ws.onclose = (event) => {
+      if (!metadataReceived && event.code !== 1000) {
+        clearTimeout(timeout);
+        reject(new Error(`WebSocket closed unexpectedly: ${event.code}`));
+      }
+    };
+  });
+}
+
+function parseMetadataContent(contentString) {
+  if (!contentString) {
+    return null;
+  }
+
+  try {
+    const content = JSON.parse(contentString);
+    return {
+      name: content.name || '',
+      display_name: content.display_name || content.displayName || '',
+      about: content.about || '',
+      picture: content.picture || '',
+      nip05: content.nip05 || '',
+      banner: content.banner || '',
+      website: content.website || '',
+      lud06: content.lud06 || '',
+      lud16: content.lud16 || ''
+    };
+  } catch (error) {
+    console.log('Failed to parse metadata content:', error.message);
+    return null;
+  }
+}
 
 app.get('/api/auth/nostr/status', (req, res) => {
   const { challenge } = req.query;
