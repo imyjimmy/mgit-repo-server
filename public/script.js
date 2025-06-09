@@ -46,7 +46,7 @@ async function login() {
     
     if (status === 'OK') {
         // Register user
-        await fetch('/api/auth/register', {
+        const registerRes = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -55,6 +55,14 @@ async function login() {
             body: JSON.stringify({ profile: { name: 'User' } })
         });
 
+        console.log('Register response status:', registerRes.status);
+        const registerData = await registerRes.json();
+        console.log('Register response data:', registerData);
+
+        if (!registerRes.ok) {
+            throw new Error(`Registration failed: ${registerData.reason || 'Unknown error'}`);
+        }
+        
         // Store credentials
         localStorage.setItem('mgit_token', authToken);
         localStorage.setItem('mgit_pubkey', pubkey);

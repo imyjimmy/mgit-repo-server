@@ -87,7 +87,32 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
-// keeping this as is for now--
+// Simple token validation for auth endpoints (no RepoId required)
+const validateAuthToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ 
+      status: 'error', 
+      reason: 'Authentication required' 
+    });
+  }
+
+  const token = authHeader.split(' ')[1];
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ 
+      status: 'error', 
+      reason: 'Invalid token' 
+    });
+  }
+};
+
+// validates the MGitToken which includes RepoId
 const validateMGitToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   
@@ -177,14 +202,14 @@ async function saveUser(pubkey, profile) {
     createdAt: new Date().toISOString(),
     repositories: []
   };
-  await fs.writeFile(userFile, JSON.stringify(userData, null, 2));
+  await fs.promises.writeFile(userFile, JSON.stringify(userData, null, 2));
   return userData;
 }
 
 async function getUser(pubkey) {
   try {
     const userFile = path.join(USERS_PATH, `${pubkey}.json`);
-    const data = await fs.readFile(userFile, 'utf8');
+    const data = await fs.promises.readFile(userFile, 'utf8');
     return JSON.parse(data);
   } catch (err) {
     return null;
@@ -200,7 +225,7 @@ async function getUser(pubkey) {
 * User is now registered and logged in
 */
 
-app.post('/api/auth/register', validateMGitToken, async (req, res) => {
+app.post('/api/auth/register', validateAuthToken, async (req, res) => {
   try {
     const { pubkey } = req.user;
     const { profile = {} } = req.body;
