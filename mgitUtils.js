@@ -409,6 +409,143 @@ function getNostrPubkey(repoPath, gitHash) {
   }
 }
 
+// Helper function to create a new mgit repository
+async function createRepository(repoName, ownerPubkey, description = '', reposPath) {
+  console.log('reposPath: ', reposPath);
+
+  const { spawn, exec } = require('child_process');
+  const { promisify } = require('util');
+  const execAsync = promisify(exec);
+  const repoPath = path.join(reposPath, repoName);
+  
+  console.log('repoName:', repoName);
+  console.log('reposPath:', reposPath);
+  console.log('constructed repoPath:', repoPath);
+  console.log('fs.existsSync(repoPath):', fs.existsSync(repoPath));
+  console.log('Contents of reposPath:', fs.readdirSync(reposPath));
+
+  try {
+    // 1. Create the physical repository directory
+
+    if (fs.existsSync(repoPath)) {
+      throw new Error('Repository directory already exists');
+    }
+    
+    fs.mkdirSync(repoPath, { recursive: true });
+    console.log(`Created repository directory: ${repoPath}`);
+    
+    // 2. Initialize as a Git repository
+    await execAsync('git init --bare', { cwd: repoPath });
+    console.log(`Initialized bare Git repository in ${repoPath}`);
+    
+    // 3. Create initial structure for medical data
+    const tempDir = path.join(repoPath, '..', `${repoName}-temp`);
+    fs.mkdirSync(tempDir, { recursive: true });
+    
+    // Clone the bare repo to temp directory for initial commit
+    await execAsync(`git clone ${repoPath} ${tempDir}`);
+    
+    // 4. Create initial medical history structure
+    const initialContent = {
+      patientInfo: {
+        createdAt: new Date().toISOString(),
+        owner: ownerPubkey,
+        description: description || "Personal Medical History Repository"
+      },
+      medicalHistory: {
+        conditions: [],
+        medications: [],
+        allergies: [],
+        procedures: [],
+        labResults: []
+      },
+      visits: [],
+      notes: []
+    };
+    
+    const readmeContent = `# Medical History Repository
+
+This is a personal medical history repository managed with MGit.
+
+**Owner:** ${ownerPubkey.substring(0, 8)}...
+**Created:** ${new Date().toISOString()}
+
+## Structure
+
+- \`medical-history.json\` - Main medical history data
+- \`visits/\` - Individual visit records
+- \`documents/\` - Supporting documents and files
+- \`notes/\` - Personal health notes
+
+## Security
+
+This repository uses Nostr public key authentication and cryptographic verification for all changes.
+`;
+
+    // Write initial files
+    fs.writeFileSync(path.join(tempDir, 'medical-history.json'), 
+                     JSON.stringify(initialContent, null, 2));
+    fs.writeFileSync(path.join(tempDir, 'README.md'), readmeContent);
+    
+    // Create directory structure
+    fs.mkdirSync(path.join(tempDir, 'visits'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'documents'), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, 'notes'), { recursive: true });
+    
+    // Add .gitkeep files to maintain directory structure
+    fs.writeFileSync(path.join(tempDir, 'visits', '.gitkeep'), '');
+    fs.writeFileSync(path.join(tempDir, 'documents', '.gitkeep'), '');
+    fs.writeFileSync(path.join(tempDir, 'notes', '.gitkeep'), '');
+    
+    // 5. Make initial commit
+    await execAsync('git add .', { cwd: tempDir });
+    await execAsync('git commit -m "Initial medical history repository setup"', { cwd: tempDir });
+    await execAsync('git push origin main', { cwd: tempDir });
+    
+    // 6. Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    
+    // 7. Optionally persist configuration to file (if you want persistence across restarts)
+    // This would require modifying how repoConfigurations is loaded on startup
+    
+    return {
+      success: true,
+      repoPath: repoPath,
+      repoName: repoName,
+      repoConfig: {
+        authorized_keys: [
+        { 
+          pubkey: ownerPubkey, 
+          access: 'admin' 
+        }
+        ],
+        metadata: {
+          created: new Date().toISOString(),
+          description: description || "Personal Medical History Repository",
+          type: 'medical-history'
+        }
+      }
+    };
+    
+  } catch (error) {
+    console.error('Error creating repository:', error);
+    
+    if (fs.existsSync(repoPath)) {
+      fs.rmSync(repoPath, { recursive: true, force: true });
+    }
+    
+    const tempDir = path.join(repoPath, `${repoName}-temp`);
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 module.exports = {
   getDefaultBranch,
   getBranches,
@@ -423,5 +560,6 @@ module.exports = {
   getCommitHistory,
   getCommitDetail,
   getMGitHash,
-  getNostrPubkey
+  getNostrPubkey,
+  createRepository
 };

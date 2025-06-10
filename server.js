@@ -320,6 +320,7 @@ app.post('/api/auth/nostr/verify', async (req, res) => {
     }, JWT_SECRET);
 
     console.log('Nostr login verified for pubkey:', signedEvent.pubkey);
+    console.log('Created JWT:', token);
     res.json({ 
       status: 'OK',
       pubkey: signedEvent.pubkey,
@@ -833,6 +834,89 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
     res.setHeader('Content-Type', 'text/plain');
     res.send(stdout);
   });
+});
+
+// Repository creation endpoint
+app.post('/api/mgit/repos/create', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ 
+      status: 'error', 
+      reason: 'Authentication required' 
+    });
+  }
+
+  const token = authHeader.split(' ')[1];
+  
+  try {
+    // Verify the token (but don't require a specific repoId since we're creating one)
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { pubkey } = decoded;
+    
+    const { repoName, description } = req.body;
+    
+    // Validate input
+    if (!repoName) {
+      return res.status(400).json({
+        status: 'error',
+        reason: 'Repository name is required'
+      });
+    }
+    
+    // Sanitize repository name (alphanumeric, hyphens, underscores only)
+    const sanitizedRepoName = repoName.replace(/[^a-zA-Z0-9-_]/g, '');
+    if (sanitizedRepoName !== repoName) {
+      return res.status(400).json({
+        status: 'error',
+        reason: 'Repository name can only contain letters, numbers, hyphens, and underscores'
+      });
+    }
+    
+    // Check if repository already exists
+    if (repoConfigurations[sanitizedRepoName]) {
+      return res.status(409).json({
+        status: 'error',
+        reason: 'Repository already exists'
+      });
+    }
+    
+    // Create the repository
+    console.log('REPOS_PATH:', REPOS_PATH);
+    const repoResult = await mgitUtils.createRepository(sanitizedRepoName, pubkey, description, REPOS_PATH);
+    
+    if (repoResult.success) {
+      repoConfigurations[sanitizedRepoName] = repoResult.repoConfig;
+      res.json({
+        status: 'OK',
+        repoId: sanitizedRepoName,
+        repoPath: repoResult.repoPath,
+        cloneUrl: `http://localhost:3003/${sanitizedRepoName}`,
+        message: 'Repository created successfully'
+      });
+    } else {
+      res.status(500).json({
+        status: 'error',
+        reason: 'Failed to create repository',
+        details: repoResult.error
+      });
+    }
+    
+  } catch (error) {
+    console.error('Repository creation error:', error);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        status: 'error', 
+        reason: 'Token expired' 
+      });
+    }
+    
+    return res.status(500).json({ 
+      status: 'error', 
+      reason: 'Repository creation failed: ' + error.message 
+    });
+  }
 });
 
 /* 
