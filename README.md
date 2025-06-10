@@ -198,6 +198,28 @@ mgit init
 
 5. Play around, there's a 1 to 1 mapping between mgit and git commands
 
+### Initial Repository State
+When a new repository is created via the API (POST /api/mgit/repos/create), it starts as a standard Git repository with initial medical history structure. At this point:
+
+✅ Repository contains initial files (README.md, medical-history.json, directory structure)
+❌ No MGit mappings exist yet (empty hash_mappings.json)
+❌ Clone warnings about missing MGit metadata are expected
+
+Populating MGit Mappings
+MGit mappings are created automatically when users make commits using mgit commit:
+bash# Standard git commits won't create MGit mappings
+git commit -m "Update medical record"  # ❌ No MGit hash generated
+
+# MGit commits create mappings between Git hashes, MGit hashes, and Nostr pubkeys  
+mgit commit -m "Update medical record"  # ✅ Creates mapping in .mgit/mappings/hash_mappings.json
+Once MGit commits are made:
+
+MGit metadata becomes available for cloning
+Repository reconstruction works properly
+Full MGit functionality is enabled
+
+Note: Repositories created through the API are immediately functional for standard Git operations and will gain full MGit capabilities as soon as users begin making commits with mgit commit.
+
 ## API Routes
 
 ### Authentication Routes
@@ -246,6 +268,18 @@ mgit init
    - Click "Sign with nos2x" to sign the challenge with your Nostr extension
    - Click "Verify Signature" to verify and get a token
    - Click "Test Repository Access" to confirm access
+
+### On Localhost using the browser
+Fire up the server locally
+Go to localhost:3003 and log in with nos2x signer
+Perceive the JWT from the terminal that fired up the server
+
+```
+curl -X POST http://localhost:3003/api/mgit/repos/create \
+  -H "Authorization: Bearer eyJhb[...token]" \
+  -H "Content-Type: application/json" \
+  -d '{"repoName": "my-medical-history", "description": "My personal health records"}'
+```
 
 ### Required Browser Extensions
 
