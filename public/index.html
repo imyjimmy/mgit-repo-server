@@ -500,6 +500,28 @@
     <div id="dashboard" class="hidden">
         <h1>Your Medical Records</h1>
         <p>Welcome! Your medical repositories will appear here.</p>
+        
+        <!-- ADD THIS SECTION HERE -->
+        <section style="margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+            <h2>Create New Medical Repository</h2>
+            <p>Create a secure, self-custodial medical history repository linked to your Nostr identity.</p>
+            
+            <div style="margin: 20px 0;">
+                <label for="repoName">Repository Name:</label><br>
+                <input type="text" id="repoName" placeholder="my-medical-history" style="width: 300px; padding: 8px; margin: 5px 0;">
+                <br>
+                <label for="repoDescription">Description:</label><br>
+                <input type="text" id="repoDescription" placeholder="My personal health records" style="width: 300px; padding: 8px; margin: 5px 0;">
+                <br>
+                <button id="createRepoBtn" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 10px 0;">
+                    Create Repository
+                </button>
+            </div>
+            
+            <div id="repoResult" style="margin: 10px 0; padding: 10px; background-color: #f8f9fa; border-radius: 4px; display: none;"></div>
+        </section>
+        <!-- END OF ADDITION -->
+        
         <button id="logoutBtn">Logout</button>
     </div>
 
