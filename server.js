@@ -698,18 +698,55 @@ app.post('/api/mgit/auth/verify', async (req, res) => {
   }
 });
 
+function checkRepoAccess(repoId, pubkey) {
+  const repoConfig = repoConfigurations[repoId];
+  if (!repoConfig) {
+    return { 
+      success: false, 
+      status: 404, 
+      error: 'Repository not found' 
+    };
+  }
+  
+  // Find the user's access level for this repository
+  const authEntry = repoConfig.authorized_keys.find(key => 
+    key.pubkey === pubkey || hexToBech32(pubkey) === key.pubkey
+  );
+  
+  if (!authEntry) {
+    return { 
+      success: false, 
+      status: 403, 
+      error: 'Not authorized for this repository' 
+    };
+  }
+
+  return { 
+    success: true, 
+    access: authEntry.access,
+    authEntry: authEntry
+  };
+}
+
 // Sample endpoint for repository info - protected by token validation
-app.get('/api/mgit/repos/:repoId/info', validateMGitToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/info', validateAuthToken, (req, res) => {
   const { repoId } = req.params;
-  const { pubkey, access } = req.user;
+  const { pubkey } = req.user; // From the general token
   
-  // The user is already authenticated and authorized via the middleware
-  // Could fetch actual repository information here
+  const accessCheck = checkRepoAccess(repoId, pubkey);
   
+  if (!accessCheck.success) {
+    return res.status(accessCheck.status).json({ 
+      status: 'error', 
+      reason: accessCheck.error 
+    });
+  }
+  
+  // Return repository info with user's access level
   res.json({
     id: repoId,
     name: `${repoId}`,
-    access: access,
+    access: accessCheck.access,
     authorized_pubkey: pubkey
   });
 });
@@ -923,10 +960,21 @@ app.post('/api/mgit/repos/create', async (req, res) => {
   Functions needed to re-implement git's protocol for sending and receiving data
 */
 // discovery phase of git's https smart discovery protocol
-app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/info/refs', validateAuthToken, (req, res) => {
   const { repoId } = req.params;
-  const service = req.query.service;
+  const { pubkey } = req.user;
   
+  const accessCheck = checkRepoAccess(repoId, pubkey);
+  
+  if (!accessCheck.success) {
+    return res.status(accessCheck.status).json({ 
+      status: 'error', 
+      reason: accessCheck.error 
+    });
+  }
+
+  const service = req.query.service;
+
   // Support both upload-pack (clone) and receive-pack (push)
   if (service !== 'git-upload-pack' && service !== 'git-receive-pack') {
     return res.status(400).json({
@@ -937,7 +985,7 @@ app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
   
   // For push operations (git-receive-pack), check write permissions
   if (service === 'git-receive-pack') {
-    const { access } = req.user;
+    const access = accessCheck.access;  // ✅ Use access from the check
     if (access !== 'admin' && access !== 'read-write') {
       return res.status(403).json({ 
         status: 'error', 
@@ -994,9 +1042,19 @@ app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, (req, res) => {
 
 // Git protocol endpoint for git-upload-pack (needed for clone)
 // data transfer phase
-app.post('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res) => {
+app.post('/api/mgit/repos/:repoId/git-upload-pack', validateAuthToken, (req, res) => {
   const { repoId } = req.params;
+  const { pubkey } = req.user;
   
+  const accessCheck = checkRepoAccess(repoId, pubkey);
+  
+  if (!accessCheck.success) {
+    return res.status(accessCheck.status).json({ 
+      status: 'error', 
+      reason: accessCheck.error 
+    });
+  }
+
   // Get repository path
   const repoPath = path.join(REPOS_PATH, repoId);
   
