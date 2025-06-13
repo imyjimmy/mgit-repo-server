@@ -16,6 +16,7 @@
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2",
     "nostr-tools": "^2.10.4",
+    "qrcode": "^1.5.3",
     "ws": "^8.18.0"
   }
 }
