@@ -932,14 +932,12 @@ app.post('/api/mgit/repos/create', async (req, res) => {
   }
 
   const token = authHeader.split(' ')[1];
-  
   try {
     // Verify the token (but don't require a specific repoId since we're creating one)
     const decoded = jwt.verify(token, JWT_SECRET);
     const { pubkey } = decoded;
     
     const { repoName, userName, userEmail, description } = req.body;
-
     if (!repoName || !userName || !userEmail) {
       return res.status(400).json({
         status: 'error',
@@ -947,17 +945,8 @@ app.post('/api/mgit/repos/create', async (req, res) => {
       });
     }
     
-    // Sanitize repository name (alphanumeric, hyphens, underscores only)
-    const sanitizedRepoName = repoName.replace(/[^a-zA-Z0-9-_]/g, '');
-    if (sanitizedRepoName !== repoName) {
-      return res.status(400).json({
-        status: 'error',
-        reason: 'Repository name can only contain letters, numbers, hyphens, and underscores'
-      });
-    }
-    
     // Check if repository already exists
-    if (repoConfigurations[sanitizedRepoName]) {
+    if (repoConfigurations[repoName]) {
       return res.status(409).json({
         status: 'error',
         reason: 'Repository already exists'
@@ -966,15 +955,15 @@ app.post('/api/mgit/repos/create', async (req, res) => {
     
     // Create the repository
     console.log('REPOS_PATH:', REPOS_PATH);
-    const repoResult = await mgitUtils.createRepository(sanitizedRepoName, pubkey, description, REPOS_PATH);
+    const repoResult = await mgitUtils.createRepository(repoName, userName, userEmail, pubkey, description, REPOS_PATH);
     
     if (repoResult.success) {
-      repoConfigurations[sanitizedRepoName] = repoResult.repoConfig;
+      repoConfigurations[repoName] = repoResult.repoConfig;
       res.json({
         status: 'OK',
-        repoId: sanitizedRepoName,
+        repoId: repoName,
         repoPath: repoResult.repoPath,
-        cloneUrl: `http://localhost:3003/${sanitizedRepoName}`,
+        cloneUrl: `http://localhost:3003/${repoName}`,
         message: 'Repository created successfully'
       });
     } else {

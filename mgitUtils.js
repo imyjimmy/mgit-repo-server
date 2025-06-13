@@ -410,37 +410,23 @@ function getNostrPubkey(repoPath, gitHash) {
 }
 
 // Helper function to create a new mgit repository
-async function createRepository(repoName, ownerPubkey, description = '', reposPath) {
+async function createRepository(repoName, userName, userEmail, ownerPubkey, description = '', reposPath) {
   console.log('reposPath: ', reposPath);
   const { spawn, exec } = require('child_process');
   const { promisify } = require('util');
   const execAsync = promisify(exec);
   const repoPath = path.join(reposPath, repoName);
   
+  const tempDir = path.join(repoPath, '..', `${repoName}-temp`);
+
   console.log('repoName:', repoName);
   console.log('reposPath:', reposPath);
   console.log('constructed repoPath:', repoPath);
   console.log('fs.existsSync(repoPath):', fs.existsSync(repoPath));
   console.log('Contents of reposPath:', fs.readdirSync(reposPath));
   
-  // set git username, email if it doesn't exist yet
-  try {
-    await execAsync(`git config user.name`, { cwd: tempDir });
-  } catch (error) {
-    // No user.name set, so set it
-    await execAsync(`git config user.name "${userName}"`, { cwd: tempDir });
-  }
-
-  try {
-    await execAsync(`git config user.email`, { cwd: tempDir });
-  } catch (error) {
-    // No user.email set, so set it
-    await execAsync(`git config user.email "${userEmail}"`, { cwd: tempDir });
-  }
-
   try {
     // 1. Create the physical repository directory
-
     if (fs.existsSync(repoPath)) {
       throw new Error('Repository directory already exists');
     }
@@ -451,9 +437,11 @@ async function createRepository(repoName, ownerPubkey, description = '', reposPa
     // 2. Initialize as a Git repository
     await execAsync('git init --bare', { cwd: repoPath });
     console.log(`Initialized bare Git repository in ${repoPath}`);
+
+    // 3. Set git config (avoid nested try blocks)
+    await setGitConfigIfMissing(repoPath, userName, userEmail, execAsync);
     
-    // 3. Create initial structure for medical data
-    const tempDir = path.join(repoPath, '..', `${repoName}-temp`);
+    // 4. Create initial structure for medical data
     fs.mkdirSync(tempDir, { recursive: true });
     
     // Clone the bare repo to temp directory for initial commit
@@ -557,6 +545,20 @@ This repository uses Nostr public key authentication and cryptographic verificat
       success: false,
       error: error.message
     };
+  }
+}
+
+async function setGitConfigIfMissing(repoPath, userName, userEmail, execAsync) {
+  try {
+    await execAsync(`git config user.name`, { cwd: repoPath });
+  } catch (error) {
+    await execAsync(`git config user.name "${userName}"`, { cwd: repoPath });
+  }
+
+  try {
+    await execAsync(`git config user.email`, { cwd: repoPath });
+  } catch (error) {
+    await execAsync(`git config user.email "${userEmail}"`, { cwd: repoPath });
   }
 }
 

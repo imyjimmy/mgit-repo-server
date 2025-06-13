@@ -44,11 +44,21 @@ document.getElementById('createRepoBtn').addEventListener('click', async () => {
   const userEmail = document.getElementById('userEmail').value.trim();
   const token = localStorage.getItem('nostr_token');
   
-  // Validate repository name format
-  const validateRepoName = repoName.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-');
-  if (validateRepoName !== repoName.toLowerCase().replace(/\s+/g, '-')) {
-    alert('Repository name can only contain letters, numbers, and spaces');
+  console.log('test: ', /^[a-zA-Z0-9\s\-_]+$/.test(repoName), repoName);
+  // Allow letters, numbers, spaces, hyphens, and underscores
+  if (!/^[a-zA-Z0-9\s\-_]+$/.test(repoName)) {
+    console.log('another test:', !/^[a-zA-Z0-9\s\-_]+$/.test(repoName));
+    alert('Repository name can only contain letters, numbers, spaces, hyphens, and underscores');
     return;
+  }
+
+  const normalizedRepoName = repoName.toLowerCase().replace(/\s+/g, '-');
+  
+  // Show user what the repo will be named (like GitHub does)
+  if (normalizedRepoName !== repoName.toLowerCase()) {
+    if (!confirm(`Your new repository will be created as "${normalizedRepoName}". Continue?`)) {
+      return;
+    }
   }
 
   if (!repoName) {
@@ -79,9 +89,9 @@ document.getElementById('createRepoBtn').addEventListener('click', async () => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
-        repoName: document.getElementById('repoDisplayName').value.trim(),
-        userName: document.getElementById('userName').value.trim(),
-        userEmail: document.getElementById('userEmail').value.trim(),
+        repoName: normalizedRepoName,
+        userName,
+        userEmail,
         description: `Medical records of ${document.getElementById('userName').value.trim()}, email: ${document.getElementById('userEmail').value.trim()}`,
       })
     });
