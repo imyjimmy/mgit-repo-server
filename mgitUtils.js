@@ -437,16 +437,16 @@ async function createRepository(repoName, userName, userEmail, ownerPubkey, desc
     // 2. Initialize as a Git repository
     await execAsync('git init --bare', { cwd: repoPath });
     console.log(`Initialized bare Git repository in ${repoPath}`);
-
-    // 3. Set git config (avoid nested try blocks)
-    await setGitConfigIfMissing(repoPath, userName, userEmail, execAsync);
     
-    // 4. Create initial structure for medical data
+    // 3. Create initial structure for medical data
     fs.mkdirSync(tempDir, { recursive: true });
     
-    // Clone the bare repo to temp directory for initial commit
+    // 4. Clone the bare repo to temp directory for initial commit
     await execAsync(`git clone ${repoPath} ${tempDir}`);
-    
+    console.log(`Cloned repository to temp directory: ${tempDir}`);
+
+    await setGitConfigIfMissing(tempDir, userName, userEmail, execAsync);
+
     // 4. Create initial medical history structure
     const initialContent = {
       patientInfo: {
@@ -549,16 +549,25 @@ This repository uses Nostr public key authentication and cryptographic verificat
 }
 
 async function setGitConfigIfMissing(repoPath, userName, userEmail, execAsync) {
+  console.log(`Setting git config in: ${repoPath}`);
+  console.log(`userName: ${userName}, userEmail: ${userEmail}`);
+  
   try {
-    await execAsync(`git config user.name`, { cwd: repoPath });
+    const existingName = await execAsync(`git config user.name`, { cwd: repoPath });
+    console.log(`Existing git user.name: ${existingName.stdout.trim()}`);
   } catch (error) {
+    console.log(`No existing git user.name, setting to: ${userName}`);
     await execAsync(`git config user.name "${userName}"`, { cwd: repoPath });
+    console.log(`✅ Set git user.name to: ${userName}`);
   }
 
   try {
-    await execAsync(`git config user.email`, { cwd: repoPath });
+    const existingEmail = await execAsync(`git config user.email`, { cwd: repoPath });
+    console.log(`Existing git user.email: ${existingEmail.stdout.trim()}`);
   } catch (error) {
+    console.log(`No existing git user.email, setting to: ${userEmail}`);
     await execAsync(`git config user.email "${userEmail}"`, { cwd: repoPath });
+    console.log(`✅ Set git user.email to: ${userEmail}`);
   }
 }
 
