@@ -9,6 +9,7 @@ const path = require('path');
 const { execSync, exec } = require('child_process');
 const jwt = require('jsonwebtoken');
 const { bech32 } = require('bech32');
+const QRCode = require('qrcode');
 
 console.log('=== MGit Server Starting - Build Version 2025-06-08-v2 ===');
 
@@ -871,6 +872,52 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
     res.setHeader('Content-Type', 'text/plain');
     res.send(stdout);
   });
+});
+
+// QR Code generation endpoint-- used for mobile mgit clone
+app.get('/api/qr/clone/:repoId', authenticateJWT, async (req, res) => {
+  const { repoId } = req.params;
+  const { pubkey } = req.user;
+  
+  const accessCheck = checkRepoAccess(repoId, pubkey);
+  
+  if (!accessCheck.success) {
+    return res.status(accessCheck.status).json({ 
+      status: 'error', 
+      reason: accessCheck.error 
+    });
+  }
+
+  try {
+    // Create the QR code data
+    const qrData = {
+      action: "mgit_clone",
+      clone_url: `http://localhost:3003/${repoId}`,
+      jwt_token: req.headers.authorization.split(' ')[1], // Extract token from Bearer header
+      repo_name: repoId
+    };
+
+    // Generate SVG QR code
+    const qrCodeSVG = await QRCode.toString(JSON.stringify(qrData), {
+      type: 'svg',
+      width: 200,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(qrCodeSVG);
+  } catch (error) {
+    console.error('QR code generation error:', error);
+    res.status(500).json({
+      status: 'error',
+      reason: 'Failed to generate QR code',
+      details: error.message
+    });
+  }
 });
 
 // Repository creation endpoint
