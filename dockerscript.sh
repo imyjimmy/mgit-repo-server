@@ -1,6 +1,9 @@
+#!/bin/bash
 docker build --no-cache -t imyjimmy/mgit-repo-server:latest .
 docker push imyjimmy/mgit-repo-server:latest
 docker stop mgitreposerver-mgit-repo-server_web_1
+# docker rm mgitreposerver-mgit-repo-server_web_1
+# docker rmi imyjimmy/mgit-repo-server:latest
 docker stop mgitreposerver-mgit-repo-server_tor_server_1  
 docker stop mgitreposerver-mgit-repo-server_app_proxy_1
 docker pull imyjimmy/mgit-repo-server:latest
