@@ -502,6 +502,10 @@ This repository uses Nostr public key authentication and cryptographic verificat
     // 5. Make initial commit
     await execAsync('git add .', { cwd: tempDir });
     await execAsync('git commit -m "Initial medical history repository setup"', { cwd: tempDir });
+    
+    // Debug what happened after commit
+    await debugGitState(tempDir, execAsync);
+    await execAsync('git branch -M main', { cwd: tempDir });
     await execAsync('git push origin main', { cwd: tempDir });
     
     // 6. Clean up temp directory
@@ -571,6 +575,25 @@ async function setGitConfigIfMissing(repoPath, userName, userEmail, execAsync) {
   }
 }
 
+async function debugGitState(tempDir, execAsync) {
+  console.log('=== Debugging git state before push ===');
+  
+  const commands = [
+    { name: 'branches', cmd: 'git branch -a' },
+    { name: 'status', cmd: 'git status' },
+    { name: 'log', cmd: 'git log --oneline' },
+    { name: 'current-branch', cmd: 'git branch --show-current' }
+  ];
+  
+  for (const { name, cmd } of commands) {
+    try {
+      const result = await execAsync(cmd, { cwd: tempDir });
+      console.log(`${name}:`, result.stdout.trim());
+    } catch (e) {
+      console.log(`Error getting ${name}:`, e.message);
+    }
+  }
+}
 module.exports = {
   getDefaultBranch,
   getBranches,
