@@ -40,11 +40,29 @@ async function validateToken(token) {
 // Create repository functionality
 document.getElementById('createRepoBtn').addEventListener('click', async () => {
   const repoName = document.getElementById('repoName').value.trim();
-  const repoDescription = document.getElementById('repoDescription').value.trim();
+  const userName = document.getElementById('userName').value.trim();
+  const userEmail = document.getElementById('userEmail').value.trim();
   const token = localStorage.getItem('nostr_token');
   
+  // Validate repository name format
+  const validateRepoName = repoName.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-');
+  if (validateRepoName !== repoName.toLowerCase().replace(/\s+/g, '-')) {
+    alert('Repository name can only contain letters, numbers, and spaces');
+    return;
+  }
+
   if (!repoName) {
-    alert('Please enter a repository name');
+    alert('Please enter a name for your Medical Binder');
+    return;
+  }
+
+  if (!userName) {
+    alert('Please enter your name');
+    return;
+  }
+
+  if (!userEmail) {
+    alert('Please enter your email');
     return;
   }
   
@@ -60,9 +78,11 @@ document.getElementById('createRepoBtn').addEventListener('click', async () => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        repoName: repoName,
-        description: repoDescription || 'Personal medical history repository'
+      body: JSON.stringify({ 
+        repoName: document.getElementById('repoDisplayName').value.trim(),
+        userName: document.getElementById('userName').value.trim(),
+        userEmail: document.getElementById('userEmail').value.trim(),
+        description: `Medical records of ${document.getElementById('userName').value.trim()}, email: ${document.getElementById('userEmail').value.trim()}`,
       })
     });
     

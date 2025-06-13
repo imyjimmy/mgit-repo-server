@@ -938,13 +938,12 @@ app.post('/api/mgit/repos/create', async (req, res) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     const { pubkey } = decoded;
     
-    const { repoName, description } = req.body;
-    
-    // Validate input
-    if (!repoName) {
+    const { repoName, userName, userEmail, description } = req.body;
+
+    if (!repoName || !userName || !userEmail) {
       return res.status(400).json({
         status: 'error',
-        reason: 'Repository name is required'
+        reason: 'Display name, user name, and email are required'
       });
     }
     

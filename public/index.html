@@ -506,12 +506,14 @@
             <p>Create a secure, self-custodial medical history repository linked to your Nostr identity.</p>
             
             <div style="margin: 20px 0;">
-                <label for="repoName">Repository Name:</label><br>
-                <input type="text" id="repoName" placeholder="my-medical-history" style="width: 300px; padding: 8px; margin: 5px 0;">
-                <br>
-                <label for="repoDescription">Description:</label><br>
-                <input type="text" id="repoDescription" placeholder="My personal health records" style="width: 300px; padding: 8px; margin: 5px 0;">
-                <br>
+                <label for="repoName">What would you like to name your Medical Binder?</label><br>
+                <input type="text" id="repoName" placeholder="My Health Records" style="width: 300px; padding: 8px; margin: 5px 0;">
+                <br />
+                <label for="userName">Your Name:</label><br />
+                <input type="text" id="userName" placeholder="Dr. Jane Smith" style="width: 300px; padding: 8px; margin: 5px 0;">
+                <br />
+                <label for="userEmail">Your Email:</label><br />
+                <input type="email" id="userEmail" placeholder="jane.smith@clinic.com" style="width: 300px; padding: 8px; margin: 5px 0;"><br />
                 <button id="createRepoBtn" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 10px 0;">
                     Create Repository
                 </button>

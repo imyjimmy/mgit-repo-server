@@ -412,7 +412,6 @@ function getNostrPubkey(repoPath, gitHash) {
 // Helper function to create a new mgit repository
 async function createRepository(repoName, ownerPubkey, description = '', reposPath) {
   console.log('reposPath: ', reposPath);
-
   const { spawn, exec } = require('child_process');
   const { promisify } = require('util');
   const execAsync = promisify(exec);
@@ -423,6 +422,21 @@ async function createRepository(repoName, ownerPubkey, description = '', reposPa
   console.log('constructed repoPath:', repoPath);
   console.log('fs.existsSync(repoPath):', fs.existsSync(repoPath));
   console.log('Contents of reposPath:', fs.readdirSync(reposPath));
+  
+  // set git username, email if it doesn't exist yet
+  try {
+    await execAsync(`git config user.name`, { cwd: tempDir });
+  } catch (error) {
+    // No user.name set, so set it
+    await execAsync(`git config user.name "${userName}"`, { cwd: tempDir });
+  }
+
+  try {
+    await execAsync(`git config user.email`, { cwd: tempDir });
+  } catch (error) {
+    // No user.email set, so set it
+    await execAsync(`git config user.email "${userEmail}"`, { cwd: tempDir });
+  }
 
   try {
     // 1. Create the physical repository directory

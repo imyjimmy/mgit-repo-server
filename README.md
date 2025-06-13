@@ -153,7 +153,7 @@ docker-compose down && docker-compose up -d
 1. `git clone` this repo *and* the `mgit` repo.
 
 Have it set up as follows:
-```
+```bash
 ├── mgit
 │   ├── clone.go
 │   ├── cmd_config.go
