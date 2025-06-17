@@ -231,6 +231,16 @@ async function generateQRCode(repoId, token) {
     if (response.ok) {
       const svgText = await response.text();
       document.getElementById('qrCode').innerHTML = svgText;
+
+      // Show the debug command
+      const debugCommand = `mgit clone -jwt "${token}" "http://localhost:3003/${repoId}"`;
+      document.getElementById('debugCommand').innerHTML = `
+        <h3>Debug Command:</h3>
+        <code style="background: #f0f0f0; padding: 10px; display: block; margin: 10px 0; word-break: break-all;">
+          ${debugCommand}
+        </code>
+        <p><em>Copy and run this command in terminal to test mgit clone manually</em></p>
+      `;
     } else {
       document.getElementById('qrCode').innerHTML = '<p>Error generating QR code</p>';
     }
