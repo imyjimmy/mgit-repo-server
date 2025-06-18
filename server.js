@@ -112,8 +112,35 @@ const validateAuthToken = (req, res, next) => {
     });
   }
 
-  const token = authHeader.split(' ')[1];
-  
+  let token;
+
+  // Handle Bearer token (existing)
+  if (authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (authHeader.startsWith('Basic ')) { // Handle Basic Auth (for go-git compatibility)
+    try {
+      const base64Credentials = authHeader.split(' ')[1];
+      const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+      const [username, password] = credentials.split(':');
+      
+      // For go-git, the token is in the password field
+      token = password;
+      
+      console.log('Basic Auth detected, using password as token');
+    } catch (error) {
+      return res.status(401).json({ 
+        status: 'error', 
+        reason: 'Invalid Basic Auth format' 
+      });
+    }
+  } 
+  else {
+    return res.status(401).json({ 
+      status: 'error', 
+      reason: 'Invalid authentication format. Use Bearer or Basic Auth.' 
+    });
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
