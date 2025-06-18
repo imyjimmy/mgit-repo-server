@@ -1118,6 +1118,7 @@ app.get('/api/mgit/repos/:repoId/info/refs', validateAuthToken, (req, res) => {
 // Git protocol endpoint for git-upload-pack (needed for clone)
 // data transfer phase
 app.post('/api/mgit/repos/:repoId/git-upload-pack', validateAuthToken, (req, res) => {
+  console.log('🔧 DEBUG: git-upload-pack route hit for repoId:', req.params.repoId);
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
