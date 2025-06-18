@@ -46,6 +46,19 @@ const pendingChallenges = new Map();
 // Path to repositories storage - secure path verified by security module
 const REPOS_PATH = security.ensureSecurePath();
 
+// Get base URL from environment or construct from request
+const getBaseUrl = (req) => {
+  // Priority 1: Environment variable
+  if (process.env.MGIT_SERVER_URL) {
+    return process.env.MGIT_SERVER_URL;
+  }
+  
+  // Priority 2: Construct from request headers (works with reverse proxies)
+  const protocol = req.headers['x-forwarded-proto'] || 'http';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3003';
+  return `${protocol}://${host}`;
+};
+
 // In-memory repository configuration - in production, use a database
 // This would store which nostr pubkeys are authorized for each repository
 let repoConfigurations = {
@@ -892,7 +905,7 @@ app.get('/api/qr/clone/:repoId', authenticateJWT, async (req, res) => {
     // Create the QR code data
     const qrData = {
       action: "mgit_clone",
-      clone_url: `http://localhost:3003/${repoId}`,
+      clone_url: `${getBaseUrl(req)}/${repoId}`,
       jwt_token: req.headers.authorization.split(' ')[1], // Extract token from Bearer header
       repo_name: repoId
     };
