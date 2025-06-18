@@ -508,6 +508,9 @@ This repository uses Nostr public key authentication and cryptographic verificat
     await execAsync('git branch -M main', { cwd: tempDir });
     await execAsync('git push origin main', { cwd: tempDir });
     
+    // Fix the bare repository's HEAD to point to main instead of master  
+    await execAsync(`echo "ref: refs/heads/main" > ${repoPath}/HEAD`);
+
     // 6. Clean up temp directory
     fs.rmSync(tempDir, { recursive: true, force: true });
     
