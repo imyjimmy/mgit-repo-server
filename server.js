@@ -1333,6 +1333,40 @@ app.get('/api/mgit/repos/:repoId/metadata', validateMGitToken, (req, res) => {
   }
 });
 
+// show repos of a user
+app.get('/api/user/repositories', validateAuthToken, (req, res) => {
+  try {
+    console.log('USER REPOSITORIES LIST')
+    const userPubkey = req.user.pubkey;
+    const userRepositories = [];
+    
+    // Search through all repository configurations to find user's repos
+    for (const [repoId, config] of Object.entries(repoConfigurations)) {
+      // Check if user has access to this repository
+      const hasAccess = config.authorized_keys.some(key => key.pubkey === userPubkey);
+      
+      if (hasAccess) {
+        userRepositories.push({
+          name: repoId,
+          id: repoId,
+          description: config.metadata?.description || '',
+          created: config.metadata?.created || new Date().toISOString(),
+          type: config.metadata?.type || 'repository',
+          access: config.authorized_keys.find(key => key.pubkey === userPubkey)?.access || 'read-only'
+        });
+      }
+    }
+    
+    // Sort by creation date (newest first)
+    userRepositories.sort((a, b) => new Date(b.created) - new Date(a.created));
+    
+    res.json(userRepositories);
+  } catch (error) {
+    console.error('Error fetching user repositories:', error);
+    res.status(500).json({ error: 'Failed to fetch repositories' });
+  }
+});
+
 // helper fns moved to mgitUtils
 
 // Express static file serving for the React frontend ONLY

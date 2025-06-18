@@ -37,6 +37,140 @@ async function validateToken(token) {
   }
 }
 
+// Add this function to load existing repositories
+async function loadExistingRepositories() {
+  const token = localStorage.getItem('nostr_token');
+  const pubkey = localStorage.getItem('nostr_pubkey');
+  
+  console.log('🔍 Loading existing repositories...');
+  console.log('Token exists:', !!token);
+  console.log('Pubkey exists:', !!pubkey);
+  
+  if (!token || !pubkey) {
+    console.error('No token or pubkey found');
+    return;
+  }
+
+  try {
+    console.log('📡 Calling /api/user/repositories...');
+    const response = await fetch('/api/user/repositories', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('📊 Response status:', response.status);
+    
+    if (response.ok) {
+      const repositories = await response.json();
+      console.log('📁 Found repositories:', repositories);
+      displayRepositories(repositories);
+    } else {
+      const errorText = await response.text();
+      console.error('❌ Failed to load repositories:', response.status, errorText);
+      document.getElementById('reposList').innerHTML = `<p>Error loading repositories: ${response.status}</p>`;
+    }
+  } catch (error) {
+    console.error('💥 Network error loading repositories:', error);
+    document.getElementById('reposList').innerHTML = '<p>Network error loading repositories.</p>';
+  }
+}
+
+// Display repositories in the UI
+function displayRepositories(repositories) {
+  const reposList = document.getElementById('reposList');
+  
+  if (!repositories || repositories.length === 0) {
+    reposList.innerHTML = '<p>No repositories found. Create your first repository below!</p>';
+    return;
+  }
+
+  let html = '';
+  repositories.forEach(repo => {
+    html += `
+      <div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; background-color: #f9f9f9;">
+        <h3>${repo.name}</h3>
+        <p><strong>Created:</strong> ${new Date(repo.created).toLocaleDateString()}</p>
+        <p><strong>Description:</strong> ${repo.description || 'No description'}</p>
+        <p><strong>Access Level:</strong> ${repo.access}</p>
+        
+        <div style="margin: 15px 0;">
+          <button onclick="generateExistingQR('${repo.name}')" 
+                  style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+            📱 Generate QR Code
+          </button>
+          <button onclick="copyCloneCommand('${repo.name}')" 
+                  style="padding: 8px 16px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            📋 Copy Clone Command
+          </button>
+        </div>
+        
+        <div id="qr-${repo.name}" style="margin: 15px 0; text-align: center;">
+          <!-- QR code will appear here -->
+        </div>
+        
+        <div id="debug-${repo.name}" style="margin: 15px 0;">
+          <!-- Debug command will appear here -->
+        </div>
+      </div>
+    `;
+  });
+  
+  reposList.innerHTML = html;
+}
+
+// Generate QR code for existing repository
+async function generateExistingQR(repoName) {
+  const token = localStorage.getItem('nostr_token');
+  
+  try {
+    const response = await fetch(`/api/qr/clone/${repoName}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (response.ok) {
+      const svgText = await response.text();
+      document.getElementById(`qr-${repoName}`).innerHTML = svgText;
+
+      // Show debug command
+      const debugCommand = `mgit clone -jwt "${token}" "https://plebemr.com/api/mgit/repos/${repoName}"`;
+      document.getElementById(`debug-${repoName}`).innerHTML = `
+        <h4>Debug Command:</h4>
+        <code style="background: #f0f0f0; padding: 10px; display: block; margin: 10px 0; word-break: break-all; font-size: 12px;">
+          ${debugCommand}
+        </code>
+        <p><em>Copy and run this command in terminal to test mgit clone manually</em></p>
+      `;
+      
+      showMessage(`QR code generated for ${repoName}!`, 'success');
+    } else {
+      document.getElementById(`qr-${repoName}`).innerHTML = '<p>Error generating QR code</p>';
+    }
+  } catch (error) {
+    console.error('QR code generation failed:', error);
+    document.getElementById(`qr-${repoName}`).innerHTML = '<p>QR code unavailable</p>';
+  }
+}
+
+// Copy clone command to clipboard
+async function copyCloneCommand(repoName) {
+  const token = localStorage.getItem('nostr_token');
+  const command = `mgit clone -jwt "${token}" "https://plebemr.com/api/mgit/repos/${repoName}"`;
+  
+  try {
+    await navigator.clipboard.writeText(command);
+    showMessage(`Clone command copied to clipboard for ${repoName}!`, 'success');
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error);
+    showMessage('Failed to copy to clipboard', 'error');
+  }
+}
+
 // Create repository functionality
 document.getElementById('createRepoBtn').addEventListener('click', async () => {
   const repoName = document.getElementById('repoName').value.trim();
@@ -205,6 +339,12 @@ function logout() {
 function showDashboard() {
   document.getElementById('landing').classList.add('hidden');
   document.getElementById('dashboard').classList.remove('hidden');
+
+  // Show existing repositories section
+  document.getElementById('existingRepos').classList.remove('hidden');
+  
+  // Load existing repositories
+  loadExistingRepositories();
 }
 
 function showLanding() {
