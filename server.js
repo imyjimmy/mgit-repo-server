@@ -905,7 +905,7 @@ app.get('/api/qr/clone/:repoId', authenticateJWT, async (req, res) => {
     // Create the QR code data
     const qrData = {
       action: "mgit_clone",
-      clone_url: `${getBaseUrl(req)}/${repoId}`,
+      clone_url: `${getBaseUrl(req)}/api/mgit/repos/${repoId}`,
       jwt_token: req.headers.authorization.split(' ')[1], // Extract token from Bearer header
       repo_name: repoId
     };
