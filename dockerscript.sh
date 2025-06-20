@@ -7,8 +7,8 @@ docker stop mgitreposerver-mgit-repo-server_web_1
 docker stop mgitreposerver-mgit-repo-server_tor_server_1  
 docker stop mgitreposerver-mgit-repo-server_app_proxy_1
 
-echo "🗑️  Removing test repositories..."
-rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/*
+# echo "🗑️  Removing test repositories..."
+# rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/*
 
 docker pull imyjimmy/mgit-repo-server:latest
 docker rm mgitreposerver-mgit-repo-server_web_1
