@@ -101,10 +101,10 @@ function displayRepositories(repositories) {
                   style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
             📱 Generate QR Code
           </button>
-          <button onclick="copyCloneCommand('${repo.name}')" 
-                  style="padding: 8px 16px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            📋 Copy Clone Command
-          </button>
+          <div class="jwt-section">
+            <label><strong>JWT Token:</strong></label>
+            <textarea readonly class="jwt-display">${localStorage.getItem('nostr_token') || 'No token available'}</textarea>
+          </div>
         </div>
         
         <div id="qr-${repo.name}" style="margin: 15px 0; text-align: center;">

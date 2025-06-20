@@ -70,6 +70,40 @@ let repoConfigurations = {
   },
 };
 
+// Add this function near the top of server.js
+async function discoverExistingRepositories() {
+  try {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    const repoDir = path.resolve(__dirname, '../private_repos');
+    const items = await fs.readdir(repoDir, { withFileTypes: true });
+    
+    for (const item of items) {
+      if (item.isDirectory() && !repoConfigurations[item.name]) {
+        console.log(`🔍 Discovered repository: ${item.name}`);
+        
+        // Add with default configuration
+        repoConfigurations[item.name] = {
+          authorized_keys: [
+            { pubkey: '2cbf7f956e24bb2e8d8396737f53b427c53432ab91c857212982384f88b9bfa2', access: 'admin' }
+          ],
+          metadata: {
+            description: `Auto-discovered repository: ${item.name}`,
+            created: new Date().toISOString(),
+            type: 'repository'
+          }
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Error discovering repositories:', error);
+  }
+}
+
+// Call it on server startup (add this after the repoConfigurations object)
+discoverExistingRepositories();
+
 // Load repository configurations from file if available
 try {
   const configPath = path.join(__dirname, 'repo-config.json');
