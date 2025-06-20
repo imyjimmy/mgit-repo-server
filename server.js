@@ -76,7 +76,18 @@ async function discoverExistingRepositories() {
     const fs = require('fs').promises;
     const path = require('path');
     
-    const repoDir = path.resolve(__dirname, '../private_repos');
+    // Try Docker path first, fallback to local
+    let repoDir;
+    try {
+      await fs.access('/private_repos');
+      repoDir = '/private_repos';  // Docker environment
+      console.log('🐳 Running in Docker - using /private_repos');
+    } catch {
+      repoDir = path.resolve(__dirname, '../private_repos');  // Local environment
+      console.log('💻 Running locally - using ../private_repos');
+    }
+    
+    console.log(`🔍 Scanning for repositories in: ${repoDir}`);
     const items = await fs.readdir(repoDir, { withFileTypes: true });
     
     for (const item of items) {
