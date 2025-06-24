@@ -187,9 +187,14 @@ const validateAuthToken = (req, res, next) => {
         token = innerPassword;
         console.log('🔧 Using inner JWT token from double-encoded auth');
       } else {
-        // Normal Basic Auth
-        token = password;
-        console.log('Using password as JWT token:', password);
+        // "Normal" Basic Auth but still has "Basic " prefix due to go-git double-encoding
+        if (password.startsWith('Basic ')) {
+          token = password.substring(6); // Remove "Basic " prefix
+          console.log('🔧 Removed Basic prefix from password field, using JWT token');
+        } else {
+          token = password;
+          console.log('Using password as JWT token');
+        }
       }
     } catch (error) {
       console.log('❌ Basic Auth parsing failed:', error.message);
