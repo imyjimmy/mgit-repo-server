@@ -177,34 +177,28 @@ const validateAuthToken = (req, res, next) => {
       console.log('Basic Auth username:', username);
       console.log('Basic Auth password length:', password.length);
       
-      // Check if the password is double-encoded (starts with "ey" indicating JWT)
-      // vs base64 encoded again
-      if (password.startsWith('ey')) {
-        // Direct JWT in password field
-        token = password;
+      // Check for double-encoded Basic Auth (go-git bug)
+      if (credentials.startsWith('Basic ')) {
+        console.log('🔧 Detected double-encoded Basic Auth, fixing...');
+        // Extract the inner base64 part
+        const innerBase64 = credentials.substring(6); // Remove "Basic "
+        const innerCredentials = Buffer.from(innerBase64, 'base64').toString('ascii');
+        const [innerUsername, innerPassword] = innerCredentials.split(':');
+        token = innerPassword;
+        console.log('🔧 Using inner JWT token from double-encoded auth');
       } else {
-        // Might be double-encoded, try decoding again
-        try {
-          const decoded = Buffer.from(password, 'base64').toString('ascii');
-          if (decoded.startsWith('ey')) {
-            token = decoded;
-            console.log('🔧 Detected and fixed double-encoded JWT');
-          } else {
-            token = password; // Fall back to original
-          }
-        } catch {
-          token = password; // Fall back if decode fails
-        }
+        // Normal Basic Auth
+        token = password;
+        console.log('Using password as JWT token:', password);
       }
-      console.log('Using password as JWT token');
-   } catch (error) {
+    } catch (error) {
       console.log('❌ Basic Auth parsing failed:', error.message);
       return res.status(401).json({ 
         status: 'error', 
         reason: 'Invalid Basic Auth format' 
       });
     }
-  } 
+  }
   else {
     console.log('❌ Unknown auth format');
     return res.status(401).json({ 
