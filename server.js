@@ -1233,8 +1233,17 @@ app.post('/api/mgit/repos/:repoId/git-receive-pack', validateAuthToken, (req, re
   const { repoId } = req.params;
   const { access } = req.user;
   
+  const accessCheck = checkRepoAccess(repoId, pubkey);
+  
+  if (!accessCheck.success) {
+    return res.status(accessCheck.status).json({ 
+      status: 'error', 
+      reason: accessCheck.error 
+    });
+  }
+  
   // Check write permissions
-  if (access !== 'admin' && access !== 'read-write') {
+  if (accessCheck.access !== 'admin' && accessCheck.access !== 'read-write') {
     return res.status(403).json({ 
       status: 'error', 
       reason: 'Insufficient permissions to push to repository' 
