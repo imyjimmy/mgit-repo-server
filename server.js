@@ -1247,7 +1247,7 @@ app.post('/api/mgit/repos/:repoId/git-upload-pack', validateAuthToken, (req, res
 // Git protocol endpoint for git-receive-pack (needed for push)
 app.post('/api/mgit/repos/:repoId/git-receive-pack', validateAuthToken, (req, res) => {
   const { repoId } = req.params;
-  const { access } = req.user;
+  const { pubkey } = req.user;
   
   const accessCheck = checkRepoAccess(repoId, pubkey);
   
