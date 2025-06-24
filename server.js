@@ -177,10 +177,27 @@ const validateAuthToken = (req, res, next) => {
       console.log('Basic Auth username:', username);
       console.log('Basic Auth password length:', password.length);
       
-      // For go-git, the JWT token is in the password field
-      token = password;
+      // Check if the password is double-encoded (starts with "ey" indicating JWT)
+      // vs base64 encoded again
+      if (password.startsWith('ey')) {
+        // Direct JWT in password field
+        token = password;
+      } else {
+        // Might be double-encoded, try decoding again
+        try {
+          const decoded = Buffer.from(password, 'base64').toString('ascii');
+          if (decoded.startsWith('ey')) {
+            token = decoded;
+            console.log('🔧 Detected and fixed double-encoded JWT');
+          } else {
+            token = password; // Fall back to original
+          }
+        } catch {
+          token = password; // Fall back if decode fails
+        }
+      }
       console.log('Using password as JWT token');
-    } catch (error) {
+   } catch (error) {
       console.log('❌ Basic Auth parsing failed:', error.message);
       return res.status(401).json({ 
         status: 'error', 
