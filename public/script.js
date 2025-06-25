@@ -124,7 +124,7 @@ function displayRepositories(repositories) {
 // Generate QR code for existing repository
 async function generateExistingQR(repoName) {
   const token = localStorage.getItem('nostr_token');
-  
+  console.log('GENERATING EXISITNG QR:', token);
   try {
     const response = await fetch(`/api/qr/clone/${repoName}`, {
       method: 'GET',
@@ -134,6 +134,7 @@ async function generateExistingQR(repoName) {
     });
     
     if (response.ok) {
+      console.log('GENERATING EXISITNG QR, response ok:', token, response);
       const svgText = await response.text();
       document.getElementById(`qr-${repoName}`).innerHTML = svgText;
 
