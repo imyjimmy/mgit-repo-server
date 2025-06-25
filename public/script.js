@@ -97,10 +97,6 @@ function displayRepositories(repositories) {
         <p><strong>Access Level:</strong> ${repo.access}</p>
         
         <div style="margin: 15px 0;">
-          <button onclick="generateExistingQR('${repo.name}')" 
-                  style="padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
-            📱 Generate QR Code
-          </button>
           <div class="jwt-section">
             <label><strong>JWT Token:</strong></label>
             <textarea readonly class="jwt-display">${localStorage.getItem('nostr_token') || 'No token available'}</textarea>
@@ -110,7 +106,6 @@ function displayRepositories(repositories) {
         <div id="qr-${repo.name}" style="margin: 15px 0; text-align: center;">
           <!-- QR code will appear here -->
         </div>
-        
         <div id="debug-${repo.name}" style="margin: 15px 0;">
           <!-- Debug command will appear here -->
         </div>
@@ -119,6 +114,11 @@ function displayRepositories(repositories) {
   });
   
   reposList.innerHTML = html;
+
+  // async, make sure these dom elements are there before looping through them
+  repositories.forEach(repo => {
+    generateExistingQR(repo.name);
+  });
 }
 
 // Generate QR code for existing repository
@@ -139,7 +139,13 @@ async function generateExistingQR(repoName) {
       document.getElementById(`qr-${repoName}`).innerHTML = svgText;
 
       // Show debug command
-      const debugCommand = `mgit clone -jwt "${token}" "https://plebemr.com/api/mgit/repos/${repoName}"`;
+      const currentHost = window.location.host;
+      const protocol = window.location.protocol;
+      console.log(`debug, command, protocol: ${protocol} current host: ${currentHost}`);
+      
+      const debugCommand = `mgit clone -jwt "${token}" "${protocol}//${currentHost}/${repoName}"`;
+      // const debugCommand = `mgit clone -jwt "${token}" "https://plebemr.com/api/mgit/repos/${repoName}"`;
+      
       document.getElementById(`debug-${repoName}`).innerHTML = `
         <h4>Debug Command:</h4>
         <code style="background: #f0f0f0; padding: 10px; display: block; margin: 10px 0; word-break: break-all; font-size: 12px;">
@@ -373,8 +379,12 @@ async function generateQRCode(repoId, token) {
       const svgText = await response.text();
       document.getElementById('qrCode').innerHTML = svgText;
 
+      const currentHost = window.location.host;
+      const protocol = window.location.protocol;
+      console.log(`debug, command, protocol: ${protocol} current host: ${currentHost}`);
+
       // Show the debug command
-      const debugCommand = `mgit clone -jwt "${token}" "http://localhost:3003/${repoId}"`;
+      const debugCommand = `mgit clone -jwt "${token}" "${protocol}//${currentHost}/${repoId}"`;
       document.getElementById('debugCommand').innerHTML = `
         <h3>Debug Command:</h3>
         <code style="background: #f0f0f0; padding: 10px; display: block; margin: 10px 0; word-break: break-all;">
