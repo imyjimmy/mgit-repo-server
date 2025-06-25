@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Get command line argument, default to "N" if not provided
-REMOVE_REPOS=${1:-N}
+# Get command line argument, default to "Y" (preserve) if not provided
+REMOVE_REPOS=${1:-Y}
 
 docker build --no-cache -t imyjimmy/mgit-repo-server:latest .
 docker push imyjimmy/mgit-repo-server:latest
@@ -11,8 +11,8 @@ docker stop mgitreposerver-mgit-repo-server_web_1
 docker stop mgitreposerver-mgit-repo-server_tor_server_1  
 docker stop mgitreposerver-mgit-repo-server_app_proxy_1
 
-# Check if user wants to remove repositories
-if [[ $REMOVE_REPOS =~ ^[Yy]$ ]]; then
+# Check if user wants to remove repositories (now asks "preserve repos?" with default yes)
+if [[ $REMOVE_REPOS =~ ^[Nn]$ ]]; then
     echo "🗑️  Removing existing repositories..."
     rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/*
 else
