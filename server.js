@@ -8,7 +8,6 @@ const fs = require('fs');
 const path = require('path');
 const { execSync, exec } = require('child_process');
 const jwt = require('jsonwebtoken');
-const { bech32 } = require('bech32');
 const QRCode = require('qrcode');
 
 console.log('=== MGit Server Starting - Build Version 2025-06-08-v2 ===');
@@ -23,6 +22,7 @@ const { verifyEvent, validateEvent, getEventHash } = require('nostr-tools');
 const configureSecurity = require('./security');
 
 const mgitUtils = require('./mgitUtils');
+const utils = require('./utils');
 
 const app = express();
 app.use(express.json());
@@ -276,6 +276,17 @@ const validateMGitToken = (req, res, next) => {
 if (!fs.existsSync(REPOS_PATH)) {
   fs.mkdirSync(REPOS_PATH, { recursive: true });
 }
+
+/* 
+ * Admin Routes
+ */
+// create admin routes
+const createAdminRoutes = require('./admin-routes');
+const adminRoutes = createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken);
+// UI for accessing admin dashboard
+app.use('/admin', express.static(path.join(__dirname, 'admin')));
+// admin-related API endpoints 
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/auth/:type/status', (req, res) => {
   const { type } = req.params;
@@ -645,25 +656,6 @@ app.get('/api/nostr/nip05/verify', async (req, res) => {
 
 // NEW ENDPOINTS FOR MGIT REPOSITORY-SPECIFIC AUTH
 
-/* hex and bech32 helper functions */
-function hexToBech32(hexStr, hrp = 'npub') {
-  // Validate hex input
-  if (!/^[0-9a-fA-F]{64}$/.test(hexStr)) {
-    throw new Error('Invalid hex format for Nostr public key');
-  }
-  
-  const bytes = Buffer.from(hexStr, 'hex');
-  const words = bech32.toWords(bytes);
-  return bech32.encode(hrp, words);
-}
-
-function bech32ToHex(bech32Str) {
-  const decoded = bech32.decode(bech32Str);
-  const bytes = bech32.fromWords(decoded.words);
-  if (bytes.length !== 32) throw new Error('Invalid public key length');
-  return Buffer.from(bytes).toString('hex');
-}
-
 // 1. Repository-specific challenge generation
 app.post('/api/mgit/auth/challenge', (req, res) => {
   const { repoId } = req.body;
@@ -769,7 +761,7 @@ app.post('/api/mgit/auth/verify', async (req, res) => {
     }
 
     // Find the authorization entry for this pubkey
-    const bech32pubkey = hexToBech32(pubkey);
+    const bech32pubkey = utils.hexToBech32(pubkey);
     console.log('the pubkey is: ', pubkey, 'bech32 version: ', bech32pubkey);
     const authEntry = repoConfig.authorized_keys.find(entry => entry.pubkey === bech32pubkey);
     
@@ -826,7 +818,7 @@ function checkRepoAccess(repoId, pubkey) {
   
   // Find the user's access level for this repository
   const authEntry = repoConfig.authorized_keys.find(key => 
-    key.pubkey === pubkey || hexToBech32(pubkey) === key.pubkey
+    key.pubkey === pubkey || utils.hexToBech32(pubkey) === key.pubkey
   );
   
   if (!authEntry) {
