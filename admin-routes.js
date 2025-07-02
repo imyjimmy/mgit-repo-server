@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const router = express.Router();
+const { webln } = require('@getalby/sdk');
 const utils = require('./utils');
 
 // Admin routes for managing patients and billing
@@ -123,8 +124,132 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
     }
   });
 
+  // Update the invoice endpoint
+  router.post('/invoice', validateAuthToken, async (req, res) => {
+    try {
+      const { patientId, amount, description } = req.body;
+      
+      if (!patientId || !amount || !description) {
+        return res.status(400).json({
+          status: 'error',
+          reason: 'Missing required fields: patientId, amount, description'
+        });
+      }
+      
+      // Find the patient
+      const config = repoConfigurations[patientId];
+      if (!config || !config.authorized_keys.length) {
+        return res.status(404).json({
+          status: 'error',
+          reason: 'Patient not found'
+        });
+      }
+      
+      const patientPubkey = config.authorized_keys[0].pubkey;
+      
+      // Convert amount from sats to millisats for Lightning
+      const amountMsat = amount * 1000;
+      
+      try {
+        // TODO: Initialize NWC connection - you'll need the admin's NWC connection string
+        // const nwc = new webln.NostrWeblnProvider({ nostrWalletConnectUrl: process.env.ADMIN_NWC_URL });
+        // await nwc.enable();
+        
+        // For now, create a mock invoice structure
+        const invoice = {
+          id: `inv_${Date.now()}`,
+          paymentRequest: `lnbc${amount}u1...mock_invoice`, // Mock payment request
+          paymentHash: 'mock_payment_hash_' + Date.now(),
+          amount: amount,
+          amountMsat: amountMsat,
+          description: description,
+          patientPubkey: patientPubkey,
+          patientId: patientId,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+        };
+        
+        // TODO: Generate real invoice using NWC
+        // const invoiceResponse = await nwc.makeInvoice({
+        //   amount: amountMsat,
+        //   defaultMemo: description
+        // });
+        // invoice.paymentRequest = invoiceResponse.paymentRequest;
+        // invoice.paymentHash = invoiceResponse.paymentHash;
+        
+        console.log('Generated invoice for patient:', {
+          patientId,
+          patientPubkey: patientPubkey.substring(0, 8) + '...',
+          amount: `${amount} sats`,
+          description,
+          paymentRequest: invoice.paymentRequest
+        });
+        
+        // TODO: Send NWC payment request to patient
+        // This would involve sending a Nostr DM to the patient's pubkey
+        // with the payment request and invoice details
+        
+        res.json({
+          status: 'success',
+          invoice: {
+            id: invoice.id,
+            amount: invoice.amount,
+            description: invoice.description,
+            paymentRequest: invoice.paymentRequest,
+            status: invoice.status,
+            createdAt: invoice.createdAt,
+            expiresAt: invoice.expiresAt
+          },
+          message: `Invoice generated for ${patientId}`
+        });
+        
+      } catch (nwcError) {
+        console.error('NWC invoice generation failed:', nwcError);
+        throw new Error(`Lightning invoice generation failed: ${nwcError.message}`);
+      }
+      
+    } catch (error) {
+      console.error('Invoice generation error:', error);
+      res.status(500).json({
+        status: 'error',
+        reason: 'Failed to generate invoice',
+        details: error.message
+      });
+    }
+  });
+
+  // Add to admin-routes.js
+  async function sendPaymentRequestDM(patientPubkey, invoice) {
+    try {
+      // TODO: Send Nostr DM to patient with payment request
+      const dmContent = {
+        type: 'payment_request',
+        invoice: {
+          id: invoice.id,
+          amount: invoice.amount,
+          description: invoice.description,
+          paymentRequest: invoice.paymentRequest,
+          expiresAt: invoice.expiresAt
+        },
+        message: `Invoice for medical repository hosting: ${invoice.description}`
+      };
+      
+      console.log('Would send DM to patient:', {
+        pubkey: patientPubkey.substring(0, 8) + '...',
+        content: dmContent
+      });
+      
+      // This would use nostr-tools to send an encrypted DM
+      // Implementation depends on having the admin's Nostr keys
+      
+    } catch (error) {
+      console.error('Failed to send payment request DM:', error);
+      throw error;
+    }
+  }
+
   // Add more admin routes here in the future
-  // router.post('/invoice', validateAuthToken, async (req, res) => { ... });
   // router.get('/stats', validateAuthToken, async (req, res) => { ... });
   
   return router;
