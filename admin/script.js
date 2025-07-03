@@ -179,24 +179,50 @@ async function loadServerStats() {
 
 async function loadPatientData() {
     try {
-        const response = await fetch('/api/admin/patients', {
-            headers: { 'Authorization': `Bearer ${adminToken}` }
-        });
+        // Mock patient data - would come from actual API
+        currentPatients = [
+            {
+                id: '1',
+                name: 'Dr. Jane Smith',
+                pubkey: 'npub1abc...',
+                repositories: 2,
+                storageUsed: 45, // MB
+                lastBilled: '2025-01-01',
+                paymentStatus: 'paid',
+                totalOwed: 0
+            },
+            {
+                id: '2', 
+                name: 'Dr. Bob Johnson',
+                pubkey: 'npub1def...',
+                repositories: 1,
+                storageUsed: 23, // MB
+                lastBilled: '2025-01-01',
+                paymentStatus: 'pending',
+                totalOwed: 1230
+            },
+            {
+                id: '3',
+                name: 'Dr. Alice Brown',
+                pubkey: 'npub1ghi...',
+                repositories: 3,
+                storageUsed: 78, // MB
+                lastBilled: '2024-12-15',
+                paymentStatus: 'overdue',
+                totalOwed: 2560
+            }
+        ];
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        currentPatients = await response.json();
         renderPatientsTable();
+        
+        // TODO: Add real API endpoint for patient data
+        // const response = await fetch('/api/admin/patients', {
+        //     headers: { 'Authorization': `Bearer ${adminToken}` }
+        // });
+        // currentPatients = await response.json();
         
     } catch (error) {
         console.error('Error loading patient data:', error);
-        showMessage(`Failed to load patient data: ${error.message}`, 'error');
-        
-        // Fallback to empty data
-        currentPatients = [];
-        renderPatientsTable();
     }
 }
 
@@ -209,27 +235,35 @@ function renderPatientsTable() {
         const monthlyCost = calculateMonthlyCost(patient.storageUsed);
         const statusClass = `status-${patient.paymentStatus}`;
         
+        // Format pubkey properly
+        const pubkeyDisplay = patient.pubkey.length > 10 ? 
+            patient.pubkey.substring(0, 4) + '...' + patient.pubkey.slice(-6) : 
+            patient.pubkey;
+        
         row.innerHTML = `
             <td>
                 <div><strong>${patient.name}</strong></div>
-                <div style="font-size: 0.8em; color: #666;">${patient.pubkey.length > 14 ? patient.pubkey.substring(0, 8) + '...' + patient.pubkey.slice(-6) : patient.pubkey}</div>
+                <div style="font-size: 0.8em; color: #666;">${pubkeyDisplay}</div>
             </td>
             <td>${patient.repositories}</td>
             <td>${patient.storageUsed} MB</td>
             <td>${monthlyCost} sats</td>
             <td><span class="${statusClass}">${patient.paymentStatus.toUpperCase()}</span></td>
             <td>
-                <button class="btn btn-primary btn-small" onclick="openInvoiceModal('${patient.id}')">
+                <button class="btn btn-primary btn-small bill-patient-btn" data-patient-id="${patient.id}">
                     Bill Patient
                 </button>
                 ${patient.paymentStatus === 'overdue' ? 
-                    `<button class="btn btn-warning btn-small" onclick="sendReminder('${patient.id}')">
+                    `<button class="btn btn-warning btn-small remind-patient-btn" data-patient-id="${patient.id}">
                         Remind
                     </button>` : ''
                 }
             </td>
         `;
     });
+    
+    // Add event listeners to the new buttons
+    addPatientButtonListeners();
 }
 
 async function loadBillingStats() {
@@ -396,6 +430,27 @@ async function sendOverdueReminders() {
         console.error('Overdue reminders error:', error);
         showMessage(`Failed to send reminders: ${error.message}`, 'error');
     }
+}
+
+// Add event listeners to patient action buttons
+function addPatientButtonListeners() {
+    // Bill Patient buttons
+    const billButtons = document.querySelectorAll('.bill-patient-btn');
+    billButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const patientId = e.target.getAttribute('data-patient-id');
+            openInvoiceModal(patientId);
+        });
+    });
+    
+    // Remind buttons
+    const remindButtons = document.querySelectorAll('.remind-patient-btn');
+    remindButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const patientId = e.target.getAttribute('data-patient-id');
+            sendReminder(patientId);
+        });
+    });
 }
 
 // Utility functions
