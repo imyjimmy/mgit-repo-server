@@ -1,9 +1,19 @@
+global.WebSocket = require('ws');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 const { LN } = require('@getalby/sdk');
 const utils = require('./utils');
+const { finalizeEvent, getPublicKey } = require('nostr-tools/pure');
+const { SimplePool, useWebSocketImplementation } = require('nostr-tools/pool');
+const nip19 = require('nostr-tools/nip19');
+const nip04 = require('nostr-tools/nip04');
+const { hexToBytes } = require('@noble/hashes/utils');
+const QRCode = require('qrcode');
+
+const WebSocket = require('ws');
+useWebSocketImplementation(WebSocket);
 
 // Admin routes for managing patients and billing
 function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
@@ -183,7 +193,6 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
           invoiceLength: invoice.paymentRequest.length
         });
         
-        // TODO: Send payment request to patient via Nostr DM
         await sendPaymentRequestDM(patientPubkey, invoice);
         
         res.json({
@@ -203,25 +212,10 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
       } catch (nwcError) {
         console.error('NWC invoice generation failed:', nwcError);
         
-        // Fallback to mock invoice for testing
-        const mockInvoice = {
-          id: `mock_inv_${Date.now()}`,
-          paymentRequest: `lnbc${amount}u1...mock_invoice_${Date.now()}`,
-          amount: amount,
-          description: description,
-          patientPubkey: patientPubkey,
-          patientId: patientId,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-        };
-        
-        console.log('Using mock invoice due to NWC error:', nwcError.message);
-        
-        res.json({
-          status: 'success',
-          invoice: mockInvoice,
-          message: `Mock invoice generated for ${patientId} (NWC unavailable: ${nwcError.message})`
+        return res.status(500).json({
+          status: 'error',
+          reason: 'Invoice generation failed',
+          details: nwcError.message
         });
       }
       
@@ -238,33 +232,88 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
   // Helper function for sending payment requests via Nostr DM
   async function sendPaymentRequestDM(patientPubkey, invoice) {
     try {
-      // TODO: Implement Nostr DM sending
-      const dmContent = {
-        type: 'nwc_payment_request',
+      // Check if admin has Nostr keys configured
+      const adminPrivateKeyInput = process.env.ADMIN_NOSTR_PRIVATE_KEY;
+      if (!adminPrivateKeyInput) {
+        console.log('ADMIN_NOSTR_PRIVATE_KEY not configured, cannot send DMs');
+        return;
+      }
+
+      // Convert hex string to Uint8Array (32 bytes)
+      let adminPrivateKey;
+    
+      // Handle both nsec and hex formats
+      if (adminPrivateKeyInput.startsWith('nsec')) {
+        // Convert nsec to hex then to bytes
+        const { data: hexKey } = nip19.decode(adminPrivateKeyInput);
+        console.log('hexKey: ', hexKey);
+        adminPrivateKey = hexKey;
+      } else {
+        // Pad hex to 64 characters if needed (add leading zero)
+        const paddedHex = adminPrivateKeyInput.padStart(64, '0');
+        adminPrivateKey = hexToBytes(paddedHex);
+      }
+
+      console.log('QR Code attempt, invoice:', JSON.stringify(invoice.paymentRequest));
+      const qrCodeSVG = await QRCode.toString(JSON.stringify(invoice.paymentRequest), {
+        type: 'svg',
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      console.log('qrcode: ', qrCodeSVG);
+
+      // Create invoice DM content
+      const dmContent = JSON.stringify({
+        type: 'lightning_invoice',
         version: '1.0',
         invoice: {
           id: invoice.id,
           amount: invoice.amount,
           description: invoice.description,
           paymentRequest: invoice.paymentRequest,
-          paymentHash: invoice.paymentHash,
-          expiresAt: invoice.expiresAt
+          expiresAt: invoice.expiresAt,
+          // qrCode: qrCodeSVG
         },
         message: `Medical hosting invoice: ${invoice.description}`
-      };
-      
-      console.log('Would send payment request DM to patient:', {
-        pubkey: patientPubkey.substring(0, 8) + '...',
-        amount: `${invoice.amount} sats`,
-        invoice_id: invoice.id
       });
+
+      // Encrypt the DM content
+      const encryptedContent = await nip04.encrypt(adminPrivateKey, patientPubkey, dmContent);
+
+      // Create and finalize the DM event (v2+ syntax)
+      const eventTemplate = {
+        kind: 4, // Encrypted Direct Message
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', patientPubkey]],
+        content: encryptedContent
+      };
+
+      // finalizeEvent calculates pubkey, id, and signature in one step
+      const signedEvent = finalizeEvent(eventTemplate, adminPrivateKey);
+
+      // Send to Nostr relays
+      const pool = new SimplePool();
+      const relays = [
+        'wss://relay.damus.io',
+        'wss://nos.lol', 
+        'wss://relay.snort.social'
+      ];
+
+      console.log(`Sending invoice DM to patient ${patientPubkey.substring(0, 8)}...`);
       
-      // Implementation would use nostr-tools to send encrypted DM
-      // await sendNostrDM(patientPubkey, JSON.stringify(dmContent));
+      // Use Promise.any instead of Promise.allSettled for better error handling
+      await Promise.any(pool.publish(relays, signedEvent));
       
+      console.log('Invoice DM sent successfully');
+      pool.close(relays);
+
     } catch (error) {
       console.error('Failed to send payment request DM:', error);
-      // Don't throw - invoice was created successfully, DM is optional
+      throw error;
     }
   }
 
