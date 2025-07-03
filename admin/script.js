@@ -363,26 +363,51 @@ async function sendInvoice() {
     const amount = calculateMonthlyCost(patient.storageUsed);
     
     try {
-        showMessage('Sending invoice via NWC...', 'info');
+        showMessage('Generating Lightning invoice...', 'info');
         
-        // TODO: Implement actual NWC invoice sending
-        // This would integrate with a Lightning invoice generation service
-        console.log('Sending invoice:', {
-            patient: patient.name,
-            pubkey: patient.pubkey,
-            amount,
-            description
+        const response = await fetch('/api/admin/invoice', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                patientId: patient.id,
+                amount: amount,
+                description: description
+            })
         });
         
-        // Mock successful sending for now
-        setTimeout(() => {
-            showMessage(`Invoice sent to ${patient.name}`, 'success');
+        const result = await response.json();
+        
+        if (response.ok && result.status === 'success') {
+            showMessage(`Lightning invoice generated and sent to ${patient.name}`, 'success');
+            console.log('Generated invoice:', {
+                id: result.invoice.id,
+                amount: result.invoice.amount,
+                paymentRequest: result.invoice.paymentRequest.substring(0, 50) + '...',
+                status: result.invoice.status
+            });
+            
             closeInvoiceModal();
             
             // Update patient status
             patient.paymentStatus = 'pending';
+            patient.totalOwed = amount;
+            patient.lastInvoice = {
+                id: result.invoice.id,
+                amount: result.invoice.amount,
+                paymentRequest: result.invoice.paymentRequest,
+                createdAt: result.invoice.createdAt,
+                expiresAt: result.invoice.expiresAt
+            };
+            
             renderPatientsTable();
-        }, 1000);
+            loadBillingStats();
+            
+        } else {
+            throw new Error(result.reason || 'Invoice generation failed');
+        }
         
     } catch (error) {
         console.error('Invoice sending error:', error);

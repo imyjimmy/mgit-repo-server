@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const router = express.Router();
-const { NWC } = require('@getalby/sdk');
+const { LN } = require('@getalby/sdk');
 const utils = require('./utils');
 
 // Admin routes for managing patients and billing
@@ -147,26 +147,20 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
       const patientPubkey = config.authorized_keys[0].pubkey;
       
       try {
-        // Initialize NWC connection with v5.1.0 syntax
+        // Initialize LN connection with v5.1.0 syntax
         if (!process.env.ADMIN_NWC_URL) {
           throw new Error('ADMIN_NWC_URL environment variable not configured');
         }
         
-        const nwc = new NWC({ nostrWalletConnectUrl: process.env.ADMIN_NWC_URL });
+        const ln = new LN(process.env.ADMIN_NWC_URL);
         
-        // Create invoice using v5.1.0 API
-        const invoiceResponse = await nwc.makeInvoice({
-          amount: amount * 1000, // Convert sats to millisats
-          description: description,
-          expiry: 86400 // 24 hours in seconds
-        });
+        // Create invoice using v5.1.0 API - requestPayment for receiving payments
+        const request = await ln.requestPayment(amount); // amount in sats
         
         const invoice = {
           id: `inv_${Date.now()}`,
-          paymentRequest: invoiceResponse.invoice, // v5.1.0 returns 'invoice' field
-          paymentHash: invoiceResponse.payment_hash,
+          paymentRequest: request.invoice, // The BOLT11 invoice string
           amount: amount,
-          amountMsat: amount * 1000,
           description: description,
           patientPubkey: patientPubkey,
           patientId: patientId,
@@ -175,16 +169,21 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         };
         
+        // Optional: Set up payment notification
+        request.onPaid(() => {
+          console.log(`Invoice ${invoice.id} was paid!`);
+          // TODO: Update patient payment status in database
+        });
+        
         console.log('Generated Lightning invoice:', {
           patientId,
           patientPubkey: patientPubkey.substring(0, 8) + '...',
           amount: `${amount} sats`,
           description,
-          paymentHash: invoice.paymentHash,
           invoiceLength: invoice.paymentRequest.length
         });
         
-        // TODO: Send NWC payment request to patient via Nostr DM
+        // TODO: Send payment request to patient via Nostr DM
         await sendPaymentRequestDM(patientPubkey, invoice);
         
         res.json({
@@ -194,7 +193,6 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
             amount: invoice.amount,
             description: invoice.description,
             paymentRequest: invoice.paymentRequest,
-            paymentHash: invoice.paymentHash,
             status: invoice.status,
             createdAt: invoice.createdAt,
             expiresAt: invoice.expiresAt
@@ -209,7 +207,6 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
         const mockInvoice = {
           id: `mock_inv_${Date.now()}`,
           paymentRequest: `lnbc${amount}u1...mock_invoice_${Date.now()}`,
-          paymentHash: 'mock_hash_' + Date.now(),
           amount: amount,
           description: description,
           patientPubkey: patientPubkey,
