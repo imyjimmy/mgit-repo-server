@@ -42,21 +42,42 @@ const sendInvoiceBtn = document.getElementById('sendInvoiceBtn');
 const cancelInvoiceBtn = document.getElementById('cancelInvoiceBtn');
 
 // Event listeners
-loginBtn.addEventListener('click', handleLogin);
-logoutBtn.addEventListener('click', handleLogout);
-saveConfigBtn.addEventListener('click', saveBillingConfig);
-generateAllInvoicesBtn.addEventListener('click', generateAllInvoices);
-sendOverdueRemindersBtn.addEventListener('click', sendOverdueReminders);
-refreshPatientsBtn.addEventListener('click', loadPatientData);
-sendInvoiceBtn.addEventListener('click', sendInvoice);
-cancelInvoiceBtn.addEventListener('click', closeInvoiceModal);
-closeModal.addEventListener('click', closeInvoiceModal);
+// (Moved to setupEventListeners function)
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     checkExistingAuth();
     loadBillingConfig();
+    
+    // Add all event listeners here instead of inline onclick
+    setupEventListeners();
 });
+
+function setupEventListeners() {
+    // Authentication buttons
+    loginBtn.addEventListener('click', handleLogin);
+    logoutBtn.addEventListener('click', handleLogout);
+    
+    // Billing config
+    saveConfigBtn.addEventListener('click', saveBillingConfig);
+    
+    // Bulk actions
+    generateAllInvoicesBtn.addEventListener('click', generateAllInvoices);
+    sendOverdueRemindersBtn.addEventListener('click', sendOverdueReminders);
+    refreshPatientsBtn.addEventListener('click', loadPatientData);
+    
+    // Modal actions
+    sendInvoiceBtn.addEventListener('click', sendInvoice);
+    cancelInvoiceBtn.addEventListener('click', closeInvoiceModal);
+    closeModal.addEventListener('click', closeInvoiceModal);
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', (event) => {
+        if (event.target === invoiceModal) {
+            closeInvoiceModal();
+        }
+    });
+}
 
 // Authentication functions
 async function handleLogin() {
@@ -180,7 +201,7 @@ async function loadServerStats() {
 async function loadPatientData() {
     try {
         // Mock patient data - would come from actual API
-        currentPatients = [
+        /*currentPatients = [
             {
                 id: '1',
                 name: 'Dr. Jane Smith',
@@ -213,14 +234,13 @@ async function loadPatientData() {
             }
         ];
         
-        renderPatientsTable();
-        
+        */ 
         // TODO: Add real API endpoint for patient data
-        // const response = await fetch('/api/admin/patients', {
-        //     headers: { 'Authorization': `Bearer ${adminToken}` }
-        // });
-        // currentPatients = await response.json();
-        
+        const response = await fetch('/api/admin/patients', {
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        currentPatients = await response.json();
+        renderPatientsTable();
     } catch (error) {
         console.error('Error loading patient data:', error);
     }
@@ -466,8 +486,4 @@ function showMessage(text, type = 'info') {
 }
 
 // Close modal when clicking outside
-window.addEventListener('click', (event) => {
-    if (event.target === invoiceModal) {
-        closeInvoiceModal();
-    }
-});
+// (Moved to setupEventListeners function)
