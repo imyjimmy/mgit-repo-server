@@ -385,7 +385,7 @@ async function sendInvoice() {
             console.log('Generated invoice:', {
                 id: result.invoice.id,
                 amount: result.invoice.amount,
-                paymentRequest: result.invoice.paymentRequest.substring(0, 50) + '...',
+                paymentRequest: result.invoice.paymentRequest.paymentRequest.substring(0, 50) + '...', // many layers deep, inception
                 status: result.invoice.status
             });
             

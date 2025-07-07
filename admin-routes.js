@@ -255,16 +255,16 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
       }
 
       console.log('QR Code attempt, invoice:', JSON.stringify(invoice.paymentRequest));
-      const qrCodeSVG = await QRCode.toString(JSON.stringify(invoice.paymentRequest), {
-        type: 'svg',
-        width: 200,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      });
-      console.log('qrcode: ', qrCodeSVG);
+      // const qrCodeSVG = await QRCode.toString(JSON.stringify(invoice.paymentRequest), {
+      //   type: 'svg',
+      //   width: 200,
+      //   margin: 2,
+      //   color: {
+      //     dark: '#000000',
+      //     light: '#FFFFFF'
+      //   }
+      // });
+      // console.log('qrcode: ', qrCodeSVG);
 
       // Create invoice DM content
       const dmContent = JSON.stringify({
