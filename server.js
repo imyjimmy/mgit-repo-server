@@ -1343,7 +1343,7 @@ app.post('/api/mgit/repos/:repoId/git-receive-pack', validateAuthToken, (req, re
 });
 
 // Endpoint to get MGit-specific metadata (e.g., nostr mappings)
-app.get('/api/mgit/repos/:repoId/metadata', validateMGitToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/metadata', validateAuthToken, (req, res) => {
   const { repoId } = req.params;
   const { access } = req.user;
   
