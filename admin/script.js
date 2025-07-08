@@ -123,8 +123,16 @@ async function handleLogin() {
             localStorage.setItem('admin_pubkey', pubkey);
             
             // Update UI
-            adminName.textContent = metadata?.display_name || metadata?.name || 'Administrator';
+            const displayName = metadata?.display_name || metadata?.name || 'Administrator';
+            adminName.textContent = displayName;
             
+            if (metadata?.picture) {
+                displayProfilePicture(metadata.picture, displayName);
+            } else {
+                // Try to fetch profile from Nostr if no picture in initial metadata
+                fetchProfilePicture(pubkey, displayName);
+            }
+
             showDashboard();
             showMessage('Admin login successful!', 'success');
             
@@ -157,6 +165,194 @@ function checkExistingAuth() {
         adminPubkey = pubkey;
         showDashboard();
     }
+}
+
+/* Profile Pic Management */
+async function fetchProfilePicture(pubkey, displayName) {
+    try {
+        showMessage('Fetching profile...', 'info');
+        
+        const profile = await fetchNostrProfile(pubkey);
+        if (profile?.picture) {
+            displayProfilePicture(profile.picture, displayName);
+        } else {
+            displayInitials(displayName);
+        }
+    } catch (error) {
+        console.error('Error fetching profile picture:', error);
+        displayInitials(displayName);
+    }
+}
+
+async function fetchNostrProfile(hexPubkey) {
+    return new Promise((resolve, reject) => {
+        const relays = [
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.snort.social',
+            'wss://relay.nostr.band'
+        ];
+        
+        let currentRelayIndex = 0;
+        const timeoutMs = 8000;
+        
+        const tryNextRelay = () => {
+            if (currentRelayIndex >= relays.length) {
+                reject(new Error('All relays failed to provide profile'));
+                return;
+            }
+            
+            const relayUrl = relays[currentRelayIndex++];
+            console.log(`Trying relay: ${relayUrl}`);
+            
+            tryFetchFromRelay(relayUrl, hexPubkey, timeoutMs / relays.length)
+                .then(resolve)
+                .catch((error) => {
+                    console.log(`Relay ${relayUrl} failed: ${error.message}`);
+                    tryNextRelay();
+                });
+        };
+        
+        tryNextRelay();
+    });
+}
+
+function tryFetchFromRelay(relayUrl, hexPubkey, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const ws = new WebSocket(relayUrl);
+        let resolved = false;
+        
+        const timeout = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                ws.close();
+                reject(new Error('Timeout'));
+            }
+        }, timeoutMs);
+        
+        ws.onopen = () => {
+            console.log('Connected to relay:', relayUrl);
+            
+            const subscription_id = 'admin_profile_' + Math.random().toString(36).substring(7);
+            const subscription = {
+                kinds: [0],
+                authors: [hexPubkey],
+                limit: 1
+            };
+            
+            ws.send(JSON.stringify(['REQ', subscription_id, subscription]));
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                
+                if (message[0] === 'EVENT' && message[2]?.kind === 0) {
+                    const profileEvent = message[2];
+                    const profile = JSON.parse(profileEvent.content);
+                    
+                    console.log('Found admin profile:', profile.name || profile.display_name || 'unnamed');
+                    
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        ws.close();
+                        resolve(profile);
+                    }
+                } else if (message[0] === 'EOSE') {
+                    // End of stored events - no profile found
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        ws.close();
+                        resolve(null);
+                    }
+                }
+            } catch (error) {
+                console.error('Error parsing relay message:', error);
+            }
+        };
+        
+        ws.onerror = () => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                reject(new Error('WebSocket error'));
+            }
+        };
+        
+        ws.onclose = () => {
+            if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                reject(new Error('Connection closed'));
+            }
+        };
+    });
+}
+
+function displayProfilePicture(pictureUrl, displayName) {
+    const adminInfoDiv = document.querySelector('.admin-info');
+    
+    // Remove existing profile elements
+    removeExistingProfileElements();
+    
+    // Create profile picture container
+    const profileContainer = document.createElement('div');
+    profileContainer.className = 'admin-profile-container';
+    
+    const profilePic = document.createElement('img');
+    profilePic.className = 'admin-profile-pic';
+    profilePic.src = pictureUrl;
+    profilePic.alt = 'Admin Profile';
+    
+    // Handle image load error - fallback to initials
+    profilePic.onerror = () => {
+        profileContainer.remove();
+        displayInitials(displayName);
+    };
+    
+    profilePic.onload = () => {
+        console.log('Profile picture loaded successfully');
+    };
+    
+    profileContainer.appendChild(profilePic);
+    
+    // Insert before the admin name
+    adminInfoDiv.insertBefore(profileContainer, adminName);
+}
+
+function displayInitials(name) {
+    const adminInfoDiv = document.querySelector('.admin-info');
+    
+    // Remove existing profile elements
+    removeExistingProfileElements();
+    
+    // Create initials container
+    const initialsContainer = document.createElement('div');
+    initialsContainer.className = 'admin-profile-container admin-initials';
+    
+    const initials = getInitials(name);
+    initialsContainer.textContent = initials;
+    
+    // Insert before the admin name
+    adminInfoDiv.insertBefore(initialsContainer, adminName);
+}
+
+function removeExistingProfileElements() {
+    const adminInfoDiv = document.querySelector('.admin-info');
+    const existingElements = adminInfoDiv.querySelectorAll('.admin-profile-container');
+    existingElements.forEach(el => el.remove());
+}
+
+function getInitials(name) {
+    if (!name) return 'A';
+    return name
+        .split(' ')
+        .map(word => word.charAt(0))
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
 }
 
 // UI management

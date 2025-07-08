@@ -29,6 +29,28 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Add CSP headers to allow Nostr extension functionality
+app.use((req, res, next) => {
+  const cspPolicy = 
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' chrome-extension: moz-extension:; " +
+    "connect-src 'self' wss: https: chrome-extension: moz-extension:; " +
+    "img-src 'self' data: https: chrome-extension: moz-extension: https://blossom.primal.net; " +
+    "style-src 'self' 'unsafe-inline' chrome-extension: moz-extension:; " +
+    "font-src 'self' data: chrome-extension: moz-extension:; " +
+    "object-src 'none';";
+  
+  console.log('=== CSP DEBUG ===');
+  console.log('Request URL:', req.url);
+  console.log('Setting CSP:', cspPolicy);
+  
+  res.setHeader('Content-Security-Policy', cspPolicy);
+  
+  console.log('CSP Header set:', res.getHeader('Content-Security-Policy'));
+  console.log('=================');
+  next();
+});
+
 // Apply security configurations
 const security = configureSecurity(app);
 
@@ -1444,16 +1466,6 @@ app.get('*', (req, res, next) => {
   }
   // Serve the main index.html for all non-API routes to support client-side routing
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Add CSP headers to allow Nostr extension functionality
-app.use((req, res, next) => {
-  res.setHeader('Content-Security-Policy', 
-    "default-src 'self'; " +
-    "script-src 'self' 'unsafe-eval'; " +
-    "connect-src 'self'"
-  );
-  next();
 });
 
 // Start the server

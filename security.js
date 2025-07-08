@@ -8,7 +8,22 @@ const rateLimit = require('express-rate-limit');
 // Security configuration for Express app
 const configureSecurity = (app) => {
   // Use Helmet for secure HTTP headers
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-eval'", "'unsafe-inline'", "chrome-extension:", "moz-extension:"],
+        connectSrc: ["'self'", "wss:", "https:", "chrome-extension:", "moz-extension:"],
+        imgSrc: ["'self'", "data:", "https:", "chrome-extension:", "moz-extension:"],
+        styleSrc: ["'self'", "'unsafe-inline'", "chrome-extension:", "moz-extension:"],
+        fontSrc: ["'self'", "data:", "chrome-extension:", "moz-extension:"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"]
+      }
+    }
+  }));
   
   // Rate limiting to prevent brute force attacks
   const apiLimiter = rateLimit({
