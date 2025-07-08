@@ -904,8 +904,8 @@ app.get('/api/mgit/repos/:repoId/info', validateAuthToken, (req, res) => {
 /*
  * MGit Repository API Endpoints
  */
-
-app.get('/api/mgit/repos/:repoId/show', validateMGitToken, (req, res) => {
+//was validateMGitToken
+app.get('/api/mgit/repos/:repoId/show', validateAuthToken, (req, res) => {
   const { repoId } = req.params;
   const { access } = req.user;
   
@@ -954,7 +954,8 @@ app.get('/api/mgit/repos/:repoId/show', validateMGitToken, (req, res) => {
   });
 });
 
-app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
+//was validateMGitToken
+app.get('/api/mgit/repos/:repoId/clone', validateAuthToken, (req, res) => {
   const { repoId } = req.params;
   const { access } = req.user;
   
