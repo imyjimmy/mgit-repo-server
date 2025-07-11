@@ -332,6 +332,15 @@ app.get('/api/auth/:type/status', (req, res) => {
   });
 });
 
+// Token validation endpoint
+app.get('/api/auth/validate', validateAuthToken, (req, res) => {
+  // If we get here, the token is valid (validateAuthToken middleware passed)
+  res.json({ 
+    status: 'valid',
+    pubkey: req.user.pubkey 
+  });
+});
+
 /**
  * Users utility functions
  */
