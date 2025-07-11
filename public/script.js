@@ -79,6 +79,21 @@ async function loadExistingRepositories() {
 }
 
 // Display repositories in the UI
+/* 
+  <div style="margin: 15px 0;">
+    <div class="jwt-section">
+      <label><strong>JWT Token:</strong></label>
+      <textarea readonly class="jwt-display">${localStorage.getItem('nostr_token') || 'No token available'}</textarea>
+    </div>
+  </div>
+  
+  <div id="qr-${repo.name}" style="margin: 15px 0; text-align: center;">
+    <!-- QR code will appear here -->
+  </div>
+  <div id="debug-${repo.name}" style="margin: 15px 0;">
+    <!-- Debug command will appear here -->
+  </div>
+  */
 function displayRepositories(repositories) {
   const reposList = document.getElementById('reposList');
   
@@ -96,18 +111,7 @@ function displayRepositories(repositories) {
         <p><strong>Description:</strong> ${repo.description || 'No description'}</p>
         <p><strong>Access Level:</strong> ${repo.access}</p>
         
-        <div style="margin: 15px 0;">
-          <div class="jwt-section">
-            <label><strong>JWT Token:</strong></label>
-            <textarea readonly class="jwt-display">${localStorage.getItem('nostr_token') || 'No token available'}</textarea>
-          </div>
-        </div>
-        
-        <div id="qr-${repo.name}" style="margin: 15px 0; text-align: center;">
-          <!-- QR code will appear here -->
-        </div>
-        <div id="debug-${repo.name}" style="margin: 15px 0;">
-          <!-- Debug command will appear here -->
+        <div id="auth-${repo.name}">
         </div>
       </div>
     `;
@@ -117,7 +121,8 @@ function displayRepositories(repositories) {
 
   // async, make sure these dom elements are there before looping through them
   repositories.forEach(repo => {
-    generateExistingQR(repo.name);
+    // generateExistingQR(repo.name);
+    setupRepositoryAuth(repo.name);
   });
 }
 
@@ -161,6 +166,134 @@ async function generateExistingQR(repoName) {
   } catch (error) {
     console.error('QR code generation failed:', error);
     document.getElementById(`qr-${repoName}`).innerHTML = '<p>QR code unavailable</p>';
+  }
+}
+
+async function setupRepositoryAuth(repoName) {
+  const authDiv = document.getElementById(`auth-${repoName}`);
+  
+  authDiv.innerHTML = `
+    <div style="margin: 15px 0; padding: 15px; border: 1px solid #e67e22; border-radius: 8px; background-color: #fdf2e9;">
+      <h4 style="color: #e67e22; margin-top: 0;">🔐 Repository Access Required</h4>
+      <p>Generate a secure access token for this repository to get the mobile QR code</p>
+      <button id="get-access-${repoName}" style="padding: 10px 20px; background-color: #e67e22; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        🔑 Get Repository Access
+      </button>
+      <div id="auth-result-${repoName}" style="margin: 10px 0;"></div>
+    </div>
+  `;
+  
+  // Add event listener to the button
+  document.getElementById(`get-access-${repoName}`).addEventListener('click', async () => {
+    handleRepositoryAuth(repoName);
+  });
+}
+
+async function handleRepositoryAuth(repoName) {
+  const button = document.getElementById(`get-access-${repoName}`);
+  const resultDiv = document.getElementById(`auth-result-${repoName}`);
+  
+  try {
+    // Disable button during process
+    button.disabled = true;
+    button.textContent = '🔄 Getting Challenge...';
+    
+    // Step 1: Get challenge
+    const challengeResponse = await fetch('/api/mgit/auth/challenge', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({repoId: repoName})
+    });
+    
+    const challengeData = await challengeResponse.json();
+    if (!challengeResponse.ok) {
+      throw new Error(challengeData.reason || 'Failed to get challenge');
+    }
+    
+    button.textContent = '✍️ Sign with Nostr...';
+    
+    // Step 2: Sign with nos2x
+    if (!window.nostr || typeof window.nostr.signEvent !== 'function') {
+      throw new Error('No Nostr extension found. Please install nos2x or similar.');
+    }
+    
+    const event = {
+      kind: 22242,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: `MGit auth challenge: ${challengeData.challenge}`
+    };
+    
+    const signedEvent = await window.nostr.signEvent(event);
+    
+    button.textContent = '✅ Verifying...';
+    
+    // Step 3: Verify and get token
+    const verifyResponse = await fetch('/api/mgit/auth/verify', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        signedEvent,
+        challenge: challengeData.challenge,
+        repoId: repoName
+      })
+    });
+    
+    const verifyData = await verifyResponse.json();
+    if (!verifyResponse.ok) {
+      throw new Error(verifyData.reason || 'Verification failed');
+    }
+    
+    // Success - now generate QR code and replace the auth div
+    await showQRCode(repoName, verifyData.token);
+    
+  } catch (error) {
+    resultDiv.innerHTML = `<div style="color: #e74c3c;">❌ Error: ${error.message}</div>`;
+    button.disabled = false;
+    button.textContent = '🔑 Get Repository Access';
+  }
+}
+
+async function showQRCode(repoName, repoToken) {
+  try {
+    // Generate QR code with repo-specific token
+    const response = await fetch(`/api/qr/clone/${repoName}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${repoToken}`
+      }
+    });
+    
+    if (response.ok) {
+      const svgText = await response.text();
+      
+      // Replace the auth div with QR code display
+      const authDiv = document.getElementById(`auth-${repoName}`);
+      authDiv.innerHTML = `
+        <div style="margin: 15px 0; padding: 15px; border: 2px solid #27ae60; border-radius: 8px; background-color: #d5f4e6; text-align: center;">
+          <h4 style="color: #27ae60; margin-top: 0;">📱 Scan with Medical Binder App</h4>
+          <div style="margin: 15px 0;">
+            ${svgText}
+          </div>
+          <div style="margin: 15px 0;">
+            <h4>Debug Command:</h4>
+            <code style="background: #f0f0f0; padding: 10px; display: block; margin: 10px 0; word-break: break-all; font-size: 12px;">
+              mgit clone -jwt "${repoToken}" "${window.location.protocol}//${window.location.host}/${repoName}"
+            </code>
+            <p><em>Copy and run this command in terminal to test mgit clone manually</em></p>
+          </div>
+          <p style="font-size: 0.9em; color: #666; margin-bottom: 0;">
+            Scan this code with your Medical Binder mobile app to clone this repository
+          </p>
+        </div>
+      `;
+    } else {
+      throw new Error('Failed to generate QR code');
+    }
+  } catch (error) {
+    console.error('QR code generation failed:', error);
+    const authDiv = document.getElementById(`auth-${repoName}`);
+    authDiv.innerHTML = `<div style="color: #e74c3c;">❌ QR code generation failed: ${error.message}</div>`;
   }
 }
 

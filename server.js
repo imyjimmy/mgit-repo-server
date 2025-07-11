@@ -683,21 +683,49 @@ app.get('/api/nostr/nip05/verify', async (req, res) => {
 app.post('/api/mgit/auth/challenge', (req, res) => {
   const { repoId } = req.body;
   
+  console.log(`=== CHALLENGE DEBUG ===`);
+  console.log(`Requested repoId: ${repoId}`);
+  console.log(`REPOS_PATH: ${REPOS_PATH}`);
+
   if (!repoId) {
     return res.status(400).json({ 
       status: 'error', 
-      reason: 'Repository ID is required' 
+      reason: 'Repository ID is required in the request.body' 
     });
   }
 
-  // Check if the repository exists in our configuration
-  if (!repoConfigurations[repoId]) {
+  // Check if repository exists using filesystem check
+  const repoPath = path.join(REPOS_PATH, repoId);
+
+  console.log(`Checking repoPath: ${repoPath}`);
+  console.log(`repoPath exists: ${fs.existsSync(repoPath)}`);
+
+  // Check for bare repository structure (HEAD, config, objects, refs)
+  const headFile = path.join(repoPath, 'HEAD');
+  const configFile = path.join(repoPath, 'config');
+  const objectsDir = path.join(repoPath, 'objects');
+  const refsDir = path.join(repoPath, 'refs');
+
+  const isBareRepo = fs.existsSync(headFile) && fs.existsSync(configFile) && 
+                    fs.existsSync(objectsDir) && fs.existsSync(refsDir);
+  const isRegularRepo = fs.existsSync(path.join(repoPath, '.git'));
+
+  console.log(`HEAD exists: ${fs.existsSync(headFile)}`);
+  console.log(`config exists: ${fs.existsSync(configFile)}`);
+  console.log(`objects exists: ${fs.existsSync(objectsDir)}`);
+  console.log(`refs exists: ${fs.existsSync(refsDir)}`);
+  console.log(`Is bare repo: ${isBareRepo}`);
+  console.log(`Is regular repo: ${isRegularRepo}`);
+  console.log(`========================`);
+
+  if (!fs.existsSync(repoPath) || (!isBareRepo && !isRegularRepo)) {
+    console.log(`Repository check FAILED - returning 404`);
     return res.status(404).json({ 
       status: 'error', 
       reason: 'Repository not found' 
     });
   }
-  
+
   const challenge = crypto.randomBytes(32).toString('hex');
   
   // Store the challenge with repository info
@@ -774,24 +802,13 @@ app.post('/api/mgit/auth/verify', async (req, res) => {
 
     // Check if the pubkey is authorized for the repository
     const pubkey = signedEvent.pubkey;
-    const repoConfig = repoConfigurations[repoId];
-    
-    if (!repoConfig) {
-      return res.status(404).json({ 
-        status: 'error', 
-        reason: 'Repository not found' 
-      });
-    }
+    const accessCheck = checkRepoAccess(repoId, pubkey);
+    console.log('accessCheck: ', accessCheck);
 
-    // Find the authorization entry for this pubkey
-    const bech32pubkey = utils.hexToBech32(pubkey);
-    console.log('the pubkey is: ', pubkey, 'bech32 version: ', bech32pubkey);
-    const authEntry = repoConfig.authorized_keys.find(entry => entry.pubkey === bech32pubkey);
-    
-    if (!authEntry) {
-      return res.status(403).json({ 
+    if (!accessCheck.success) {
+      return res.status(accessCheck.status).json({ 
         status: 'error', 
-        reason: 'Not authorized for this repository' 
+        reason: accessCheck.error 
       });
     }
 
@@ -806,17 +823,17 @@ app.post('/api/mgit/auth/verify', async (req, res) => {
     const token = jwt.sign({
       pubkey,
       repoId,
-      access: authEntry.access
+      access: accessCheck.access
     }, JWT_SECRET, {
       expiresIn: TOKEN_EXPIRATION
     });
 
-    console.log(`MGit auth successful - pubkey ${pubkey} granted ${authEntry.access} access to repo ${repoId}`);
+    console.log(`MGit auth successful - pubkey ${pubkey} granted ${accessCheck.access} access to repo ${repoId}`);
     
     res.json({ 
       status: 'OK',
       token,
-      access: authEntry.access,
+      access: accessCheck.access,
       expiresIn: TOKEN_EXPIRATION
     });
 
@@ -830,33 +847,79 @@ app.post('/api/mgit/auth/verify', async (req, res) => {
 });
 
 function checkRepoAccess(repoId, pubkey) {
-  const repoConfig = repoConfigurations[repoId];
-  if (!repoConfig) {
-    return { 
-      success: false, 
-      status: 404, 
-      error: 'Repository not found' 
-    };
-  }
-  
-  // Find the user's access level for this repository
-  const authEntry = repoConfig.authorized_keys.find(key => 
-    key.pubkey === pubkey || utils.hexToBech32(pubkey) === key.pubkey
-  );
-  
-  if (!authEntry) {
-    return { 
-      success: false, 
-      status: 403, 
-      error: 'Not authorized for this repository' 
-    };
-  }
+  try {
+    // Check if repository exists using filesystem check
+    const repoPath = path.join(REPOS_PATH, repoId);
+    
+    // Check for bare repository structure (HEAD, config, objects, refs)
+    const headFile = path.join(repoPath, 'HEAD');
+    const configFile = path.join(repoPath, 'config');
+    const objectsDir = path.join(repoPath, 'objects');
+    const refsDir = path.join(repoPath, 'refs');
+    
+    const isBareRepo = fs.existsSync(headFile) && fs.existsSync(configFile) && 
+                      fs.existsSync(objectsDir) && fs.existsSync(refsDir);
+    const isRegularRepo = fs.existsSync(path.join(repoPath, '.git'));
+    
+    if (!fs.existsSync(repoPath) || (!isBareRepo && !isRegularRepo)) {
+      return {
+        success: false,
+        status: 404,
+        error: 'Repository not found'
+      };
+    }
 
-  return { 
-    success: true, 
-    access: authEntry.access,
-    authEntry: authEntry
-  };
+    // Try to read repository configuration from .mgit/config.json
+    const mgitConfigPath = path.join(repoPath, '.mgit', 'config.json');
+    let repoConfig = { authorized_keys: [] };
+    
+    if (fs.existsSync(mgitConfigPath)) {
+      try {
+        const configContent = fs.readFileSync(mgitConfigPath, 'utf8');
+        repoConfig = JSON.parse(configContent);
+      } catch (error) {
+        console.warn(`Failed to parse .mgit/config.json for ${repoId}:`, error.message);
+      }
+    }
+
+    // If no authorized keys are configured, grant admin access to the requesting user
+    // This is a temporary solution for repositories without proper access control setup
+    if (!repoConfig.authorized_keys || repoConfig.authorized_keys.length === 0) {
+      console.warn(`No authorized keys configured for repository ${repoId}, granting admin access`);
+      return {
+        success: true,
+        access: 'admin',
+        authEntry: { pubkey: pubkey, access: 'admin' }
+      };
+    }
+
+    // Find the user's access level for this repository
+    const authEntry = repoConfig.authorized_keys.find(key => 
+      key.pubkey === pubkey || utils.hexToBech32(pubkey) === key.pubkey
+    );
+    
+    if (!authEntry) {
+      return { 
+        success: false, 
+        status: 403, 
+        error: 'Not authorized for this repository' 
+      };
+    }
+
+    return { 
+      success: true, 
+      access: authEntry.access,
+      authEntry: authEntry
+    };
+    
+  } catch (error) {
+    console.error(`Error checking access for repository ${repoId}:`, error);
+    return {
+      success: false,
+      status: 500,
+      error: 'Internal server error'
+    };
+  }
 }
 
 // Sample endpoint for repository info - protected by token validation
@@ -905,7 +968,7 @@ app.get('/api/mgit/repos/:repoId/info', validateAuthToken, (req, res) => {
  * MGit Repository API Endpoints
  */
 //was validateMGitToken
-app.get('/api/mgit/repos/:repoId/show', validateAuthToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/show', validateMGitToken, (req, res) => {
   const { repoId } = req.params;
   const { access } = req.user;
   
@@ -955,7 +1018,7 @@ app.get('/api/mgit/repos/:repoId/show', validateAuthToken, (req, res) => {
 });
 
 //was validateMGitToken
-app.get('/api/mgit/repos/:repoId/clone', validateAuthToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
   const { repoId } = req.params;
   const { access } = req.user;
   
