@@ -275,10 +275,16 @@ async function showQRCode(repoName, repoToken) {
           <div style="margin: 15px 0;">
             ${svgText}
           </div>
+          <div style="margin: 15px 0; text-align: left;">
+            <div class="jwt-section">
+              <label><strong>Repository JWT Token:</strong></label>
+              <textarea readonly class="jwt-display" style="width: 100%; height: 60px; font-family: monospace; font-size: 10px; background-color: #f0f0f0; border: 1px solid #ccc; padding: 5px;">${repoToken}</textarea>
+            </div>
+          </div>
           <div style="margin: 15px 0;">
             <h4>Debug Command:</h4>
             <code style="background: #f0f0f0; padding: 10px; display: block; margin: 10px 0; word-break: break-all; font-size: 12px;">
-              mgit clone -jwt "${repoToken}" "${window.location.protocol}//${window.location.host}/${repoName}"
+              mgit clone -jwt ${repoToken} ${window.location.protocol}//${window.location.host}/${repoName}
             </code>
             <p><em>Copy and run this command in terminal to test mgit clone manually</em></p>
           </div>
