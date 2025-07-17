@@ -1518,7 +1518,7 @@ app.post('/api/mgit/repos/:repoId/database', validateMGitToken, (req, res) => {
 
   try {
     // Create database storage path next to the mgit repo
-    const dbPath = path.join(REPOS_PATH, repoId + '.sqlite');
+    const dbPath = path.join(REPOS_PATH, repoId + '.db');
     
     console.log(`Uploading database for repo ${repoId} to ${dbPath}`);
     
