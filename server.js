@@ -1491,6 +1491,158 @@ app.get('/api/mgit/repos/:repoId/metadata', validateAuthToken, (req, res) => {
   }
 });
 
+// Database upload/download endpoints for Medical Binder
+// Store SQLite databases next to mgit repos in filesystem
+
+// POST endpoint to upload SQLite database
+app.post('/api/mgit/repos/:repoId/database', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { pubkey } = req.user;
+  
+  const accessCheck = checkRepoAccess(repoId, pubkey);
+  
+  if (!accessCheck.success) {
+    return res.status(accessCheck.status).json({ 
+      status: 'error', 
+      reason: accessCheck.error 
+    });
+  }
+
+  // Check write permissions
+  if (accessCheck.access !== 'admin' && accessCheck.access !== 'read-write') {
+    return res.status(403).json({ 
+      status: 'error', 
+      reason: 'Insufficient permissions to upload database' 
+    });
+  }
+
+  try {
+    // Create database storage path next to the mgit repo
+    const dbPath = path.join(REPOS_PATH, repoId + '.sqlite');
+    
+    console.log(`Uploading database for repo ${repoId} to ${dbPath}`);
+    
+    // Create write stream for the database file
+    const writeStream = fs.createWriteStream(dbPath);
+    
+    // Track upload progress
+    let bytesReceived = 0;
+    req.on('data', (chunk) => {
+      bytesReceived += chunk.length;
+    });
+    
+    // Pipe the request body (binary database) to the file
+    req.pipe(writeStream);
+    
+    writeStream.on('finish', () => {
+      console.log(`Database upload complete for ${repoId}: ${bytesReceived} bytes`);
+      res.json({
+        status: 'success',
+        message: 'Database uploaded successfully',
+        bytesReceived: bytesReceived,
+        path: `${repoId}.sqlite`
+      });
+    });
+    
+    writeStream.on('error', (error) => {
+      console.error(`Database upload error for ${repoId}:`, error);
+      res.status(500).json({
+        status: 'error',
+        reason: 'Failed to save database',
+        details: error.message
+      });
+    });
+    
+    req.on('error', (error) => {
+      console.error(`Request error during database upload for ${repoId}:`, error);
+      writeStream.destroy();
+      if (!res.headersSent) {
+        res.status(400).json({
+          status: 'error',
+          reason: 'Upload error',
+          details: error.message
+        });
+      }
+    });
+    
+  } catch (error) {
+    console.error(`Database upload setup error for ${repoId}:`, error);
+    res.status(500).json({
+      status: 'error',
+      reason: 'Failed to setup database upload',
+      details: error.message
+    });
+  }
+});
+
+// GET endpoint to download SQLite database
+app.get('/api/mgit/repos/:repoId/database', validateMGitToken, (req, res) => {
+  const { repoId } = req.params;
+  const { pubkey } = req.user;
+  
+  const accessCheck = checkRepoAccess(repoId, pubkey);
+  
+  if (!accessCheck.success) {
+    return res.status(accessCheck.status).json({ 
+      status: 'error', 
+      reason: accessCheck.error 
+    });
+  }
+
+  try {
+    // Get database path next to the mgit repo
+    const dbPath = path.join(REPOS_PATH, repoId + '.sqlite');
+    
+    // Check if database exists
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({
+        status: 'error',
+        reason: 'Database not found',
+        message: `No database found for repository ${repoId}`
+      });
+    }
+    
+    console.log(`Downloading database for repo ${repoId} from ${dbPath}`);
+    
+    // Get file stats for Content-Length header
+    const stats = fs.statSync(dbPath);
+    
+    // Set appropriate headers for binary download
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', stats.size);
+    res.setHeader('Content-Disposition', `attachment; filename="${repoId}.sqlite"`);
+    
+    // Create read stream and pipe to response
+    const readStream = fs.createReadStream(dbPath);
+    
+    readStream.on('error', (error) => {
+      console.error(`Database download error for ${repoId}:`, error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          status: 'error',
+          reason: 'Failed to read database',
+          details: error.message
+        });
+      }
+    });
+    
+    readStream.on('end', () => {
+      console.log(`Database download complete for ${repoId}: ${stats.size} bytes`);
+    });
+    
+    // Pipe the file to the response
+    readStream.pipe(res);
+    
+  } catch (error) {
+    console.error(`Database download setup error for ${repoId}:`, error);
+    res.status(500).json({
+      status: 'error',
+      reason: 'Failed to setup database download',
+      details: error.message
+    });
+  }
+});
+
 // show repos of a user
 app.get('/api/user/repositories', validateAuthToken, (req, res) => {
   try {
