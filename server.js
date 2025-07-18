@@ -254,7 +254,7 @@ const validateAuthToken = (req, res, next) => {
 // validates the MGitToken which includes RepoId
 const validateMGitToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  
+  console.log("validating mGitToken, authHeader: ", authHeader)
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ 
       status: 'error', 
@@ -1496,6 +1496,8 @@ app.get('/api/mgit/repos/:repoId/metadata', validateAuthToken, (req, res) => {
 
 // POST endpoint to upload SQLite database
 app.post('/api/mgit/repos/:repoId/database', validateMGitToken, (req, res) => {
+  console.log('app.post /api/mgit/repos/:repoId/database', req.params);
+
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
