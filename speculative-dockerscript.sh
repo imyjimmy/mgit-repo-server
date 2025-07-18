@@ -16,11 +16,11 @@ docker stop mgitreposerver-mgit-repo-server_tor_server_1
 docker stop mgitreposerver-mgit-repo-server_app_proxy_1
 
 # Clean up test repositories BEFORE pulling new image
-echo "🗑️  Removing test repositories..."
-rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/test-* 2>/dev/null || true
-rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/hello-world 2>/dev/null || true
-rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/*-test 2>/dev/null || true
-echo "✅ Test repositories cleaned"
+#echo "🗑️  Removing test repositories..."
+#rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/test-* 2>/dev/null || true
+#rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/hello-world 2>/dev/null || true
+#rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos/*-test 2>/dev/null || true
+#echo "✅ Test repositories cleaned"
 
 # Pull and start (exactly like working version)
 echo "📥 Pulling latest image..."

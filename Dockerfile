@@ -1,4 +1,4 @@
-FROM node:18-buster-slim
+FROM node:20-bullseye-slim
 
 # Install system dependencies + Go
 RUN apt-get update && \
