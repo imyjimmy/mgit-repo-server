@@ -856,53 +856,10 @@ app.post('/api/mgit/auth/verify', async (req, res) => {
 });
 
 function checkRepoAccess(repoId, pubkey) {
-  try {
-    // Check if repository exists using filesystem check
-    const repoPath = path.join(REPOS_PATH, repoId);
-    
-    // Check for bare repository structure (HEAD, config, objects, refs)
-    const headFile = path.join(repoPath, 'HEAD');
-    const configFile = path.join(repoPath, 'config');
-    const objectsDir = path.join(repoPath, 'objects');
-    const refsDir = path.join(repoPath, 'refs');
-    
-    const isBareRepo = fs.existsSync(headFile) && fs.existsSync(configFile) && 
-                      fs.existsSync(objectsDir) && fs.existsSync(refsDir);
-    const isRegularRepo = fs.existsSync(path.join(repoPath, '.git'));
-    
-    if (!fs.existsSync(repoPath) || (!isBareRepo && !isRegularRepo)) {
-      return {
-        success: false,
-        status: 404,
-        error: 'Repository not found'
-      };
-    }
-
-    // Try to read repository configuration from .mgit/config.json
-    const mgitConfigPath = path.join(repoPath, '.mgit', 'config.json');
-    let repoConfig = { authorized_keys: [] };
-    
-    if (fs.existsSync(mgitConfigPath)) {
-      try {
-        const configContent = fs.readFileSync(mgitConfigPath, 'utf8');
-        repoConfig = JSON.parse(configContent);
-      } catch (error) {
-        console.warn(`Failed to parse .mgit/config.json for ${repoId}:`, error.message);
-      }
-    }
-
-    // If no authorized keys are configured, grant admin access to the requesting user
-    // This is a temporary solution for repositories without proper access control setup
-    if (!repoConfig.authorized_keys || repoConfig.authorized_keys.length === 0) {
-      console.warn(`No authorized keys configured for repository ${repoId}, granting admin access`);
-      return {
-        success: true,
-        access: 'admin',
-        authEntry: { pubkey: pubkey, access: 'admin' }
-      };
-    }
-
-    // Find the user's access level for this repository
+  // First check if we have authorization data in memory
+  const repoConfig = repoConfigurations[repoId];
+  if (repoConfig) {
+    // Use existing in-memory configuration
     const authEntry = repoConfig.authorized_keys.find(key => 
       key.pubkey === pubkey || utils.hexToBech32(pubkey) === key.pubkey
     );
@@ -920,15 +877,37 @@ function checkRepoAccess(repoId, pubkey) {
       access: authEntry.access,
       authEntry: authEntry
     };
-    
-  } catch (error) {
-    console.error(`Error checking access for repository ${repoId}:`, error);
+  }
+
+  // If no in-memory config, check if repository exists on filesystem
+  const repoPath = path.join(REPOS_PATH, repoId);
+  const headFile = path.join(repoPath, 'HEAD');
+  const configFile = path.join(repoPath, 'config');
+  const objectsDir = path.join(repoPath, 'objects');
+  const refsDir = path.join(repoPath, 'refs');
+  
+  const isBareRepo = fs.existsSync(headFile) && fs.existsSync(configFile) && 
+                    fs.existsSync(objectsDir) && fs.existsSync(refsDir);
+  const isRegularRepo = fs.existsSync(path.join(repoPath, '.git'));
+  
+  if (!fs.existsSync(repoPath) || (!isBareRepo && !isRegularRepo)) {
     return {
       success: false,
-      status: 500,
-      error: 'Internal server error'
+      status: 404,
+      error: 'Repository not found'
     };
   }
+
+  // Repository exists but no authorization data - this means it was created
+  // but the server restarted and lost the in-memory auth data.
+  // For now, grant admin access and log a warning.
+  console.warn(`Repository ${repoId} exists but has no authorization data. Granting temporary admin access.`);
+  
+  return {
+    success: true,
+    access: 'admin',
+    authEntry: { pubkey: pubkey, access: 'admin' }
+  };
 }
 
 // Sample endpoint for repository info - protected by token validation
