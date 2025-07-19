@@ -16,7 +16,7 @@ const WebSocket = require('ws');
 useWebSocketImplementation(WebSocket);
 
 // Admin routes for managing patients and billing
-function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
+function createAdminRoutes(REPOS_PATH, authPersistence, validateAuthToken) {
   
   // Admin API endpoint - get all patients/repositories with real data
   router.get('/patients', validateAuthToken, async (req, res) => {
@@ -27,8 +27,11 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
       const patients = [];
       const fsPromises = require('fs').promises;
       
+      // Get all repository configurations from persistent storage
+      const allRepoConfigs = await authPersistence.loadAllRepositoryConfigs();
+      
       // Scan through all discovered repositories
-      for (const [repoId, config] of Object.entries(repoConfigurations)) {
+      for (const [repoId, config] of Object.entries(allRepoConfigs)) {
         try {
           const repoPath = path.join(REPOS_PATH, repoId);
           
@@ -68,9 +71,18 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
             console.warn(`Could not get author for ${repoId}:`, err.message);
           }
           
-          // Extract Nostr pubkey from authorized_keys or git config
+          // Extract Nostr pubkey from authorized_keys
+          console.log('keys:', config.authorized_keys[0].pubkey);
           if (config.authorized_keys && config.authorized_keys.length > 0) {
-            nostrPubkey = config.authorized_keys[0].pubkey; // Use first authorized key
+            const rawPubkey = config.authorized_keys[0].pubkey;
+            // Convert hex to bech32 if needed
+            if (rawPubkey.length === 64 && /^[0-9a-fA-F]+$/.test(rawPubkey)) {
+              console.log('hex format for key detected, converting to bech32')
+              nostrPubkey = utils.hexToBech32(rawPubkey); // Use your existing helper function
+            } else {
+              console.log('key already in bech32')
+              nostrPubkey = rawPubkey; // Already in bech32 format
+            }
           }
           
           // Try to get Nostr pubkey from git config as fallback
@@ -83,20 +95,6 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
               nostrPubkey = pubkeyConfig.trim();
             } catch (err) {
               // No pubkey in git config, that's ok
-            }
-          }
-
-          // Extract Nostr pubkey from authorized_keys or git config
-          console.log('keys:', config.authorized_keys[0].pubkey);
-          if (config.authorized_keys && config.authorized_keys.length > 0) {
-            const rawPubkey = config.authorized_keys[0].pubkey;
-            // Convert hex to bech32 if needed
-            if (rawPubkey.length === 64 && /^[0-9a-fA-F]+$/.test(rawPubkey)) {
-              console.log('hex format for key detected, converting to bech32')
-              nostrPubkey = utils.hexToBech32(rawPubkey); // Use your existing helper function
-            } else {
-              console.log('key already in bech32')
-              nostrPubkey = rawPubkey; // Already in bech32 format
             }
           }
           
@@ -145,8 +143,8 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
         });
       }
       
-      // Find the patient
-      const config = repoConfigurations[patientId];
+      // Load the patient config from persistent storage
+      const config = await authPersistence.loadRepositoryConfig(patientId);
       if (!config || !config.authorized_keys.length) {
         return res.status(404).json({
           status: 'error',
@@ -255,17 +253,7 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
       }
 
       console.log('QR Code attempt, invoice:', JSON.stringify(invoice.paymentRequest));
-      // const qrCodeSVG = await QRCode.toString(JSON.stringify(invoice.paymentRequest), {
-      //   type: 'svg',
-      //   width: 200,
-      //   margin: 2,
-      //   color: {
-      //     dark: '#000000',
-      //     light: '#FFFFFF'
-      //   }
-      // });
-      // console.log('qrcode: ', qrCodeSVG);
-
+      
       // Create invoice DM content
       const dmContent = JSON.stringify({
         type: 'lightning_invoice',
@@ -276,7 +264,6 @@ function createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken) {
           description: invoice.description,
           paymentRequest: invoice.paymentRequest,
           expiresAt: invoice.expiresAt,
-          // qrCode: qrCodeSVG
         },
         message: `Medical hosting invoice: ${invoice.description}`
       });

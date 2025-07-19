@@ -10,6 +10,7 @@ const path = require('path');
 const { execSync, exec } = require('child_process');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
+const authPersistence = require('./auth-persistence');
 
 console.log('=== MGit Server Starting - Build Version 2025-06-08-v2 ===');
 
@@ -82,71 +83,87 @@ const getBaseUrl = (req) => {
   return `${protocol}://${host}`;
 };
 
-// In-memory repository configuration - in production, use a database
-// This would store which nostr pubkeys are authorized for each repository
-let repoConfigurations = {
-  'hello-world': {
-    authorized_keys: [
-      { pubkey: 'npub19jlhl9twyjajarvrjeeh75a5ylzngv4tj8y9wgffsguylz9eh73qd85aws', access: 'admin' }, // admin, read-write, read-only
-      { pubkey: 'npub1gpqpv9rsdt04jhqgz3w3sh4xr8ns0zz8677j3uzhpw8w6qq3za8sdqhh2f', access: 'read-only' }
-    ]
-  },
-};
-
-// Add this function near the top of server.js
-async function discoverExistingRepositories() {
+async function initializeServer() {
   try {
-    const fs = require('fs').promises;
-    const path = require('path');
+    console.log('Initializing auth persistence...');
+    await authPersistence.initialize();
+    console.log('✅ Auth persistence initialized');
     
-    // Try Docker path first, fallback to local
-    let repoDir;
-    try {
-      await fs.access('/private_repos');
-      repoDir = '/private_repos';  // Docker environment
-      console.log('🐳 Running in Docker - using /private_repos');
-    } catch {
-      repoDir = path.resolve(__dirname, '../private_repos');  // Local environment
-      console.log('💻 Running locally - using ../private_repos');
-    }
+    // Scan for existing physical repositories and ensure they have auth configs
+    console.log('Scanning for existing repositories...');
+    await scanAndRepairRepositories();
     
-    console.log(`🔍 Scanning for repositories in: ${repoDir}`);
-    const items = await fs.readdir(repoDir, { withFileTypes: true });
-    
-    for (const item of items) {
-      if (item.isDirectory() && !repoConfigurations[item.name]) {
-        console.log(`🔍 Discovered repository: ${item.name}`);
-        
-        // Add with default configuration
-        repoConfigurations[item.name] = {
-          authorized_keys: [
-            { pubkey: '2cbf7f956e24bb2e8d8396737f53b427c53432ab91c857212982384f88b9bfa2', access: 'admin' }
-          ],
-          metadata: {
-            description: `Auto-discovered repository: ${item.name}`,
-            created: new Date().toISOString(),
-            type: 'repository'
-          }
-        };
-      }
-    }
   } catch (error) {
-    console.error('Error discovering repositories:', error);
+    console.error('❌ Failed to initialize auth persistence:', error);
+    throw error; // Don't start server if persistence fails
   }
 }
 
-// Call it on server startup (add this after the repoConfigurations object)
-discoverExistingRepositories();
+async function scanAndRepairRepositories() {
+  try {
+    // Check if repos directory exists
+    if (!fs.existsSync(REPOS_PATH)) {
+      console.log(`📁 Creating repositories directory: ${REPOS_PATH}`);
+      fs.mkdirSync(REPOS_PATH, { recursive: true });
+      return;
+    }
 
-// Load repository configurations from file if available
-try {
-  const configPath = path.join(__dirname, 'repo-config.json');
-  if (fs.existsSync(configPath)) {
-    repoConfigurations = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    console.log('Loaded repository configurations from file');
+    // Get all directories in REPOS_PATH (these are potential repositories)
+    const entries = fs.readdirSync(REPOS_PATH, { withFileTypes: true });
+    const repoDirs = entries
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name);
+
+    console.log(`📁 Found ${repoDirs.length} potential repositories: ${repoDirs.join(', ')}`);
+
+    let repairedCount = 0;
+    let existingCount = 0;
+
+    for (const repoName of repoDirs) {
+      const repoPath = path.join(REPOS_PATH, repoName);
+      
+      // Check if it's actually a git repository
+      if (!fs.existsSync(path.join(repoPath, '.git')) && !fs.existsSync(path.join(repoPath, 'HEAD'))) {
+        console.log(`⚠️  Skipping '${repoName}' - not a git repository`);
+        continue;
+      }
+
+      // Check if auth config already exists
+      const existingConfig = await authPersistence.loadRepositoryConfig(repoName);
+      
+      if (existingConfig) {
+        console.log(`✅ Repository '${repoName}' already has auth config`);
+        existingCount++;
+      } else {
+        console.log(`🔧 Creating auth config for orphaned repository '${repoName}'`);
+        
+        // Create a basic auth config - in production you'd want to specify the actual admin
+        // For now, we'll create a placeholder that requires manual admin assignment
+        const repairConfig = {
+          authorized_keys: [
+            // Add your default admin pubkey here, or leave empty for manual setup
+            { pubkey: 'npub19jlhl9twyjajarvrjeeh75a5ylzngv4tj8y9wgffsguylz9eh73qd85aws', access: 'admin' }
+          ],
+          metadata: {
+            description: `Auto-discovered repository: ${repoName}`,
+            type: 'unknown',
+            created: new Date().toISOString(),
+            auto_repaired: true
+          }
+        };
+
+        await authPersistence.saveRepositoryConfig(repoName, repairConfig);
+        console.log(`✅ Created auth config for '${repoName}'`);
+        repairedCount++;
+      }
+    }
+
+    console.log(`📊 Repository scan complete: ${existingCount} existing configs, ${repairedCount} repaired`);
+
+  } catch (error) {
+    console.error('❌ Error scanning repositories:', error);
+    // Don't throw - allow server to start even if scan fails
   }
-} catch (error) {
-  console.error('Error loading repository configurations:', error);
 }
 
 // Auth middleware
@@ -305,10 +322,10 @@ if (!fs.existsSync(REPOS_PATH)) {
  */
 // create admin routes
 const createAdminRoutes = require('./admin-routes');
-const adminRoutes = createAdminRoutes(REPOS_PATH, repoConfigurations, validateAuthToken);
-// UI for accessing admin dashboard
+const adminRoutes = createAdminRoutes(REPOS_PATH, authPersistence, validateAuthToken);
+// // UI for accessing admin dashboard
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
-// admin-related API endpoints 
+// // admin-related API endpoints 
 app.use('/api/admin', adminRoutes);
 
 app.get('/api/auth/:type/status', (req, res) => {
@@ -811,7 +828,7 @@ app.post('/api/mgit/auth/verify', async (req, res) => {
 
     // Check if the pubkey is authorized for the repository
     const pubkey = signedEvent.pubkey;
-    const accessCheck = checkRepoAccess(repoId, pubkey);
+    const accessCheck = await checkRepoAccess(repoId, pubkey);
     console.log('accessCheck: ', accessCheck);
 
     if (!accessCheck.success) {
@@ -855,13 +872,47 @@ app.post('/api/mgit/auth/verify', async (req, res) => {
   }
 });
 
-function checkRepoAccess(repoId, pubkey) {
-  // First check if we have authorization data in memory
-  const repoConfig = repoConfigurations[repoId];
-  if (repoConfig) {
-    // Use existing in-memory configuration
+async function checkRepoAccess(repoId, pubkey) {
+  try {
+    const repoConfig = await authPersistence.loadRepositoryConfig(repoId);
+    
+    if (!repoConfig) {
+      // Check if repository exists physically but has no auth data
+      const repoPath = path.join(REPOS_PATH, repoId);
+      if (fs.existsSync(repoPath)) {
+        console.warn(`⚠️  Repository '${repoId}' exists but has no auth data. Creating admin access for current user.`);
+        
+        // Create auth config for this repository
+        const newConfig = {
+          authorized_keys: [{ pubkey: pubkey, access: 'admin' }],
+          metadata: {
+            description: 'Auto-generated config for orphaned repository',
+            type: 'unknown',
+            created: new Date().toISOString(),
+            auto_generated: true
+          }
+        };
+        
+        await authPersistence.saveRepositoryConfig(repoId, newConfig);
+        console.log(`✅ Created auth config for repository '${repoId}'`);
+        
+        return { 
+          success: true, 
+          access: 'admin',
+          authEntry: { pubkey: pubkey, access: 'admin' }
+        };
+      }
+      
+      return { 
+        success: false, 
+        status: 404, 
+        error: 'Repository not found' 
+      };
+    }
+    
+    // Find the user's access level for this repository
     const authEntry = repoConfig.authorized_keys.find(key => 
-      key.pubkey === pubkey || utils.hexToBech32(pubkey) === key.pubkey
+      key.pubkey === pubkey || hexToBech32(pubkey) === key.pubkey
     );
     
     if (!authEntry) {
@@ -877,45 +928,23 @@ function checkRepoAccess(repoId, pubkey) {
       access: authEntry.access,
       authEntry: authEntry
     };
-  }
-
-  // If no in-memory config, check if repository exists on filesystem
-  const repoPath = path.join(REPOS_PATH, repoId);
-  const headFile = path.join(repoPath, 'HEAD');
-  const configFile = path.join(repoPath, 'config');
-  const objectsDir = path.join(repoPath, 'objects');
-  const refsDir = path.join(repoPath, 'refs');
-  
-  const isBareRepo = fs.existsSync(headFile) && fs.existsSync(configFile) && 
-                    fs.existsSync(objectsDir) && fs.existsSync(refsDir);
-  const isRegularRepo = fs.existsSync(path.join(repoPath, '.git'));
-  
-  if (!fs.existsSync(repoPath) || (!isBareRepo && !isRegularRepo)) {
-    return {
-      success: false,
-      status: 404,
-      error: 'Repository not found'
+    
+  } catch (error) {
+    console.error('Error checking repository access:', error);
+    return { 
+      success: false, 
+      status: 500, 
+      error: 'Internal server error checking repository access' 
     };
   }
-
-  // Repository exists but no authorization data - this means it was created
-  // but the server restarted and lost the in-memory auth data.
-  // For now, grant admin access and log a warning.
-  console.warn(`Repository ${repoId} exists but has no authorization data. Granting temporary admin access.`);
-  
-  return {
-    success: true,
-    access: 'admin',
-    authEntry: { pubkey: pubkey, access: 'admin' }
-  };
 }
 
 // Sample endpoint for repository info - protected by token validation
-app.get('/api/mgit/repos/:repoId/info', validateAuthToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/info', validateAuthToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user; // From the general token
   
-  const accessCheck = checkRepoAccess(repoId, pubkey);
+  const accessCheck = await checkRepoAccess(repoId, pubkey);
   
   if (!accessCheck.success) {
     return res.status(accessCheck.status).json({ 
@@ -1061,7 +1090,7 @@ app.get('/api/qr/clone/:repoId', authenticateJWT, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
-  const accessCheck = checkRepoAccess(repoId, pubkey);
+  const accessCheck = await checkRepoAccess(repoId, pubkey);
   
   if (!accessCheck.success) {
     return res.status(accessCheck.status).json({ 
@@ -1128,7 +1157,8 @@ app.post('/api/mgit/repos/create', async (req, res) => {
     }
     
     // Check if repository already exists
-    if (repoConfigurations[repoName]) {
+    const existingConfig = await authPersistence.loadRepositoryConfig(repoName);
+    if (existingConfig) {
       return res.status(409).json({
         status: 'error',
         reason: 'Repository already exists'
@@ -1140,7 +1170,8 @@ app.post('/api/mgit/repos/create', async (req, res) => {
     const repoResult = await mgitUtils.createRepository(repoName, userName, userEmail, pubkey, description, REPOS_PATH);
     
     if (repoResult.success) {
-      repoConfigurations[repoName] = repoResult.repoConfig;
+      await authPersistence.saveRepositoryConfig(repoName, repoResult.repoConfig);
+      console.log(`✅ Saved repository config for '${repoName}' to persistent storage`);
       res.json({
         status: 'OK',
         repoId: repoName,
@@ -1177,11 +1208,11 @@ app.post('/api/mgit/repos/create', async (req, res) => {
   Functions needed to re-implement git's protocol for sending and receiving data
 */
 // discovery phase of git's https smart discovery protocol
-app.get('/api/mgit/repos/:repoId/info/refs', validateAuthToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/info/refs', validateAuthToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
-  const accessCheck = checkRepoAccess(repoId, pubkey);
+  const accessCheck = await checkRepoAccess(repoId, pubkey);
   
   if (!accessCheck.success) {
     return res.status(accessCheck.status).json({ 
@@ -1259,12 +1290,12 @@ app.get('/api/mgit/repos/:repoId/info/refs', validateAuthToken, (req, res) => {
 
 // Git protocol endpoint for git-upload-pack (needed for clone)
 // data transfer phase
-app.post('/api/mgit/repos/:repoId/git-upload-pack', validateAuthToken, (req, res) => {
+app.post('/api/mgit/repos/:repoId/git-upload-pack', validateAuthToken, async (req, res) => {
   console.log('🔧 DEBUG: git-upload-pack route hit for repoId:', req.params.repoId);
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
-  const accessCheck = checkRepoAccess(repoId, pubkey);
+  const accessCheck = await checkRepoAccess(repoId, pubkey);
   
   if (!accessCheck.success) {
     return res.status(accessCheck.status).json({ 
@@ -1312,11 +1343,11 @@ app.post('/api/mgit/repos/:repoId/git-upload-pack', validateAuthToken, (req, res
 });
 
 // Git protocol endpoint for git-receive-pack (needed for push)
-app.post('/api/mgit/repos/:repoId/git-receive-pack', validateAuthToken, (req, res) => {
+app.post('/api/mgit/repos/:repoId/git-receive-pack', validateAuthToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
-  const accessCheck = checkRepoAccess(repoId, pubkey);
+  const accessCheck = await checkRepoAccess(repoId, pubkey);
   
   if (!accessCheck.success) {
     return res.status(accessCheck.status).json({ 
@@ -1474,13 +1505,13 @@ app.get('/api/mgit/repos/:repoId/metadata', validateAuthToken, (req, res) => {
 // Store SQLite databases next to mgit repos in filesystem
 
 // POST endpoint to upload SQLite database
-app.post('/api/mgit/repos/:repoId/database', validateMGitToken, (req, res) => {
+app.post('/api/mgit/repos/:repoId/database', validateMGitToken, async (req, res) => {
   console.log('app.post /api/mgit/repos/:repoId/database', req.params);
 
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
-  const accessCheck = checkRepoAccess(repoId, pubkey);
+  const accessCheck = await checkRepoAccess(repoId, pubkey);
   
   if (!accessCheck.success) {
     return res.status(accessCheck.status).json({ 
@@ -1557,11 +1588,11 @@ app.post('/api/mgit/repos/:repoId/database', validateMGitToken, (req, res) => {
 });
 
 // GET endpoint to download SQLite database
-app.get('/api/mgit/repos/:repoId/database', validateMGitToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/database', validateMGitToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
-  const accessCheck = checkRepoAccess(repoId, pubkey);
+  const accessCheck = await checkRepoAccess(repoId, pubkey);
   
   if (!accessCheck.success) {
     return res.status(accessCheck.status).json({ 
@@ -1625,14 +1656,15 @@ app.get('/api/mgit/repos/:repoId/database', validateMGitToken, (req, res) => {
 });
 
 // show repos of a user
-app.get('/api/user/repositories', validateAuthToken, (req, res) => {
+app.get('/api/user/repositories', validateAuthToken, async (req, res) => {
   try {
     console.log('USER REPOSITORIES LIST')
     const userPubkey = req.user.pubkey;
     const userRepositories = [];
     
     // Search through all repository configurations to find user's repos
-    for (const [repoId, config] of Object.entries(repoConfigurations)) {
+    const allRepoConfigs = await authPersistence.loadAllRepositoryConfigs();
+    for (const [repoId, config] of Object.entries(allRepoConfigs)) {
       // Check if user has access to this repository
       const hasAccess = config.authorized_keys.some(key => key.pubkey === userPubkey);
       
