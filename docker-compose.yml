@@ -15,4 +15,11 @@ services:
       NODE_ENV: production
       # PORT: 3003
     volumes:
+      # Repository storage (contains both git repos and SQLite database)
       - ${APP_DATA_DIR}/repos:/private_repos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

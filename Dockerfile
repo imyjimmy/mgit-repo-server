@@ -2,7 +2,7 @@ FROM node:20-bullseye-slim
 
 # Install system dependencies + Go
 RUN apt-get update && \
-    apt-get install -y curl git ca-certificates wget && \
+    apt-get install -y curl git ca-certificates wget build-essential python3 && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Go
