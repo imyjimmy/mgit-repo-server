@@ -446,22 +446,22 @@ async function login() {
     
     if (status === 'OK') {
       // Register user
-      const registerRes = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ profile: { name: 'User' } })
-      });
+      // const registerRes = await fetch('/api/auth/register', {
+      //   method: 'POST',
+      //   headers: { 
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${authToken}`
+      //   },
+      //   body: JSON.stringify({ profile: { name: 'User' } })
+      // });
       
-      console.log('Register response status:', registerRes.status);
-      const registerData = await registerRes.json();
-      console.log('Register response data:', registerData);
+      // console.log('Register response status:', registerRes.status);
+      // const registerData = await registerRes.json();
+      // console.log('Register response data:', registerData);
       
-      if (!registerRes.ok) {
-        throw new Error(`Registration failed: ${registerData.reason || 'Unknown error'}`);
-      }
+      // if (!registerRes.ok) {
+      //   throw new Error(`Registration failed: ${registerData.reason || 'Unknown error'}`);
+      // }
       
       // Store credentials
       localStorage.setItem('nostr_token', authToken);
