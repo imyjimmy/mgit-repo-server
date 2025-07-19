@@ -38,14 +38,14 @@ app.use((req, res, next) => {
     "font-src 'self' data: chrome-extension: moz-extension:; " +
     "object-src 'none';";
   
-  console.log('=== CSP DEBUG ===');
-  console.log('Request URL:', req.url);
-  console.log('Setting CSP:', cspPolicy);
+  // console.log('=== CSP DEBUG ===');
+  // console.log('Request URL:', req.url);
+  // console.log('Setting CSP:', cspPolicy);
   
   res.setHeader('Content-Security-Policy', cspPolicy);
   
-  console.log('CSP Header set:', res.getHeader('Content-Security-Policy'));
-  console.log('=================');
+  // console.log('CSP Header set:', res.getHeader('Content-Security-Policy'));
+  // console.log('=================');
   next();
 });
 
