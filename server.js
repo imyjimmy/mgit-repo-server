@@ -102,6 +102,9 @@ async function initializeServer() {
 async function scanAndRepairRepositories() {
   try {
     // Check if repos directory exists
+    console.log(`🔍 Checking REPOS_PATH: ${REPOS_PATH}`);
+    console.log(`🔍 REPOS_PATH exists: ${fs.existsSync(REPOS_PATH)}`);
+    
     if (!fs.existsSync(REPOS_PATH)) {
       console.log(`📁 Creating repositories directory: ${REPOS_PATH}`);
       fs.mkdirSync(REPOS_PATH, { recursive: true });
@@ -110,6 +113,8 @@ async function scanAndRepairRepositories() {
 
     // Get all directories in REPOS_PATH (these are potential repositories)
     const entries = fs.readdirSync(REPOS_PATH, { withFileTypes: true });
+    console.log(`📁 Found ${entries.length} entries in ${REPOS_PATH}:`, entries.map(e => `${e.name} (${e.isDirectory() ? 'dir' : 'file'})`));
+    
     const repoDirs = entries
       .filter(entry => entry.isDirectory())
       .map(entry => entry.name);
@@ -121,15 +126,21 @@ async function scanAndRepairRepositories() {
 
     for (const repoName of repoDirs) {
       const repoPath = path.join(REPOS_PATH, repoName);
+      console.log(`🔍 Checking repository: ${repoName} at ${repoPath}`);
       
       // Check if it's actually a git repository
-      if (!fs.existsSync(path.join(repoPath, '.git')) && !fs.existsSync(path.join(repoPath, 'HEAD'))) {
+      const hasGit = fs.existsSync(path.join(repoPath, '.git'));
+      const hasHead = fs.existsSync(path.join(repoPath, 'HEAD'));
+      console.log(`   - Has .git: ${hasGit}, Has HEAD: ${hasHead}`);
+      
+      if (!hasGit && !hasHead) {
         console.log(`⚠️  Skipping '${repoName}' - not a git repository`);
         continue;
       }
 
       // Check if auth config already exists
       const existingConfig = await authPersistence.loadRepositoryConfig(repoName);
+      console.log(`   - Existing config: ${existingConfig ? 'YES' : 'NO'}`);
       
       if (existingConfig) {
         console.log(`✅ Repository '${repoName}' already has auth config`);
@@ -706,7 +717,7 @@ app.get('/api/nostr/nip05/verify', async (req, res) => {
 // NEW ENDPOINTS FOR MGIT REPOSITORY-SPECIFIC AUTH
 
 // 1. Repository-specific challenge generation
-app.post('/api/mgit/auth/challenge', (req, res) => {
+app.post('/api/mgit/auth/challenge', async (req, res) => {
   const { repoId } = req.body;
   
   console.log(`=== CHALLENGE DEBUG ===`);
@@ -744,8 +755,15 @@ app.post('/api/mgit/auth/challenge', (req, res) => {
   console.log(`Is regular repo: ${isRegularRepo}`);
   console.log(`========================`);
 
-  if (!fs.existsSync(repoPath) || (!isBareRepo && !isRegularRepo)) {
-    console.log(`Repository check FAILED - returning 404`);
+  // if (!fs.existsSync(repoPath) || (!isBareRepo && !isRegularRepo)) {
+  //   console.log(`Repository check FAILED - returning 404`);
+  //   return res.status(404).json({ 
+  //     status: 'error', 
+  //     reason: 'Repository not found' 
+  //   });
+  // }
+  const repoConfig = await authPersistence.loadRepositoryConfig(repoId);
+  if (!repoConfig) {
     return res.status(404).json({ 
       status: 'error', 
       reason: 'Repository not found' 
@@ -912,7 +930,7 @@ async function checkRepoAccess(repoId, pubkey) {
     
     // Find the user's access level for this repository
     const authEntry = repoConfig.authorized_keys.find(key => 
-      key.pubkey === pubkey || hexToBech32(pubkey) === key.pubkey
+      key.pubkey === pubkey || utils.hexToBech32(pubkey) === key.pubkey
     );
     
     if (!authEntry) {
@@ -1666,7 +1684,7 @@ app.get('/api/user/repositories', validateAuthToken, async (req, res) => {
     const allRepoConfigs = await authPersistence.loadAllRepositoryConfigs();
     for (const [repoId, config] of Object.entries(allRepoConfigs)) {
       // Check if user has access to this repository
-      const hasAccess = config.authorized_keys.some(key => key.pubkey === userPubkey);
+      const hasAccess = config.authorized_keys.some(key => key.pubkey === utils.hexToBech32(userPubkey));
       
       if (hasAccess) {
         userRepositories.push({
@@ -1706,10 +1724,83 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// health check
+app.get('/api/health', async (req, res) => {
+  try {
+    let authStatus = 'unknown';
+    let repoCount = 0;
+    
+    try {
+      if (authPersistence.initialized) {
+        const configs = await authPersistence.loadAllRepositoryConfigs();
+        repoCount = Object.keys(configs).length;
+        authStatus = 'healthy';
+      } else {
+        authStatus = 'initializing';
+      }
+    } catch (error) {
+      authStatus = 'error';
+    }
+    
+    const reposDirExists = fs.existsSync(REPOS_PATH);
+    
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: {
+        node_env: process.env.NODE_ENV || 'development',
+        is_docker: authPersistence.isDocker,
+        repos_path: REPOS_PATH
+      },
+      storage: {
+        auth_persistence: authStatus,
+        storage_type: authPersistence.isDocker ? 'SQLite' : 'JSON',
+        repository_count: repoCount,
+        repos_directory_exists: reposDirExists
+      }
+    });
+    
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
 // Start the server
 const PORT = process.env.PORT || 3003;
-app.listen(PORT, async () => {
-  await ensureUsersDirectory();
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Access the application at http://localhost:${PORT}`);
+// app.listen(PORT, async () => {
+//   await ensureUsersDirectory();
+//   console.log(`Server running on port ${PORT}`);
+//   console.log(`Access the application at http://localhost:${PORT}`);
+// });
+
+initializeServer().then(() => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ MGit Repository Server running on port ${PORT}`);
+    console.log(`✅ Auth persistence: ${authPersistence.isDocker ? 'SQLite (Docker)' : 'JSON (Development)'}`);
+    console.log(`✅ Repositories path: ${REPOS_PATH}`);
+  });
+
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    console.log('Received SIGTERM, shutting down gracefully...');
+    server.close();
+    await authPersistence.close();
+    process.exit(0);
+  });
+
+  process.on('SIGINT', async () => {
+    console.log('Received SIGINT, shutting down gracefully...');
+    server.close();
+    await authPersistence.close();
+    process.exit(0);
+  });
+}).catch((error) => {
+  console.error('❌ Failed to start server:', error);
+  process.exit(1);
 });

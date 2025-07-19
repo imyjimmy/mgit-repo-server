@@ -68,6 +68,7 @@ class AuthPersistence {
 
     this.initialized = true;
     console.log(`Auth persistence initialized: ${this.isDocker ? 'SQLite (Docker)' : 'JSON (Development)'}`);
+    console.log(`Config storage: ${this.isDocker ? '/private_repos/mgit-auth.db' : this.configPath}`);
   }
 
   /**
