@@ -891,29 +891,6 @@ async function checkRepoAccess(repoId, pubkey) {
   }
 }
 
-// Sample endpoint for repository info - protected by token validation
-app.get('/api/mgit/repos/:repoId/info', validateAuthToken, async (req, res) => {
-  const { repoId } = req.params;
-  const { pubkey } = req.user; // From the general token
-  
-  const accessCheck = await checkRepoAccess(repoId, pubkey);
-  
-  if (!accessCheck.success) {
-    return res.status(accessCheck.status).json({ 
-      status: 'error', 
-      reason: accessCheck.error 
-    });
-  }
-  
-  // Return repository info with user's access level
-  res.json({
-    id: repoId,
-    name: `${repoId}`,
-    access: accessCheck.access,
-    authorized_pubkey: pubkey
-  });
-});
-
 // app.get('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, (req, res) => {
 //   const { repoId } = req.params;
 //   const { pubkey, access } = req.user;
@@ -1038,7 +1015,7 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
 });
 
 // QR Code generation endpoint-- used for mobile mgit clone
-app.get('/api/qr/clone/:repoId', authenticateJWT, async (req, res) => {
+app.get('/api/qr/clone/:repoId', validateMGitToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
@@ -1160,7 +1137,30 @@ app.post('/api/mgit/repos/create', async (req, res) => {
   Functions needed to re-implement git's protocol for sending and receiving data
 */
 // discovery phase of git's https smart discovery protocol
-app.get('/api/mgit/repos/:repoId/info/refs', validateAuthToken, async (req, res) => {
+// Sample endpoint for repository info - protected by token validation
+app.get('/api/mgit/repos/:repoId/info', validateMGitToken, async (req, res) => {
+  const { repoId } = req.params;
+  const { pubkey } = req.user; // From the general token
+  
+  const accessCheck = await checkRepoAccess(repoId, pubkey);
+  
+  if (!accessCheck.success) {
+    return res.status(accessCheck.status).json({ 
+      status: 'error', 
+      reason: accessCheck.error 
+    });
+  }
+  
+  // Return repository info with user's access level
+  res.json({
+    id: repoId,
+    name: `${repoId}`,
+    access: accessCheck.access,
+    authorized_pubkey: pubkey
+  });
+});
+
+app.get('/api/mgit/repos/:repoId/info/refs', validateMGitToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
@@ -1242,7 +1242,7 @@ app.get('/api/mgit/repos/:repoId/info/refs', validateAuthToken, async (req, res)
 
 // Git protocol endpoint for git-upload-pack (needed for clone)
 // data transfer phase
-app.post('/api/mgit/repos/:repoId/git-upload-pack', validateAuthToken, async (req, res) => {
+app.post('/api/mgit/repos/:repoId/git-upload-pack', validateMGitToken, async (req, res) => {
   console.log('🔧 DEBUG: git-upload-pack route hit for repoId:', req.params.repoId);
   const { repoId } = req.params;
   const { pubkey } = req.user;
@@ -1295,7 +1295,7 @@ app.post('/api/mgit/repos/:repoId/git-upload-pack', validateAuthToken, async (re
 });
 
 // Git protocol endpoint for git-receive-pack (needed for push)
-app.post('/api/mgit/repos/:repoId/git-receive-pack', validateAuthToken, async (req, res) => {
+app.post('/api/mgit/repos/:repoId/git-receive-pack', validateMGitToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
@@ -1378,7 +1378,7 @@ app.post('/api/mgit/repos/:repoId/git-receive-pack', validateAuthToken, async (r
 });
 
 // Endpoint to get MGit-specific metadata (e.g., nostr mappings)
-app.get('/api/mgit/repos/:repoId/metadata', validateAuthToken, (req, res) => {
+app.get('/api/mgit/repos/:repoId/metadata', validateMGitToken, (req, res) => {
   const { repoId } = req.params;
   const { access } = req.user;
   
