@@ -1486,7 +1486,7 @@ app.get('/api/mgit/repos/:repoId/database', validateMGitToken, async (req, res) 
 
   try {
     // Get database path next to the mgit repo
-    const dbPath = path.join(REPOS_PATH, repoId + '.sqlite');
+    const dbPath = path.join(REPOS_PATH, repoId + '.db');
     
     // Check if database exists
     if (!fs.existsSync(dbPath)) {
