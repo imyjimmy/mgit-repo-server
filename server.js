@@ -216,13 +216,14 @@ const validateAuthToken = (req, res, next) => {
 const validateMGitToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   console.log("validating mGitToken, authHeader: ", authHeader)
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader) {
     return res.status(401).json({ 
       status: 'error', 
       reason: 'Authentication required' 
     });
   }
 
+  console.log('utils.processAuthToken', authHeader, JWT_SECRET);
   const result = utils.processAuthToken(authHeader, JWT_SECRET);
   
   if (!result.success) {
