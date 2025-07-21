@@ -1471,12 +1471,12 @@ app.post('/api/mgit/repos/:repoId/database', validateMGitToken, async (req, res)
 app.get('/api/mgit/repos/:repoId/database', validateMGitToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
-  console.log('REPOID DOWNLOAD DATABASE /api/mgit/repos/:repoId/database', req, res);
+  console.log('REPOID DOWNLOAD DATABASE /api/mgit/repos/:repoId/database', repoId, pubkey);
 
   const accessCheck = await checkRepoAccess(repoId, pubkey);
   
   console.log('accessCheck: ', accessCheck);
-  
+
   if (!accessCheck.success) {
     return res.status(accessCheck.status).json({ 
       status: 'error', 
@@ -1490,6 +1490,7 @@ app.get('/api/mgit/repos/:repoId/database', validateMGitToken, async (req, res) 
     
     // Check if database exists
     if (!fs.existsSync(dbPath)) {
+      console.log('db path doesnt exist, dbPath: ', dbPath, 'repoId: ', repoId, ' REPOS_PATH: ', REPOS_PATH);
       return res.status(404).json({
         status: 'error',
         reason: 'Database not found',
