@@ -199,81 +199,17 @@ const validateAuthToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   console.log('🔧 DEBUG: validateAuthToken', authHeader?.substring(0, 50) + '...');
   
-  if (!authHeader) {
-    console.log('❌ No auth header provided');
+  const result = utils.processAuthToken(authHeader, JWT_SECRET);
+  
+  if (!result.success) {
     return res.status(401).json({ 
       status: 'error', 
-      reason: 'Authentication required' 
+      reason: result.error 
     });
   }
-
-  let token;
-
-  // Handle Bearer token (existing)
-  if (authHeader.startsWith('Bearer ')) {
-    console.log('✅ Bearer token detected');
-    token = authHeader.split(' ')[1];
-  } 
-  // Handle Basic Auth (for go-git compatibility)
-  else if (authHeader.startsWith('Basic ')) {
-    console.log('✅ Basic Auth detected');
-    try {
-      const base64Credentials = authHeader.split(' ')[1];
-      const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-      const [username, password] = credentials.split(':');
-      
-      console.log('Basic Auth username:', username);
-      console.log('Basic Auth password length:', password.length);
-      
-      // Check for double-encoded Basic Auth (go-git bug)
-      if (credentials.startsWith('Basic ')) {
-        console.log('🔧 Detected double-encoded Basic Auth, fixing...');
-        // Extract the inner base64 part
-        const innerBase64 = credentials.substring(6); // Remove "Basic "
-        const innerCredentials = Buffer.from(innerBase64, 'base64').toString('ascii');
-        const [innerUsername, innerPassword] = innerCredentials.split(':');
-        token = innerPassword;
-        console.log('🔧 Using inner JWT token from double-encoded auth');
-      } else {
-        // "Normal" Basic Auth but still has "Basic " prefix due to go-git double-encoding
-        if (password.startsWith('Basic ')) {
-          token = password.substring(6); // Remove "Basic " prefix
-          console.log('🔧 Removed Basic prefix from password field, using JWT token');
-        } else {
-          token = password;
-          console.log('Using password as JWT token');
-        }
-      }
-    } catch (error) {
-      console.log('❌ Basic Auth parsing failed:', error.message);
-      return res.status(401).json({ 
-        status: 'error', 
-        reason: 'Invalid Basic Auth format' 
-      });
-    }
-  }
-  else {
-    console.log('❌ Unknown auth format');
-    return res.status(401).json({ 
-      status: 'error', 
-      reason: 'Invalid authentication format. Use Bearer or Basic Auth.' 
-    });
-  }
-
-  // Validate the JWT token (works for both Bearer and Basic Auth)
-  try {
-    console.log('🔍 Validating JWT token...');
-    const decoded = jwt.verify(token, JWT_SECRET);
-    console.log('✅ JWT validation successful for user:', decoded.pubkey);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    console.log('❌ JWT validation failed:', error.message);
-    return res.status(401).json({ 
-      status: 'error', 
-      reason: 'Invalid token' 
-    });
-  }
+  
+  req.user = result.decoded;
+  next();
 };
 
 // validates the MGitToken which includes RepoId
@@ -287,37 +223,28 @@ const validateMGitToken = (req, res, next) => {
     });
   }
 
-  const token = authHeader.split(' ')[1];
+  const result = utils.processAuthToken(authHeader, JWT_SECRET);
   
-  try {
-    // Verify the token
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Add the decoded token to the request object for route handlers to use
-    req.user = decoded;
-    
-    // Check if the token matches the requested repository
-    if (req.params.repoId && req.params.repoId !== decoded.repoId) {
-      return res.status(403).json({ 
-        status: 'error', 
-        reason: 'Token not valid for this repository' 
-      });
-    }
-    
-    next();
-  } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
-        status: 'error', 
-        reason: 'Token expired' 
-      });
-    }
-    
+  if (!result.success) {
     return res.status(401).json({ 
       status: 'error', 
-      reason: 'Invalid token' 
+      reason: result.error 
     });
   }
+  
+  // Add the decoded token to the request object for route handlers to use
+  req.user = result.decoded;
+
+  const token = authHeader.split(' ')[1];
+  
+  if (req.params.repoId && req.params.repoId !== result.decoded.repoId) {
+    return res.status(403).json({ 
+      status: 'error', 
+      reason: 'Token not valid for this repository' 
+    });
+  }
+    
+  next();
 };
 
 // Ensure repositories directory exists
