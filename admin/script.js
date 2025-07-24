@@ -9,6 +9,10 @@ let billingConfig = {
     baseRate: 1000   // base hosting fee per month
 };
 
+let peerConnection = null;
+let localStream = null;
+let isInRoom = false;
+
 // DOM elements
 const loginSection = document.getElementById('loginSection');
 const dashboardSection = document.getElementById('dashboardSection');
@@ -41,9 +45,6 @@ const closeModal = document.querySelector('.close');
 const sendInvoiceBtn = document.getElementById('sendInvoiceBtn');
 const cancelInvoiceBtn = document.getElementById('cancelInvoiceBtn');
 
-// Event listeners
-// (Moved to setupEventListeners function)
-
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     checkExistingAuth();
@@ -71,12 +72,183 @@ function setupEventListeners() {
     cancelInvoiceBtn.addEventListener('click', closeInvoiceModal);
     closeModal.addEventListener('click', closeInvoiceModal);
     
+    // room stuff
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+    
+    joinRoomBtn.addEventListener('click', joinWebRTCRoom);
+    leaveRoomBtn.addEventListener('click', leaveWebRTCRoom);
+
     // Close modal when clicking outside
     window.addEventListener('click', (event) => {
         if (event.target === invoiceModal) {
             closeInvoiceModal();
         }
     });
+}
+
+/* WebRTC Stuff */
+async function joinWebRTCRoom() {
+    try {
+        const roomId = document.getElementById('testRoomId').value.trim();
+        if (!roomId) {
+            showMessage('Please enter a room ID', 'error');
+            return;
+        }
+        
+        showMessage('Joining WebRTC room...', 'info');
+        updateConnectionStatus('Connecting...');
+        
+        // Get user media
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+        
+        document.getElementById('localVideo').srcObject = localStream;
+        
+        // Create peer connection
+        peerConnection = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        });
+        
+        // Add local stream to peer connection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+        
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+            console.log('Received remote stream');
+            document.getElementById('remoteVideo').srcObject = event.streams[0];
+        };
+        
+        // Handle connection state changes
+        peerConnection.onconnectionstatechange = () => {
+            updateConnectionStatus(peerConnection.connectionState);
+        };
+        
+        // Join room via signaling server
+        const joinResponse = await fetch(`/api/webrtc/rooms/${roomId}/join`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const joinResult = await joinResponse.json();
+        console.log('Admin joined room:', joinResult);
+        
+        updateRoomParticipants(joinResult.participants);
+        isInRoom = true;
+        
+        // Start signaling loop
+        await startAdminSignalingLoop(roomId);
+        
+        // Update UI
+        document.getElementById('joinRoomBtn').disabled = true;
+        document.getElementById('leaveRoomBtn').disabled = false;
+        
+        showMessage(`Joined room: ${roomId}`, 'success');
+        
+    } catch (error) {
+        console.error('Error joining WebRTC room:', error);
+        showMessage(`Failed to join room: ${error.message}`, 'error');
+    }
+}
+
+async function startAdminSignalingLoop(roomId) {
+    try {
+        // Check for existing offers (from mobile clients)
+        const checkOffers = setInterval(async () => {
+            try {
+                if (!isInRoom) {
+                    clearInterval(checkOffers);
+                    return;
+                }
+                
+                const response = await fetch(`/api/webrtc/rooms/${roomId}/offer`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                
+                const { offer } = await response.json();
+                
+                if (offer && offer.offer) {
+                    clearInterval(checkOffers);
+                    console.log('Received offer from mobile client');
+                    
+                    // Set remote description
+                    await peerConnection.setRemoteDescription(offer.offer);
+                    
+                    // Create answer
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    
+                    // Send answer back
+                    await fetch(`/api/webrtc/rooms/${roomId}/answer`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${adminToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ answer })
+                    });
+                    
+                    console.log('Answer sent to mobile client');
+                    showMessage('Connected to mobile client!', 'success');
+                }
+            } catch (error) {
+                console.error('Error in admin signaling loop:', error);
+            }
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error starting admin signaling loop:', error);
+    }
+}
+
+async function leaveWebRTCRoom() {
+    try {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        
+        document.getElementById('localVideo').srcObject = null;
+        document.getElementById('remoteVideo').srcObject = null;
+        
+        isInRoom = false;
+        
+        // Update UI
+        document.getElementById('joinRoomBtn').disabled = false;
+        document.getElementById('leaveRoomBtn').disabled = true;
+        
+        updateConnectionStatus('Disconnected');
+        updateRoomParticipants(0);
+        
+        showMessage('Left WebRTC room', 'info');
+        
+    } catch (error) {
+        console.error('Error leaving room:', error);
+        showMessage(`Error leaving room: ${error.message}`, 'error');
+    }
+}
+
+function updateConnectionStatus(status) {
+    document.getElementById('connectionStatus').textContent = `Status: ${status}`;
+}
+
+function updateRoomParticipants(count) {
+    document.getElementById('roomParticipants').textContent = `Participants: ${count}`;
 }
 
 // Authentication functions
@@ -706,5 +878,3 @@ function showMessage(text, type = 'info') {
     }, 3000);
 }
 
-// Close modal when clicking outside
-// (Moved to setupEventListeners function)

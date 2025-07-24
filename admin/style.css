@@ -12,6 +12,28 @@ body {
     line-height: 1.6;
 }
 
+/* WebRTC */
+.webrtc-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.webrtc-video {
+    grid-column: span 2;
+}
+
+.video-container {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.webrtc-status div {
+    margin: 5px 0;
+    font-weight: 500;
+}
+
 /* Admin profile picture styles */
 .admin-info {
     display: flex;

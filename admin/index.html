@@ -133,6 +133,38 @@
                     </div>
                 </div>
             </div>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h3>📹 WebRTC Testing</h3>
+                </div>
+                
+                <div class="webrtc-actions">
+                    <div class="webrtc-config">
+                        <h4>Test Video Calls</h4>
+                        <div class="form-group">
+                            <label for="testRoomId">Room ID:</label>
+                            <input type="text" id="testRoomId" value="bright-dolphin-swimming" placeholder="Enter room ID">
+                        </div>
+                        <button id="joinRoomBtn" class="btn btn-primary">Join Room</button>
+                        <button id="leaveRoomBtn" class="btn btn-secondary" disabled>Leave Room</button>
+                    </div>
+
+                    <div class="webrtc-status">
+                        <h4>Connection Status</h4>
+                        <div id="connectionStatus">Not connected</div>
+                        <div id="roomParticipants">Participants: 0</div>
+                    </div>
+                    
+                    <div class="webrtc-video">
+                        <h4>Video Test</h4>
+                        <div class="video-container">
+                            <video id="localVideo" autoplay muted style="width: 200px; height: 150px; border: 1px solid #ccc;"></video>
+                            <video id="remoteVideo" autoplay style="width: 200px; height: 150px; border: 1px solid #ccc;"></video>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Invoice Modal -->
