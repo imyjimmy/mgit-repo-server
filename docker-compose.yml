@@ -3,6 +3,7 @@ version: "3.7"
 services:
   app_proxy:
     environment:
+      BASE_URL: "https://plebemr.com"
       APP_HOST: mgitreposerver-mgit-repo-server_web_1
       APP_PORT: 3003
       

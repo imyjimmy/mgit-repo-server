@@ -327,7 +327,7 @@ app.post('/api/auth/nostr/challenge', (req, res) => {
 
 app.post('/api/auth/nostr/verify', async (req, res) => {
   const { signedEvent } = req.body;
-  
+  console.log('Received Signed Event: ', signedEvent)
   try {
     // Validate the event format
     if (!validateEvent(signedEvent)) {

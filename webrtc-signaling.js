@@ -1,15 +1,45 @@
 // webrtc-signaling.js
 const express = require('express');
+const { generateRoomId } = require('./webrtc-room-generator');
+
+const BASE_URL = process.env.BASE_URL || 'https://plebemr.com';
 
 // In-memory storage for signaling (use Redis in production)
 let videoCallRooms = new Map();
 
+// WebRTC Signaling Endpoints
 function setupWebRTCRoutes(app, authenticateJWT) {
   
-  // WebRTC Signaling Endpoints
+  // Endpoint to create a new appointment/room
+  app.post('/api/appointments/create', authenticateJWT, (req, res) => {
+    const { doctorName, appointmentTime, notes } = req.body;
+    const roomId = generateRoomId();
+    
+    // Store appointment in your system (database, memory, etc.)
+    // For now, just return the room ID
+    res.json({
+      roomId,
+      doctorName,
+      appointmentTime,
+      webrtcUrl: `${BASE_URL}/api/webrtc/rooms/${roomId}`,
+      message: `Appointment room created: ${roomId}`
+    });
+  });
+
+  // Endpoint for testing room generation
+  app.get('/api/appointments/generate-room', authenticateJWT, (req, res) => {
+    const roomId = generateRoomId();
+    
+    res.json({
+      roomId,
+      webrtcUrl: `${BASE_URL}/api/webrtc/rooms/${roomId}`
+    });
+  });
+  
   app.post('/api/webrtc/rooms/:roomId/join', authenticateJWT, (req, res) => {
     const { roomId } = req.params;
     const { pubkey } = req.user;
+    console.log('/api/webrtc/rooms/:roomId/join', roomId, pubkey);
     
     if (!videoCallRooms.has(roomId)) {
       videoCallRooms.set(roomId, { participants: [] });
