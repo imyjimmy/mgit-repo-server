@@ -56,6 +56,53 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     });
   });
 
+  app.post('/api/webrtc/rooms/:roomId/leave', authenticateJWT, (req, res) => {
+    const { roomId } = req.params;
+    const { pubkey } = req.user;
+    
+    const room = videoCallRooms.get(roomId);
+    if (room) {
+      // Remove participant
+      room.participants = room.participants.filter(p => p.pubkey !== pubkey);
+      
+      // If participant was part of signaling, clear their data
+      if (room.pendingOffer?.from === pubkey) {
+        delete room.pendingOffer;
+      }
+      if (room.pendingAnswer?.from === pubkey) {
+        delete room.pendingAnswer;
+      }
+      
+      // Remove their ICE candidates
+      if (room.iceCandidates) {
+        room.iceCandidates = room.iceCandidates.filter(ic => ic.from !== pubkey);
+      }
+      
+      console.log(`User ${pubkey} left room ${roomId}`);
+    }
+    
+    res.json({ 
+      status: 'left',
+      participants: room ? room.participants.length : 0
+    });
+  });
+
+  app.post('/api/webrtc/rooms/:roomId/reset-connection', authenticateJWT, (req, res) => {
+    const { roomId } = req.params;
+    
+    const room = videoCallRooms.get(roomId);
+    if (room) {
+      // Clear all connection state but keep participants
+      delete room.pendingOffer;
+      delete room.pendingAnswer;
+      room.iceCandidates = [];
+      
+      console.log(`Connection reset for room ${roomId}`);
+    }
+    
+    res.json({ status: 'connection-reset' });
+  });
+
   app.post('/api/webrtc/rooms/:roomId/offer', authenticateJWT, (req, res) => {
     const { roomId } = req.params;
     const { offer } = req.body;
