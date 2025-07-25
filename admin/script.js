@@ -162,6 +162,7 @@ async function joinWebRTCRoom() {
 }
 
 async function startAdminSignalingLoop(roomId) {
+    console.log('=== ADMIN: Starting signaling loop ===');
     try {
         // Check for existing offers (from mobile clients)
         const checkOffers = setInterval(async () => {
@@ -170,24 +171,27 @@ async function startAdminSignalingLoop(roomId) {
                     clearInterval(checkOffers);
                     return;
                 }
-                
+                console.log('ADMIN: Checking for offers...');
                 const response = await fetch(`/api/webrtc/rooms/${roomId}/offer`, {
                     headers: { 'Authorization': `Bearer ${adminToken}` }
                 });
                 
                 const { offer } = await response.json();
+                console.log('ADMIN: Offer check result:', offer ? 'OFFER FOUND' : 'no offer yet');
                 
                 if (offer && offer.offer) {
                     clearInterval(checkOffers);
-                    console.log('Received offer from mobile client');
+                    console.log('ADMIN: Processing offer from client...');
                     
                     // Set remote description
                     await peerConnection.setRemoteDescription(offer.offer);
-                    
+                    console.log('ADMIN: Set remote description from client offer');
+
                     // Create answer
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
-                    
+                    console.log('ADMIN: Created and set local answer');
+
                     // Send answer back
                     await fetch(`/api/webrtc/rooms/${roomId}/answer`, {
                         method: 'POST',
@@ -198,7 +202,8 @@ async function startAdminSignalingLoop(roomId) {
                         body: JSON.stringify({ answer })
                     });
                     
-                    console.log('Answer sent to mobile client');
+                    console.log('ADMIN: Sent answer to server, response:', answerResponse.status);
+                    console.log('ADMIN: ✅ Answer sent! Connection should be established.');
                     showMessage('Connected to mobile client!', 'success');
                 }
             } catch (error) {
