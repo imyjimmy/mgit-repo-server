@@ -368,13 +368,6 @@ async function handleLogin() {
             const displayName = metadata?.display_name || metadata?.name || 'Administrator';
             adminName.textContent = displayName;
             
-            if (metadata?.picture) {
-                displayProfilePicture(metadata.picture, displayName);
-            } else {
-                // Try to fetch profile from Nostr if no picture in initial metadata
-                fetchProfilePicture(pubkey, displayName);
-            }
-            
             showDashboard();
             showMessage('Admin login successful!', 'success');
             
@@ -606,6 +599,14 @@ function showLogin() {
 function showDashboard() {
     loginSection.classList.add('hidden');
     dashboardSection.classList.remove('hidden');
+
+    if (metadata?.picture) {
+        displayProfilePicture(metadata.picture, displayName);
+    } else {
+        // Try to fetch profile from Nostr if no picture in initial metadata
+        fetchProfilePicture(pubkey, displayName);
+    }
+
     loadDashboardData();
 }
 
