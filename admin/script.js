@@ -122,8 +122,34 @@ async function joinWebRTCRoom() {
         
         // Handle remote stream
         peerConnection.ontrack = (event) => {
-            console.log('Received remote stream');
-            document.getElementById('remoteVideo').srcObject = event.streams[0];
+        console.log('Received remote stream');
+        console.log('Event object:', event);
+        console.log('Event streams:', event.streams);
+        console.log('Event streams length:', event.streams ? event.streams.length : 'no streams');
+        
+        if (event.streams && event.streams[0]) {
+            const stream = event.streams[0];
+            console.log('Stream object:', stream);
+            console.log('Stream tracks:', stream.getTracks());
+            console.log('Stream tracks length:', stream.getTracks().length);
+            console.log('Stream active:', stream.active);
+            
+            // Check what kind of tracks we have
+            stream.getTracks().forEach((track, index) => {
+            console.log(`Track ${index}:`, track.kind, track.enabled, track.readyState);
+            });
+            
+            document.getElementById('remoteVideo').srcObject = stream;
+        } else {
+            console.log('No stream in event.streams[0]');
+            
+            // Try the track directly
+            if (event.track) {
+            console.log('Trying event.track directly:', event.track);
+            const stream = new MediaStream([event.track]);
+            document.getElementById('remoteVideo').srcObject = stream;
+            }
+        }
         };
         
         // Handle connection state changes
