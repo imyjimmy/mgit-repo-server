@@ -78,7 +78,7 @@ function setupEventListeners() {
     
     joinRoomBtn.addEventListener('click', joinWebRTCRoom);
     leaveRoomBtn.addEventListener('click', leaveWebRTCRoom);
-
+    
     // Close modal when clicking outside
     window.addEventListener('click', (event) => {
         if (event.target === invoiceModal) {
@@ -163,57 +163,96 @@ async function joinWebRTCRoom() {
 
 async function startAdminSignalingLoop(roomId) {
     console.log('=== ADMIN: Starting signaling loop ===');
-    try {
-        // Check for existing offers (from mobile clients)
-        const checkOffers = setInterval(async () => {
+    // Handle ICE candidates (web API works fine here)
+    peerConnection.onicecandidate = async (event) => {
+        if (event.candidate) {
+            console.log('ADMIN: Sending ICE candidate');
             try {
-                if (!isInRoom) {
-                    clearInterval(checkOffers);
-                    return;
+                await fetch(`/api/webrtc/rooms/${roomId}/ice-candidate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ candidate: event.candidate })
+                });
+            } catch (error) {
+                console.error('ADMIN: Error sending ICE candidate:', error);
+            }
+        }
+    };
+    
+    // Poll for ICE candidates from client
+    const pollForIceCandidates = setInterval(async () => {
+        try {
+            if (!isInRoom) {
+                clearInterval(pollForIceCandidates);
+                return;
+            }
+            
+            const response = await fetch(`/api/webrtc/rooms/${roomId}/ice-candidates`, {
+                headers: { 'Authorization': `Bearer ${adminToken}` }
+            });
+            
+            const { candidates } = await response.json();
+            
+            if (candidates && candidates.length > 0) {
+                console.log(`ADMIN: Received ${candidates.length} ICE candidates`);
+                for (const candidateData of candidates) {
+                    console.log('ADMIN: Adding remote ICE candidate');
+                    await peerConnection.addIceCandidate(candidateData.candidate);
                 }
-                console.log('ADMIN: Checking for offers...');
-                const response = await fetch(`/api/webrtc/rooms/${roomId}/offer`, {
-                    headers: { 'Authorization': `Bearer ${adminToken}` }
+            }
+        } catch (error) {
+            console.error('ADMIN: Error handling ICE candidates:', error);
+        }
+    }, 2000);
+        
+    // Check for existing offers (from mobile clients)
+    const checkOffers = setInterval(async () => {
+        try {
+            if (!isInRoom) {
+                clearInterval(checkOffers);
+                clearInterval(pollForIceCandidates); // Clean up ICE polling too
+                return;
+            }
+            
+            console.log('ADMIN: Checking for offers...');
+            
+            const response = await fetch(`/api/webrtc/rooms/${roomId}/offer`, {
+                headers: { 'Authorization': `Bearer ${adminToken}` }
+            });
+            
+            const { offer } = await response.json();
+            console.log('ADMIN: Offer check result:', offer ? 'OFFER FOUND' : 'no offer yet');
+            
+            if (offer && offer.offer) {
+                clearInterval(checkOffers);
+                console.log('ADMIN: Processing offer from client...');
+                
+                await peerConnection.setRemoteDescription(offer.offer);
+                console.log('ADMIN: Set remote description from client offer');
+                
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                console.log('ADMIN: Created and set local answer');
+                
+                const answerResponse = await fetch(`/api/webrtc/rooms/${roomId}/answer`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ answer })
                 });
                 
-                const { offer } = await response.json();
-                console.log('ADMIN: Offer check result:', offer ? 'OFFER FOUND' : 'no offer yet');
-                
-                if (offer && offer.offer) {
-                    clearInterval(checkOffers);
-                    console.log('ADMIN: Processing offer from client...');
-                    
-                    // Set remote description
-                    await peerConnection.setRemoteDescription(offer.offer);
-                    console.log('ADMIN: Set remote description from client offer');
-
-                    // Create answer
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    console.log('ADMIN: Created and set local answer');
-
-                    // Send answer back
-                    await fetch(`/api/webrtc/rooms/${roomId}/answer`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${adminToken}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ answer })
-                    });
-                    
-                    console.log('ADMIN: Sent answer to server, response:', answerResponse.status);
-                    console.log('ADMIN: ✅ Answer sent! Connection should be established.');
-                    showMessage('Connected to mobile client!', 'success');
-                }
-            } catch (error) {
-                console.error('Error in admin signaling loop:', error);
+                console.log('ADMIN: Sent answer to server, response:', answerResponse.status);
+                console.log('ADMIN: ✅ Answer sent! Connection should be established.');
             }
-        }, 2000);
-        
-    } catch (error) {
-        console.error('Error starting admin signaling loop:', error);
-    }
+        } catch (error) {
+            console.error('Error in admin signaling loop:', error);
+        }
+    }, 2000);
 }
 
 async function leaveWebRTCRoom() {
@@ -264,7 +303,7 @@ async function handleLogin() {
         if (!window.nostr) {
             throw new Error('Please install a Nostr browser extension like nos2x');
         }
-
+        
         // Step 1: Get challenge
         const challengeRes = await fetch('/api/auth/nostr/challenge', { 
             method: 'POST' 
@@ -309,7 +348,7 @@ async function handleLogin() {
                 // Try to fetch profile from Nostr if no picture in initial metadata
                 fetchProfilePicture(pubkey, displayName);
             }
-
+            
             showDashboard();
             showMessage('Admin login successful!', 'success');
             
@@ -383,11 +422,11 @@ async function fetchNostrProfile(hexPubkey) {
             console.log(`Trying relay: ${relayUrl}`);
             
             tryFetchFromRelay(relayUrl, hexPubkey, timeoutMs / relays.length)
-                .then(resolve)
-                .catch((error) => {
-                    console.log(`Relay ${relayUrl} failed: ${error.message}`);
-                    tryNextRelay();
-                });
+            .then(resolve)
+            .catch((error) => {
+                console.log(`Relay ${relayUrl} failed: ${error.message}`);
+                tryNextRelay();
+            });
         };
         
         tryNextRelay();
@@ -525,11 +564,11 @@ function removeExistingProfileElements() {
 function getInitials(name) {
     if (!name) return 'A';
     return name
-        .split(' ')
-        .map(word => word.charAt(0))
-        .join('')
-        .substring(0, 2)
-        .toUpperCase();
+    .split(' ')
+    .map(word => word.charAt(0))
+    .join('')
+    .substring(0, 2)
+    .toUpperCase();
 }
 
 // UI management
@@ -575,42 +614,42 @@ async function loadPatientData() {
     try {
         // Mock patient data - would come from actual API
         /*currentPatients = [
-            {
-                id: '1',
-                name: 'Dr. Jane Smith',
-                pubkey: 'npub1abc...',
-                repositories: 2,
-                storageUsed: 45, // MB
-                lastBilled: '2025-01-01',
-                paymentStatus: 'paid',
-                totalOwed: 0
-            },
-            {
-                id: '2', 
-                name: 'Dr. Bob Johnson',
-                pubkey: 'npub1def...',
-                repositories: 1,
-                storageUsed: 23, // MB
-                lastBilled: '2025-01-01',
-                paymentStatus: 'pending',
-                totalOwed: 1230
-            },
-            {
-                id: '3',
-                name: 'Dr. Alice Brown',
-                pubkey: 'npub1ghi...',
-                repositories: 3,
-                storageUsed: 78, // MB
-                lastBilled: '2024-12-15',
-                paymentStatus: 'overdue',
-                totalOwed: 2560
-            }
+        {
+        id: '1',
+        name: 'Dr. Jane Smith',
+        pubkey: 'npub1abc...',
+        repositories: 2,
+        storageUsed: 45, // MB
+        lastBilled: '2025-01-01',
+        paymentStatus: 'paid',
+        totalOwed: 0
+        },
+        {
+        id: '2', 
+        name: 'Dr. Bob Johnson',
+        pubkey: 'npub1def...',
+        repositories: 1,
+        storageUsed: 23, // MB
+        lastBilled: '2025-01-01',
+        paymentStatus: 'pending',
+        totalOwed: 1230
+        },
+        {
+        id: '3',
+        name: 'Dr. Alice Brown',
+        pubkey: 'npub1ghi...',
+        repositories: 3,
+        storageUsed: 78, // MB
+        lastBilled: '2024-12-15',
+        paymentStatus: 'overdue',
+        totalOwed: 2560
+        }
         ];
         
         */ 
         // TODO: Add real API endpoint for patient data
         const response = await fetch('/api/admin/patients', {
-          headers: { 'Authorization': `Bearer ${adminToken}` }
+            headers: { 'Authorization': `Bearer ${adminToken}` }
         });
         currentPatients = await response.json();
         renderPatientsTable();
@@ -630,8 +669,8 @@ function renderPatientsTable() {
         
         // Format pubkey properly
         const pubkeyDisplay = patient.pubkey.length > 10 ? 
-            patient.pubkey.substring(0, 4) + '...' + patient.pubkey.slice(-6) : 
-            patient.pubkey;
+        patient.pubkey.substring(0, 4) + '...' + patient.pubkey.slice(-6) : 
+        patient.pubkey;
         
         row.innerHTML = `
             <td>
@@ -647,16 +686,16 @@ function renderPatientsTable() {
                     Bill Patient
                 </button>
                 ${patient.paymentStatus === 'overdue' ? 
-                    `<button class="btn btn-warning btn-small remind-patient-btn" data-patient-id="${patient.id}">
+        `<button class="btn btn-warning btn-small remind-patient-btn" data-patient-id="${patient.id}">
                         Remind
                     </button>` : ''
-                }
+    }
             </td>
         `;
-    });
-    
-    // Add event listeners to the new buttons
-    addPatientButtonListeners();
+});
+
+// Add event listeners to the new buttons
+addPatientButtonListeners();
 }
 
 async function loadBillingStats() {
