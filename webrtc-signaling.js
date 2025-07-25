@@ -39,16 +39,31 @@ function setupWebRTCRoutes(app, authenticateJWT) {
   app.post('/api/webrtc/rooms/:roomId/join', authenticateJWT, (req, res) => {
     const { roomId } = req.params;
     const { pubkey } = req.user;
-    console.log('/api/webrtc/rooms/:roomId/join', roomId, pubkey);
     
     if (!videoCallRooms.has(roomId)) {
       videoCallRooms.set(roomId, { participants: [] });
     }
     
     const room = videoCallRooms.get(roomId);
-    if (!room.participants.find(p => p.pubkey === pubkey)) {
+    const existingParticipant = room.participants.find(p => p.pubkey === pubkey);
+    
+    if (!existingParticipant) {
       room.participants.push({ pubkey, joinedAt: Date.now() });
+      console.log(`NEW participant joined: ${pubkey.substring(0, 8)}...`);
+    } else {
+      console.log(`EXISTING participant rejoined: ${pubkey.substring(0, 8)}...`);
     }
+
+    // If this is a rejoin (participant already exists), reset connection state
+    if (existingParticipant) {
+      console.log('Participant rejoining - resetting connection state');
+      delete room.pendingOffer;
+      delete room.pendingAnswer;
+      room.iceCandidates = [];
+    }
+    
+    console.log(`Room ${roomId} participants:`, room.participants.map(p => p.pubkey.substring(0, 8)));
+    console.log(`Total participants: ${room.participants.length}`);
     
     res.json({ 
       status: 'joined',
