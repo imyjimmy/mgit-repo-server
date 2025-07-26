@@ -250,7 +250,7 @@ const validateMGitToken = (req, res, next) => {
   next();
 };
 
-setupWebRTCRoutes(app, authenticateJWT);
+setupWebRTCRoutes(app, validateAuthToken);
 
 // Ensure repositories directory exists
 if (!fs.existsSync(REPOS_PATH)) {
