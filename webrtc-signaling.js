@@ -6,6 +6,7 @@ const BASE_URL = process.env.BASE_URL || 'https://plebemr.com';
 
 // In-memory storage for signaling (use Redis in production)
 let videoCallRooms = new Map();
+const sseConnections = new Map(); // roomId -> Set of SSE response objects
 
 // WebRTC Signaling Endpoints
 function setupWebRTCRoutes(app, authenticateJWT) {
@@ -65,6 +66,8 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     console.log(`Room ${roomId} participants:`, room.participants.map(p => p.pubkey.substring(0, 8)));
     console.log(`Total participants: ${room.participants.length}`);
     
+    broadcastParticipantCount(roomId);
+
     res.json({ 
       status: 'joined',
       participants: room.participants.length 
@@ -96,6 +99,8 @@ function setupWebRTCRoutes(app, authenticateJWT) {
       console.log(`User ${pubkey} left room ${roomId}`);
     }
     
+    broadcastParticipantCount(roomId);
+
     res.json({ 
       status: 'left',
       participants: room ? room.participants.length : 0
@@ -191,6 +196,61 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     const candidates = room.iceCandidates.filter(ic => ic.from !== pubkey);
     
     res.json({ candidates });
+  });
+
+  function broadcastParticipantCount(roomId) {
+    const room = videoCallRooms.get(roomId);
+    const participantCount = room ? room.participants.length : 0;
+    const connections = sseConnections.get(roomId);
+    
+    if (connections && connections.size > 0) {
+      const message = `data: ${JSON.stringify({ type: 'participant_count', count: participantCount })}\n\n`;
+      connections.forEach(res => {
+        try {
+          res.write(message);
+        } catch (error) {
+          // Remove dead connections
+          connections.delete(res);
+        }
+      });
+      console.log(`📡 Broadcasted participant count (${participantCount}) to ${connections.size} connected admin(s)`);
+    }
+  }
+
+  // Add this new SSE endpoint for real-time updates
+  app.get('/api/webrtc/rooms/:roomId/events', authenticateJWT, (req, res) => {
+    const { roomId } = req.params;
+    
+    // Set up SSE headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    // Send initial participant count
+    const room = videoCallRooms.get(roomId);
+    const participantCount = room ? room.participants.length : 0;
+    res.write(`data: ${JSON.stringify({ type: 'participant_count', count: participantCount })}\n\n`);
+
+    // Add this connection to the room's SSE connections
+    if (!sseConnections.has(roomId)) {
+      sseConnections.set(roomId, new Set());
+    }
+    sseConnections.get(roomId).add(res);
+
+    // Clean up when connection closes
+    req.on('close', () => {
+      const roomConnections = sseConnections.get(roomId);
+      if (roomConnections) {
+        roomConnections.delete(res);
+        if (roomConnections.size === 0) {
+          sseConnections.delete(roomId);
+        }
+      }
+    });
   });
 
   console.log('WebRTC signaling routes initialized');

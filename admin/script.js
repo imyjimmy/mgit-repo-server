@@ -172,6 +172,8 @@ async function joinWebRTCRoom() {
         updateRoomParticipants(joinResult.participants);
         isInRoom = true;
         
+        startParticipantCountUpdates(roomId);
+
         // Start signaling loop
         await startAdminSignalingLoop(roomId);
         
@@ -293,6 +295,11 @@ async function leaveWebRTCRoom() {
             peerConnection = null;
         }
         
+        if (participantEventSource) {
+            participantEventSource.close();
+            participantEventSource = null;
+        }
+        
         document.getElementById('localVideo').srcObject = null;
         document.getElementById('remoteVideo').srcObject = null;
         
@@ -319,6 +326,41 @@ function updateConnectionStatus(status) {
 
 function updateRoomParticipants(count) {
     document.getElementById('roomParticipants').textContent = `Participants: ${count}`;
+}
+
+// Add this new function after your existing WebRTC functions:
+let participantEventSource = null;
+
+function startParticipantCountUpdates(roomId) {
+  // Close existing connection if any
+  if (participantEventSource) {
+    participantEventSource.close();
+  }
+  
+  // Create new SSE connection
+  participantEventSource = new EventSource(`/api/webrtc/rooms/${roomId}/events`, {
+    headers: {
+      'Authorization': `Bearer ${adminToken}`
+    }
+  });
+  
+  participantEventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'participant_count') {
+        console.log('📡 Received participant count update:', data.count);
+        updateRoomParticipants(data.count);
+      }
+    } catch (error) {
+      console.error('Error parsing SSE message:', error);
+    }
+  };
+  
+  participantEventSource.onerror = (error) => {
+    console.error('SSE connection error:', error);
+  };
+  
+  console.log('📡 Started listening for participant count updates');
 }
 
 // Authentication functions
