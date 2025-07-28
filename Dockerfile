@@ -30,7 +30,7 @@ COPY package*.json ./
 RUN npm ci --only=production
 
 # Copy specific files (NOT everything)
-COPY server.js security.js mgitUtils.js admin-routes.js ./
+COPY *.js ./
 COPY public/ ./public/
 
 # Build admin React app
