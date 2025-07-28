@@ -161,23 +161,31 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   };
   
   const startSignalingLoop = () => {
+    console.log('🔄 ADMIN: Starting signaling loop...');
+    
     // Poll for ICE candidates from client
     const pollIceCandidates = setInterval(async () => {
       try {
         if (!isInRoom || !peerConnectionRef.current) {
+          console.log('❌ ADMIN: Stopping ICE polling - not in room or no peer connection');
           clearInterval(pollIceCandidates);
           return;
         }
         
+        console.log('🧊 ADMIN: Polling for ICE candidates...');
         const { candidates } = await webrtcService.getIceCandidates(roomId, token);
         
         if (candidates && candidates.length > 0) {
+          console.log(`📥 ADMIN: Received ${candidates.length} ICE candidates from client`);
           for (const candidateData of candidates) {
+            console.log('🧊 ADMIN: Adding ICE candidate:', candidateData.candidate);
             await peerConnectionRef.current.addIceCandidate(candidateData.candidate);
           }
+        } else {
+          console.log('⏳ ADMIN: No ICE candidates available yet');
         }
       } catch (error) {
-        console.error('Error handling ICE candidates:', error);
+        console.error('❌ ADMIN: Error handling ICE candidates:', error);
       }
     }, 2000);
     
@@ -185,26 +193,54 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     const checkOffers = setInterval(async () => {
       try {
         if (!isInRoom || !peerConnectionRef.current) {
+          console.log('❌ ADMIN: Stopping offer polling - not in room or no peer connection');
           clearInterval(checkOffers);
           clearInterval(pollIceCandidates);
           return;
         }
         
+        console.log('🔍 ADMIN: Checking for offers from client...');
         const { offer } = await webrtcService.getOffer(roomId, token);
+        console.log('📋 ADMIN: Offer check result:', offer ? 'OFFER FOUND' : 'no offer yet');
         
         if (offer && offer.offer) {
+          console.log('🎯 ADMIN: Processing offer from client!');
+          console.log('📄 ADMIN: Offer details:', offer.offer);
           clearInterval(checkOffers);
           
+          console.log('🔧 ADMIN: Setting remote description from client offer...');
           await peerConnectionRef.current.setRemoteDescription(offer.offer);
-          const answer = await peerConnectionRef.current.createAnswer();
-          await peerConnectionRef.current.setLocalDescription(answer);
+          console.log('✅ ADMIN: Set remote description successfully');
           
+          console.log('📝 ADMIN: Creating answer...');
+          const answer = await peerConnectionRef.current.createAnswer();
+          console.log('📝 ADMIN: Created answer:', answer);
+          
+          console.log('🔧 ADMIN: Setting local description (answer)...');
+          await peerConnectionRef.current.setLocalDescription(answer);
+          console.log('✅ ADMIN: Set local description successfully');
+          
+          console.log('📤 ADMIN: Sending answer to server...');
           await webrtcService.sendAnswer(roomId, answer, token);
+          console.log('🎉 ADMIN: Answer sent! WebRTC handshake should be complete');
+          
+          // Log connection states after answering
+          console.log('📊 ADMIN: Connection state:', peerConnectionRef.current.connectionState);
+          console.log('📊 ADMIN: ICE connection state:', peerConnectionRef.current.iceConnectionState);
+          console.log('📊 ADMIN: Signaling state:', peerConnectionRef.current.signalingState);
+          
+        } else {
+          console.log('⏳ ADMIN: No offer available yet, continuing to poll...');
         }
       } catch (error) {
-        console.error('Error in signaling loop:', error);
+        console.error('❌ ADMIN: Error in offer signaling loop:', error);
+        console.error('❌ ADMIN: Error details:', error.message);
+        console.error('❌ ADMIN: Error stack:', error.stack);
       }
     }, 2000);
+    
+    console.log('✅ ADMIN: Signaling loop intervals started');
+    console.log(`🔄 ADMIN: Checking for offers every 2 seconds for room: ${roomId}`);
   };
   
   // Cleanup on unmount
