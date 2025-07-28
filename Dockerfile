@@ -15,7 +15,7 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 RUN curl -fsSL https://bun.sh/install | bash && \
     mv /root/.bun/bin/bun /usr/local/bin/
 
-    # Use existing node user (UID 1000) instead of creating new one
+# Use existing node user (UID 1000) instead of creating new one
 WORKDIR /app
 
 # Copy and build mgit
@@ -28,7 +28,11 @@ RUN cd /go/src/mgit && \
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Build admin React app
+# Copy main app code FIRST (excluding admin directory)
+COPY server.js security.js mgitUtils.js admin-routes.js ./
+COPY public/ ./public/
+
+# Build admin React app AFTER copying main code
 WORKDIR /app/admin
 COPY admin/package.json admin/bun.lockb* ./
 RUN bun install
@@ -38,8 +42,7 @@ RUN bun run build
 # Return to main app directory
 WORKDIR /app
 
-# Copy app code
-COPY . .
+# Final setup
 RUN mkdir -p /private_repos && \
     chown -R node:node /app /private_repos
 
