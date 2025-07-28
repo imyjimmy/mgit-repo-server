@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { NostrProfile } from '../types';
 
 interface HeaderProps {
@@ -6,9 +6,16 @@ interface HeaderProps {
   profile: NostrProfile | null;
   onLogin: () => Promise<void>;
   onLogout: () => void;
+  compact?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ isAuthenticated, profile, onLogin, onLogout }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  isAuthenticated, 
+  profile, 
+  onLogin, 
+  onLogout, 
+  compact = true 
+}) => {
   const [isLoading, setIsLoading] = useState(false);
   
   const handleLogin = async () => {
@@ -39,11 +46,10 @@ export const Header: React.FC<HeaderProps> = ({ isAuthenticated, profile, onLogi
     if (profile?.picture) {
       return (
         <img
-          className="admin-profile-pic"
+          className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-full object-cover`}
           src={profile.picture}
           alt="Admin Profile"
           onError={(e) => {
-            // Fallback to initials if image fails to load
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
             target.nextElementSibling?.classList.remove('hidden');
@@ -53,45 +59,34 @@ export const Header: React.FC<HeaderProps> = ({ isAuthenticated, profile, onLogi
     }
     
     return (
-      <div className="admin-initials">
+      <div className={`${compact ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center font-semibold`}>
         {getInitials(displayName)}
       </div>
     );
   };
   
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 mb-8">
-      <div className="max-w-6xl mx-auto px-6 py-4">
-        <div className="flex justify-between items-center">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">🏥 MGit Admin Dashboard</h1>
-            <p className="text-gray-600">Medical Repository Server Administration</p>
-          </div>
-          
-          {isAuthenticated ? (
-            <div className="flex items-center gap-3">
-              <div className="admin-profile-container">
-                <ProfilePicture />
-              </div>
-              <span className="font-medium text-gray-700">{displayName}</span>
-              <button
-                onClick={onLogout}
-                className="btn btn-secondary"
-              >
-                Logout
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleLogin}
-              disabled={isLoading}
-              className="btn btn-primary"
-            >
-              {isLoading ? 'Connecting...' : 'Login with Nostr'}
-            </button>
-          )}
-        </div>
-      </div>
-    </header>
+    <div className="flex items-center gap-2 justify-end m-4">
+      {isAuthenticated ? (
+        <>
+          <ProfilePicture />
+          <span className="text-sm text-gray-300 hidden sm:inline">{displayName}</span>
+          <button
+            onClick={onLogout}
+            className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"
+          >
+            Logout
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={handleLogin}
+          disabled={isLoading}
+          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+        >
+          {isLoading ? 'Connecting...' : 'Login'}
+        </button>
+      )}
+    </div>
   );
 };

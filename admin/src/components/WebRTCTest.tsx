@@ -220,7 +220,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-500 pb-2">
-          📹 WebRTC Testing
+          Telehealth
         </h3>
       </div>
       
