@@ -85,8 +85,10 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       startParticipantCountUpdates();
       
       // Start signaling loop
+      console.log('🚀 ADMIN: About to start signaling loop...');
       startSignalingLoop();
-      
+      console.log('✅ ADMIN: startSignalingLoop() called');
+
       alert(`Joined room: ${roomId}`);
       
     } catch (error) {
@@ -140,7 +142,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
-    
+
     const eventSource = webrtcService.createEventSource(roomId, token);
     eventSourceRef.current = eventSource;
     
@@ -232,7 +234,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         } else {
           console.log('⏳ ADMIN: No offer available yet, continuing to poll...');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ ADMIN: Error in offer signaling loop:', error);
         console.error('❌ ADMIN: Error details:', error.message);
         console.error('❌ ADMIN: Error stack:', error.stack);

@@ -52,6 +52,10 @@ class WebRTCService {
   }
   
   createEventSource(roomId: string, token: string): EventSource {
+    const eventSourceUrl = `${this.baseUrl}/api/webrtc/rooms/${roomId}/events?token=${encodeURIComponent(token)}`;
+    console.log('🔗 EventSource URL:', eventSourceUrl);
+    console.log('🌐 Base URL:', this.baseUrl);
+    console.log('🏠 Window origin:', window.location.origin);
     return new EventSource(`${this.baseUrl}/api/webrtc/rooms/${roomId}/events?token=${encodeURIComponent(token)}`);
   }
 }
