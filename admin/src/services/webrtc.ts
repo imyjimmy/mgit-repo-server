@@ -55,8 +55,8 @@ class WebRTCService {
     return new EventSource(`${this.baseUrl}/api/webrtc/rooms/${roomId}/events`, {
       headers: {
         'Authorization': `Bearer ${token}`
-      }
-    });
+      } 
+    } as EventSourceInit);
   }
 }
 
