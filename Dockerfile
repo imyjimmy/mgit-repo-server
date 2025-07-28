@@ -1,8 +1,8 @@
 FROM node:20-bullseye-slim
 
-# Install system dependencies + Go
+# Install system dependencies + Go + unzip for bun
 RUN apt-get update && \
-    apt-get install -y curl git ca-certificates wget build-essential python3 && \
+    apt-get install -y curl git ca-certificates wget build-essential python3 unzip && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Go
@@ -13,7 +13,8 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 
 # Install bun
 RUN curl -fsSL https://bun.sh/install | bash && \
-    mv /root/.bun/bin/bun /usr/local/bin/
+    mv /root/.bun/bin/bun /usr/local/bin/ && \
+    bun --version
 
 # Use existing node user (UID 1000) instead of creating new one
 WORKDIR /app
@@ -28,16 +29,14 @@ RUN cd /go/src/mgit && \
 COPY package*.json ./
 RUN npm ci --only=production
 
-# Copy main app code FIRST (excluding admin directory)
+# Copy specific files (NOT everything)
 COPY server.js security.js mgitUtils.js admin-routes.js ./
 COPY public/ ./public/
 
-# Build admin React app AFTER copying main code
+# Build admin React app
+COPY admin/ ./admin/
 WORKDIR /app/admin
-COPY admin/package.json admin/bun.lockb* ./
-RUN bun install
-COPY admin/ .
-RUN bun run build
+RUN bun install && bun run build && ls -la dist/
 
 # Return to main app directory
 WORKDIR /app
