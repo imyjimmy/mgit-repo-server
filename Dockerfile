@@ -11,7 +11,11 @@ RUN wget -O go.tar.gz https://go.dev/dl/go1.20.5.linux-amd64.tar.gz && \
     rm go.tar.gz
 ENV PATH="/usr/local/go/bin:${PATH}"
 
-# Use existing node user (UID 1000) instead of creating new one
+# Install bun
+RUN curl -fsSL https://bun.sh/install | bash && \
+    mv /root/.bun/bin/bun /usr/local/bin/
+
+    # Use existing node user (UID 1000) instead of creating new one
 WORKDIR /app
 
 # Copy and build mgit
@@ -23,6 +27,16 @@ RUN cd /go/src/mgit && \
 # Install Node dependencies
 COPY package*.json ./
 RUN npm ci --only=production
+
+# Build admin React app
+WORKDIR /app/admin
+COPY admin/package.json admin/bun.lockb* ./
+RUN bun install
+COPY admin/ .
+RUN bun run build
+
+# Return to main app directory
+WORKDIR /app
 
 # Copy app code
 COPY . .
