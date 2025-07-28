@@ -218,39 +218,48 @@ function setupWebRTCRoutes(app, authenticateJWT) {
   }
 
   // Add this new SSE endpoint for real-time updates
-  app.get('/api/webrtc/rooms/:roomId/events', authenticateJWT, (req, res) => {
-    const { roomId } = req.params;
+  app.get('/api/webrtc/rooms/:roomId/events', (req, res) => {
+    const token = req.query.token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
     
-    // Set up SSE headers
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control'
-    });
+    try { 
+      const { roomId } = req.params;
+      
+      // Set up SSE headers
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Cache-Control'
+      });
 
-    // Send initial participant count
-    const room = videoCallRooms.get(roomId);
-    const participantCount = room ? room.participants.length : 0;
-    res.write(`data: ${JSON.stringify({ type: 'participant_count', count: participantCount })}\n\n`);
+      // Send initial participant count
+      const room = videoCallRooms.get(roomId);
+      const participantCount = room ? room.participants.length : 0;
+      res.write(`data: ${JSON.stringify({ type: 'participant_count', count: participantCount })}\n\n`);
 
-    // Add this connection to the room's SSE connections
-    if (!sseConnections.has(roomId)) {
-      sseConnections.set(roomId, new Set());
-    }
-    sseConnections.get(roomId).add(res);
-
-    // Clean up when connection closes
-    req.on('close', () => {
-      const roomConnections = sseConnections.get(roomId);
-      if (roomConnections) {
-        roomConnections.delete(res);
-        if (roomConnections.size === 0) {
-          sseConnections.delete(roomId);
-        }
+      // Add this connection to the room's SSE connections
+      if (!sseConnections.has(roomId)) {
+        sseConnections.set(roomId, new Set());
       }
-    });
+      sseConnections.get(roomId).add(res);
+
+      // Clean up when connection closes
+      req.on('close', () => {
+        const roomConnections = sseConnections.get(roomId);
+        if (roomConnections) {
+          roomConnections.delete(res);
+          if (roomConnections.size === 0) {
+            sseConnections.delete(roomId);
+          }
+        }
+      });
+    } catch (error) {
+      return res.status(401).json({ 
+        status: 'error', 
+        reason: 'Invalid token' 
+      });
+    }
   });
 
   console.log('WebRTC signaling routes initialized');

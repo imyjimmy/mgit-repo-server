@@ -52,11 +52,7 @@ class WebRTCService {
   }
   
   createEventSource(roomId: string, token: string): EventSource {
-    return new EventSource(`${this.baseUrl}/api/webrtc/rooms/${roomId}/events`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      } 
-    } as EventSourceInit);
+    return new EventSource(`${this.baseUrl}/api/webrtc/rooms/${roomId}/events?token=${encodeURIComponent(token)}`);
   }
 }
 
