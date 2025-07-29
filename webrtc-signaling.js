@@ -3,10 +3,94 @@ const express = require('express');
 const { generateRoomId } = require('./webrtc-room-generator');
 
 const BASE_URL = process.env.BASE_URL || 'https://plebemr.com';
+const ROOM_EXPIRE_AFTER_FIRST_LEAVE_MS = 15 * 60 * 1000; // 15 minutes
+const ROOM_EXPIRE_AFTER_EMPTY_MS = 5 * 60 * 1000; // 5 minutes
 
 // In-memory storage for signaling (use Redis in production)
 let videoCallRooms = new Map();
 const sseConnections = new Map(); // roomId -> Set of SSE response objects
+
+const createRoom = () => ({
+  participants: [],
+  pendingOffer: null,
+  pendingAnswer: null,
+  iceCandidates: [],
+  createdAt: Date.now(),
+  firstLeaveAt: null,
+  emptyAt: null,
+  expireTimer: null,
+  emptyTimer: null
+});
+
+// Room cleanup function
+const cleanupRoom = (roomId) => {
+  console.log(`=== CLEANING UP ROOM ${roomId} ===`);
+  const room = videoCallRooms.get(roomId);
+  if (room) {
+    // Clear any timers
+    if (room.expireTimer) {
+      clearTimeout(room.expireTimer);
+      console.log(`Cleared expire timer for room ${roomId}`);
+    }
+    if (room.emptyTimer) {
+      clearTimeout(room.emptyTimer);
+      console.log(`Cleared empty timer for room ${roomId}`);
+    }
+    
+    // Remove room
+    videoCallRooms.delete(roomId);
+    console.log(`Room ${roomId} deleted from memory`);
+    
+    // Broadcast final participant count
+    broadcastParticipantCount(roomId);
+  }
+};
+
+// Set room expiration timers
+const setRoomExpirationTimers = (roomId) => {
+  const room = videoCallRooms.get(roomId);
+  if (!room) return;
+  
+  console.log(`=== SETTING EXPIRATION TIMERS FOR ROOM ${roomId} ===`);
+  
+  // If this is the first leave, set 15-minute timer
+  if (!room.firstLeaveAt && room.participants.length < 2) {
+    room.firstLeaveAt = Date.now();
+    room.expireTimer = setTimeout(() => {
+      console.log(`Room ${roomId} expired after 15 minutes from first leave`);
+      cleanupRoom(roomId);
+    }, ROOM_EXPIRE_AFTER_FIRST_LEAVE_MS);
+    
+    console.log(`Set 15-minute expiration timer for room ${roomId} (first leave)`);
+  }
+  
+  // If room is now empty, set 5-minute timer
+  if (room.participants.length === 0) {
+    if (!room.emptyAt) {
+      room.emptyAt = Date.now();
+    }
+    
+    // Clear existing empty timer if any
+    if (room.emptyTimer) {
+      clearTimeout(room.emptyTimer);
+    }
+    
+    room.emptyTimer = setTimeout(() => {
+      console.log(`Room ${roomId} expired after 5 minutes of being empty`);
+      cleanupRoom(roomId);
+    }, ROOM_EXPIRE_AFTER_EMPTY_MS);
+    
+    console.log(`Set 5-minute expiration timer for room ${roomId} (room empty)`);
+  } else {
+    // Room has participants again, clear empty timer
+    if (room.emptyTimer) {
+      clearTimeout(room.emptyTimer);
+      room.emptyTimer = null;
+      room.emptyAt = null;
+      console.log(`Cleared empty timer for room ${roomId} - participants rejoined`);
+    }
+  }
+};
 
 // WebRTC Signaling Endpoints
 function setupWebRTCRoutes(app, authenticateJWT) {
@@ -41,37 +125,65 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     const { roomId } = req.params;
     const { pubkey } = req.user;
     
+    console.log(`=== JOIN ROOM REQUEST ===`);
+    console.log(`Room ID: ${roomId}`);
+    console.log(`User pubkey: ${pubkey}`);
+    console.log(`Timestamp: ${new Date().toISOString()}`);
+    
     if (!videoCallRooms.has(roomId)) {
-      videoCallRooms.set(roomId, { participants: [] });
+      console.log(`Creating new room ${roomId}`);
+      videoCallRooms.set(roomId, createRoom());
     }
     
     const room = videoCallRooms.get(roomId);
+    console.log(`Room state before join:`);
+    console.log(`- Participants: ${room.participants.length}`);
+    console.log(`- Created at: ${new Date(room.createdAt).toISOString()}`);
+    console.log(`- First leave at: ${room.firstLeaveAt ? new Date(room.firstLeaveAt).toISOString() : 'none'}`);
+    console.log(`- Empty at: ${room.emptyAt ? new Date(room.emptyAt).toISOString() : 'none'}`);
+    console.log(`- Has expire timer: ${!!room.expireTimer}`);
+    console.log(`- Has empty timer: ${!!room.emptyTimer}`);
+    
+    // Check if user already in room
     const existingParticipant = room.participants.find(p => p.pubkey === pubkey);
-    
-    if (!existingParticipant) {
-      room.participants.push({ pubkey, joinedAt: Date.now() });
-      console.log(`NEW participant joined: ${pubkey.substring(0, 8)}...`);
-    } else {
-      console.log(`EXISTING participant rejoined: ${pubkey.substring(0, 8)}...`);
-    }
-
-    // If this is a rejoin (participant already exists), reset connection state
     if (existingParticipant) {
-      console.log('Participant rejoining - resetting connection state');
-      delete room.pendingOffer;
-      delete room.pendingAnswer;
-      room.iceCandidates = [];
+      console.log(`User ${pubkey} already in room ${roomId}`);
+    } else {
+      // Add participant
+      room.participants.push({
+        pubkey,
+        joinedAt: Date.now()
+      });
+      console.log(`Added user ${pubkey} to room ${roomId}`);
     }
     
-    console.log(`Room ${roomId} participants:`, room.participants.map(p => p.pubkey.substring(0, 8)));
-    console.log(`Total participants: ${room.participants.length}`);
+    // Clear empty timer if room is no longer empty
+    if (room.participants.length > 0 && room.emptyTimer) {
+      clearTimeout(room.emptyTimer);
+      room.emptyTimer = null;
+      room.emptyAt = null;
+      console.log(`Cleared empty timer for room ${roomId} - participants rejoined`);
+    }
+    
+    console.log(`Room state after join:`);
+    console.log(`- Participants: ${room.participants.length}`);
+    console.log(`- Participant pubkeys: ${room.participants.map(p => p.pubkey).join(', ')}`);
     
     broadcastParticipantCount(roomId);
-
+    
     res.json({ 
-      status: 'joined',
-      participants: room.participants.length 
+      status: 'joined', 
+      participants: room.participants.length,
+      roomInfo: {
+        createdAt: room.createdAt,
+        firstLeaveAt: room.firstLeaveAt,
+        emptyAt: room.emptyAt,
+        hasExpireTimer: !!room.expireTimer,
+        hasEmptyTimer: !!room.emptyTimer
+      }
     });
+    
+    console.log(`=== JOIN ROOM REQUEST COMPLETED ===`);
   });
 
   app.post('/api/webrtc/rooms/:roomId/leave', authenticateJWT, (req, res) => {
@@ -81,6 +193,7 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     console.log(`=== LEAVE ROOM REQUEST ===`);
     console.log(`Room ID: ${roomId}`);
     console.log(`User pubkey: ${pubkey}`);
+    console.log(`Timestamp: ${new Date().toISOString()}`);
     
     const room = videoCallRooms.get(roomId);
     console.log(`Room exists: ${!!room}`);
@@ -88,9 +201,11 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     if (room) {
       console.log(`Room before leave - participants: ${room.participants.length}`);
       console.log(`Participants before: ${room.participants.map(p => p.pubkey).join(', ')}`);
-      console.log(`Pending offer from: ${room.pendingOffer?.from || 'none'}`);
-      console.log(`Pending answer from: ${room.pendingAnswer?.from || 'none'}`);
-      console.log(`ICE candidates count: ${room.iceCandidates?.length || 0}`);
+      console.log(`Room created at: ${new Date(room.createdAt).toISOString()}`);
+      console.log(`First leave at: ${room.firstLeaveAt ? new Date(room.firstLeaveAt).toISOString() : 'none'}`);
+      console.log(`Empty at: ${room.emptyAt ? new Date(room.emptyAt).toISOString() : 'none'}`);
+      console.log(`Has expire timer: ${!!room.expireTimer}`);
+      console.log(`Has empty timer: ${!!room.emptyTimer}`);
       
       // Remove participant
       const participantsBefore = room.participants.length;
@@ -115,6 +230,9 @@ function setupWebRTCRoutes(app, authenticateJWT) {
         console.log(`ICE candidates after filtering: ${room.iceCandidates.length} (removed ${candidatesBefore - room.iceCandidates.length})`);
       }
       
+      // Set expiration timers based on room state
+      setRoomExpirationTimers(roomId);
+      
       console.log(`User ${pubkey} left room ${roomId}`);
       console.log(`Final room state - participants: ${room.participants.length}`);
     } else {
@@ -126,7 +244,13 @@ function setupWebRTCRoutes(app, authenticateJWT) {
 
     res.json({ 
       status: 'left',
-      participants: room ? room.participants.length : 0
+      participants: room ? room.participants.length : 0,
+      roomExpiration: room ? {
+        firstLeaveAt: room.firstLeaveAt,
+        emptyAt: room.emptyAt,
+        hasExpireTimer: !!room.expireTimer,
+        hasEmptyTimer: !!room.emptyTimer
+      } : null
     });
     
     console.log(`=== LEAVE ROOM REQUEST COMPLETED ===`);
