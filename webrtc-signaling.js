@@ -76,6 +76,7 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     
     console.log(`Leave result:`, leaveResult);
     
+    console.log('About to broadcast for roomId:', roomId, 'type:', typeof roomId);
     broadcastParticipantCount(roomId);
 
     res.json({ 
@@ -178,22 +179,41 @@ function setupWebRTCRoutes(app, authenticateJWT) {
   });
 
   function broadcastParticipantCount(roomId) {
+    console.log('=== BROADCAST PARTICIPANT COUNT START ===');
+    console.log('Input roomId:', roomId, 'type:', typeof roomId);
+    
     const room = sessionManager.getRoom(roomId);
+    console.log('Room from sessionManager:', room ? 'EXISTS' : 'NULL');
+    
+    if (room) {
+        console.log('Room.participants type:', typeof room.participants);
+        console.log('Room.participants is Map:', room.participants instanceof Map);
+        console.log('Room.participants:', room.participants);
+    }
+    
     const participantCount = room ? room.participants.length : 0;
+    console.log('Calculated participantCount:', participantCount);
+    
     const connections = sseConnections.get(roomId);
+    console.log('SSE connections for room:', connections ? connections.size : 'NO_CONNECTIONS');
     
     if (connections && connections.size > 0) {
       const message = `data: ${JSON.stringify({ type: 'participant_count', count: participantCount })}\n\n`;
+      console.log('Message to broadcast:', message);
+      
       connections.forEach(res => {
-        try {
-          res.write(message);
-        } catch (error) {
-          // Remove dead connections
-          connections.delete(res);
-        }
-      });
-      console.log(`📡 Broadcasted participant count (${participantCount}) to ${connections.size} connected admin(s)`);
+      try {
+        res.write(message);
+      } catch (error) {
+        console.error('Error writing to SSE connection:', error);
+        connections.delete(res);
+      }
+    });
+    console.log(`📡 Broadcasted participant count (${participantCount}) to ${connections.size} connected admin(s)`);
+    } else {
+      console.log('No SSE connections to broadcast to');
     }
+    console.log('=== BROADCAST PARTICIPANT COUNT END ===');
   }
 
   // Add this new SSE endpoint for real-time updates

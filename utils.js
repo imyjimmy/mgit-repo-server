@@ -43,7 +43,7 @@ function extractTokenFromAuthHeader(authHeader) {
   }
 
   let token = null;
-  console.log('extractTokenFromAuthHeader: ', authHeader);
+  // console.log('extractTokenFromAuthHeader: ', authHeader);
   try {
     // Handle Bearer token (standard format)
     if (authHeader.startsWith('Bearer ')) {
@@ -123,7 +123,7 @@ function extractTokenFromAuthHeader(authHeader) {
  */
 function validateJWTToken(token, jwtSecret) {
   try {
-    console.log('🔍 Validating JWT token...');
+    // console.log('🔍 Validating JWT token...');
     const jwt = require('jsonwebtoken');
     const decoded = jwt.verify(token, jwtSecret);
     // console.log('✅ JWT validation successful for user:', decoded.pubkey);
@@ -158,7 +158,7 @@ function validateJWTToken(token, jwtSecret) {
  */
 function processAuthToken(authHeader, jwtSecret) {
   // Step 1: Extract token from header
-  console.log("about to extract token from auth header")
+  // console.log("about to extract token from auth header")
   const extractResult = extractTokenFromAuthHeader(authHeader);
   if (!extractResult.success) {
     return extractResult;
