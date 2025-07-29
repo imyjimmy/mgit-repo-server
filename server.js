@@ -199,7 +199,7 @@ const authenticateJWT = (req, res, next) => {
 // Simple token validation for auth endpoints (no RepoId required)
 const validateAuthToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  console.log('🔧 DEBUG: validateAuthToken', authHeader?.substring(0, 50) + '...');
+  // console.log('🔧 DEBUG: validateAuthToken', authHeader?.substring(0, 50) + '...');
   
   const result = utils.processAuthToken(authHeader, JWT_SECRET);
   

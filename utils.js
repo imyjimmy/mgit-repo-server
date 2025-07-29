@@ -47,7 +47,7 @@ function extractTokenFromAuthHeader(authHeader) {
   try {
     // Handle Bearer token (standard format)
     if (authHeader.startsWith('Bearer ')) {
-      console.log('✅ Bearer token detected');
+      // console.log('✅ Bearer token detected');
       token = authHeader.split(' ')[1];
       return {
         success: true,
@@ -126,7 +126,7 @@ function validateJWTToken(token, jwtSecret) {
     console.log('🔍 Validating JWT token...');
     const jwt = require('jsonwebtoken');
     const decoded = jwt.verify(token, jwtSecret);
-    console.log('✅ JWT validation successful for user:', decoded.pubkey);
+    // console.log('✅ JWT validation successful for user:', decoded.pubkey);
     
     return {
       success: true,
