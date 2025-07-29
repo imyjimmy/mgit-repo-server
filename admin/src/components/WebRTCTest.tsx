@@ -87,7 +87,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       
       // Start signaling loop
       console.log('🚀 ADMIN: About to start signaling loop...');
-      startSignalingLoop();
+      startSignalingLoop(true);
       console.log('✅ ADMIN: startSignalingLoop() called');
 
       alert(`Joined room: ${roomId}`);
@@ -163,16 +163,18 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     };
   };
   
-  const startSignalingLoop = () => {
+  const startSignalingLoop = (forceInRoom = isInRoom) => {
     console.log('🔄 ADMIN: Starting signaling loop...');
     console.log('🔍 ADMIN: isInRoom =', isInRoom);
     console.log('🔍 ADMIN: peerConnectionRef.current =', !!peerConnectionRef.current);
     console.log('🔍 ADMIN: Both exist?', !!(isInRoom && peerConnectionRef.current));
 
+    // Use forceInRoom instead of isInRoom
+    const inRoom = forceInRoom;
     // Poll for ICE candidates from client
     const pollIceCandidates = setInterval(async () => {
       try {
-        if (!isInRoom || !peerConnectionRef.current) {
+        if (!inRoom || !peerConnectionRef.current) {
           console.log('❌ ADMIN: Stopping ICE polling - not in room or no peer connection');
           clearInterval(pollIceCandidates);
           return;
@@ -198,7 +200,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     // Check for offers
     const checkOffers = setInterval(async () => {
       try {
-        if (!isInRoom || !peerConnectionRef.current) {
+        if (!inRoom || !peerConnectionRef.current) {
           console.log('❌ ADMIN: Stopping offer polling - not in room or no peer connection');
           clearInterval(checkOffers);
           clearInterval(pollIceCandidates);
