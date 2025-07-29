@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e # exit on ANY command failure
 # Get command line argument, default to "Y" (preserve) if not provided
 REMOVE_REPOS=${1:-Y}
 
