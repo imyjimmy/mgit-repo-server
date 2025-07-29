@@ -162,12 +162,13 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       alert('Left WebRTC room');
       console.log('=== ADMIN LEAVE ROOM COMPLETED ===');
       
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error as Error;
       console.error('=== ADMIN LEAVE ROOM ERROR ===');
-      console.error('Error details:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      alert(`Error leaving room: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error details:', err);
+      console.error('Error message:', err.message);
+      console.error('Error stack:', err.stack);
+      alert(`Error leaving room: ${err.message}`);
     }
   };
   
