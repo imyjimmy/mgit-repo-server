@@ -100,41 +100,73 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   };
   
   const leaveRoom = () => {
+    console.log('=== ADMIN LEAVE ROOM INITIATED ===');
+    console.log('Current room state - isInRoom:', isInRoom);
+    console.log('Current connectionStatus:', connectionStatus);
+    console.log('Current participantCount:', participantCount);
+    
     try {
-      // Stop local stream
+      console.log('=== STOPPING LOCAL STREAM ===');
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
+        console.log('Local stream exists, stopping tracks...');
+        const tracks = localStreamRef.current.getTracks();
+        console.log('Number of local tracks:', tracks.length);
+        tracks.forEach((track, index) => {
+          console.log(`Stopping local track ${index}: ${track.kind} - ${track.readyState}`);
+          track.stop();
+          console.log(`Local track ${index} stopped, new state: ${track.readyState}`);
+        });
         localStreamRef.current = null;
+        console.log('Local stream ref cleared');
+      } else {
+        console.log('No local stream to stop');
       }
       
-      // Close peer connection
+      console.log('=== CLOSING PEER CONNECTION ===');
       if (peerConnectionRef.current) {
+        console.log('PeerConnection state before close:', peerConnectionRef.current.connectionState);
+        console.log('PeerConnection ice state before close:', peerConnectionRef.current.iceConnectionState);
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
+        console.log('PeerConnection closed and ref cleared');
+      } else {
+        console.log('No peer connection to close');
       }
       
-      // Close event source
+      console.log('=== CLOSING EVENT SOURCE ===');
       if (eventSourceRef.current) {
+        console.log('EventSource readyState before close:', eventSourceRef.current.readyState);
         eventSourceRef.current.close();
         eventSourceRef.current = null;
+        console.log('EventSource closed and ref cleared');
+      } else {
+        console.log('No event source to close');
       }
       
-      // Clear video elements
+      console.log('=== CLEARING VIDEO ELEMENTS ===');
       if (localVideoRef.current) {
+        console.log('Clearing local video srcObject');
         localVideoRef.current.srcObject = null;
       }
       if (remoteVideoRef.current) {
+        console.log('Clearing remote video srcObject');
         remoteVideoRef.current.srcObject = null;
       }
       
+      console.log('=== UPDATING STATE ===');
       setIsInRoom(false);
       setConnectionStatus('Disconnected');
       setParticipantCount(0);
+      console.log('State updated - isInRoom: false, connectionStatus: Disconnected, participantCount: 0');
       
       alert('Left WebRTC room');
+      console.log('=== ADMIN LEAVE ROOM COMPLETED ===');
       
     } catch (error) {
-      console.error('Error leaving room:', error);
+      console.error('=== ADMIN LEAVE ROOM ERROR ===');
+      console.error('Error details:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
       alert(`Error leaving room: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };

@@ -78,33 +78,58 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     const { roomId } = req.params;
     const { pubkey } = req.user;
     
+    console.log(`=== LEAVE ROOM REQUEST ===`);
+    console.log(`Room ID: ${roomId}`);
+    console.log(`User pubkey: ${pubkey}`);
+    
     const room = videoCallRooms.get(roomId);
+    console.log(`Room exists: ${!!room}`);
+    
     if (room) {
+      console.log(`Room before leave - participants: ${room.participants.length}`);
+      console.log(`Participants before: ${room.participants.map(p => p.pubkey).join(', ')}`);
+      console.log(`Pending offer from: ${room.pendingOffer?.from || 'none'}`);
+      console.log(`Pending answer from: ${room.pendingAnswer?.from || 'none'}`);
+      console.log(`ICE candidates count: ${room.iceCandidates?.length || 0}`);
+      
       // Remove participant
+      const participantsBefore = room.participants.length;
       room.participants = room.participants.filter(p => p.pubkey !== pubkey);
+      console.log(`Participants after filtering: ${room.participants.length} (removed ${participantsBefore - room.participants.length})`);
+      console.log(`Remaining participants: ${room.participants.map(p => p.pubkey).join(', ')}`);
       
       // If participant was part of signaling, clear their data
       if (room.pendingOffer?.from === pubkey) {
+        console.log(`Clearing pending offer from ${pubkey}`);
         delete room.pendingOffer;
       }
       if (room.pendingAnswer?.from === pubkey) {
+        console.log(`Clearing pending answer from ${pubkey}`);
         delete room.pendingAnswer;
       }
       
       // Remove their ICE candidates
       if (room.iceCandidates) {
+        const candidatesBefore = room.iceCandidates.length;
         room.iceCandidates = room.iceCandidates.filter(ic => ic.from !== pubkey);
+        console.log(`ICE candidates after filtering: ${room.iceCandidates.length} (removed ${candidatesBefore - room.iceCandidates.length})`);
       }
       
       console.log(`User ${pubkey} left room ${roomId}`);
+      console.log(`Final room state - participants: ${room.participants.length}`);
+    } else {
+      console.log(`Room ${roomId} not found when ${pubkey} tried to leave`);
     }
     
+    console.log(`Broadcasting participant count for room ${roomId}`);
     broadcastParticipantCount(roomId);
 
     res.json({ 
       status: 'left',
       participants: room ? room.participants.length : 0
     });
+    
+    console.log(`=== LEAVE ROOM REQUEST COMPLETED ===`);
   });
 
   app.post('/api/webrtc/rooms/:roomId/reset-connection', authenticateJWT, (req, res) => {
