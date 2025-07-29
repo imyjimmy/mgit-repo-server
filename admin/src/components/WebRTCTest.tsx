@@ -78,6 +78,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       
       // Join room
       const joinResult = await webrtcService.joinRoom(roomId, token);
+      console.log('🚀 ADMIN: Join room result:', joinResult);
       setParticipantCount(joinResult.participants);
       setIsInRoom(true);
       
@@ -164,7 +165,10 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   
   const startSignalingLoop = () => {
     console.log('🔄 ADMIN: Starting signaling loop...');
-    
+    console.log('🔍 ADMIN: isInRoom =', isInRoom);
+    console.log('🔍 ADMIN: peerConnectionRef.current =', !!peerConnectionRef.current);
+    console.log('🔍 ADMIN: Both exist?', !!(isInRoom && peerConnectionRef.current));
+
     // Poll for ICE candidates from client
     const pollIceCandidates = setInterval(async () => {
       try {
