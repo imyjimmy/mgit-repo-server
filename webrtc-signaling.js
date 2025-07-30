@@ -191,7 +191,7 @@ function setupWebRTCRoutes(app, authenticateJWT) {
         console.log('Room.participants:', room.participants);
     }
     
-    const participantCount = room ? room.participants.length : 0;
+    const participantCount = room ? Array.from(room.participants.values()).filter(p => p.status === 'connected').length : 0;
     console.log('Calculated participantCount:', participantCount);
     
     const connections = sseConnections.get(roomId);
@@ -234,7 +234,7 @@ function setupWebRTCRoutes(app, authenticateJWT) {
 
       // Send initial participant count
       const room = sessionManager.getRoom(roomId);
-      const participantCount = room ? room.participants.length : 0;
+      const participantCount = room ? Array.from(room.participants.values()).filter(p => p.status === 'connected').length : 0;
       res.write(`data: ${JSON.stringify({ type: 'participant_count', count: participantCount })}\n\n`);
 
       // Add this connection to the room's SSE connections
