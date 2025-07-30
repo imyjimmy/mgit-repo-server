@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { webrtcService } from '../services/webrtc';
 
 interface WebRTCTestProps {
@@ -17,6 +17,49 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
  
+  const cleanupWebRTCState = useCallback(() => {
+    console.log('🧹 ADMIN CLEANUP: Starting WebRTC state cleanup');
+    
+    // Stop local stream tracks
+    if (localStreamRef.current) {
+      console.log('🧹 ADMIN CLEANUP: Stopping local stream tracks');
+      const tracks = localStreamRef.current.getTracks();
+      tracks.forEach((track, index) => {
+        console.log(`🧹 ADMIN CLEANUP: Stopping track ${index}: ${track.kind}`);
+        track.stop();
+      });
+      localStreamRef.current = null;
+    }
+  
+    // Close peer connection
+    if (peerConnectionRef.current) {
+      console.log('🧹 ADMIN CLEANUP: Closing peer connection');
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    
+    // Close event source
+    if (eventSourceRef.current) {
+      console.log('🧹 ADMIN CLEANUP: Closing event source');
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    
+    // Clear video elements
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    
+    // Reset UI state
+    setConnectionStatus('Disconnected');
+    setIsInRoom(false);
+    
+    console.log('🧹 ADMIN CLEANUP: WebRTC state cleanup completed');
+  }, [setConnectionStatus, setIsInRoom]);
+
   function setupPeerConnection() {
     // Create new peer connection
     peerConnectionRef.current = new RTCPeerConnection({
@@ -139,90 +182,43 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   
   const leaveRoom = () => {
     console.log('=== ADMIN LEAVE ROOM INITIATED ===');
-    console.log('Current room state - isInRoom:', isInRoom);
-    console.log('Current connectionStatus:', connectionStatus);
-    console.log('Current participantCount:', participantCount);
-    
     try {
-      console.log('=== STOPPING LOCAL STREAM ===');
-      if (localStreamRef.current) {
-        console.log('Local stream exists, stopping tracks...');
-        const tracks = localStreamRef.current.getTracks();
-        console.log('Number of local tracks:', tracks.length);
-        tracks.forEach((track, index) => {
-          console.log(`Stopping local track ${index}: ${track.kind} - ${track.readyState}`);
-          track.stop();
-          console.log(`Local track ${index} stopped, new state: ${track.readyState}`);
-        });
-        localStreamRef.current = null;
-        console.log('Local stream ref cleared');
-      } else {
-        console.log('No local stream to stop');
-      }
+      cleanupWebRTCState();
       
-      console.log('=== CLOSING PEER CONNECTION ===');
-      if (peerConnectionRef.current) {
-        console.log('PeerConnection state before close:', peerConnectionRef.current.connectionState);
-        console.log('PeerConnection ice state before close:', peerConnectionRef.current.iceConnectionState);
-        peerConnectionRef.current.close();
-        peerConnectionRef.current = null;
-        console.log('PeerConnection closed and ref cleared');
-      } else {
-        console.log('No peer connection to close');
-      }
-      
-      console.log('=== CLOSING EVENT SOURCE ===');
-      if (eventSourceRef.current) {
-        console.log('EventSource readyState before close:', eventSourceRef.current.readyState);
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-        console.log('EventSource closed and ref cleared');
-      } else {
-        console.log('No event source to close');
-      }
-      
-      console.log('=== CLEARING VIDEO ELEMENTS ===');
-      if (localVideoRef.current) {
-        console.log('Clearing local video srcObject');
-        localVideoRef.current.srcObject = null;
-      }
-      if (remoteVideoRef.current) {
-        console.log('Clearing remote video srcObject');
-        remoteVideoRef.current.srcObject = null;
-      }
-      
-      console.log('=== UPDATING STATE ===');
-      setIsInRoom(false);
-      setConnectionStatus('Disconnected');
       setParticipantCount(0);
-      console.log('State updated - isInRoom: false, connectionStatus: Disconnected, participantCount: 0');
-      
       alert('Left WebRTC room');
       console.log('=== ADMIN LEAVE ROOM COMPLETED ===');
       
     } catch (error: unknown) {
       const err = error as Error;
-      console.error('=== ADMIN LEAVE ROOM ERROR ===');
-      console.error('Error details:', err);
-      console.error('Error message:', err.message);
-      console.error('Error stack:', err.stack);
+      console.error('=== ADMIN LEAVE ROOM ERROR ===', err);
       alert(`Error leaving room: ${err.message}`);
     }
   };
 
   const handleParticipantRejoin = () => {
     console.log('🔄 ADMIN: Resetting WebRTC for participant rejoin');
+    cleanupWebRTCState();
     
-    // Close existing peer connection
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-    }
-    
-    // Create fresh peer connection
-    setupPeerConnection();
-    
-    // Admin will now respond to the new offer from rejoining participant
-    console.log('✅ ADMIN: Ready for fresh WebRTC negotiation');
+      // Re-initialize everything fresh
+      // Get user media again
+      navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      }).then(stream => {
+        localStreamRef.current = stream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+
+        // Create fresh peer connection
+        setupPeerConnection();
+        startParticipantCountUpdates();
+
+        console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
+      }).catch(error => {
+        console.error('❌ ADMIN: Error reinitializing for rejoin:', error);
+      });
   }
   
   const startParticipantCountUpdates = () => {
@@ -270,6 +266,10 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
 
     // Use forceInRoom instead of isInRoom
     const inRoom = forceInRoom;
+
+    let remoteDescriptionSet = false;
+    let pendingIceCandidates: RTCIceCandidateInit[] = [];
+
     // Poll for ICE candidates from client
     const pollIceCandidates = setInterval(async () => {
       try {
@@ -285,8 +285,13 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         if (candidates && candidates.length > 0) {
           console.log(`📥 ADMIN: Received ${candidates.length} ICE candidates from client`);
           for (const candidateData of candidates) {
-            console.log('🧊 ADMIN: Adding ICE candidate:', candidateData.candidate);
-            await peerConnectionRef.current.addIceCandidate(candidateData.candidate);
+            if (remoteDescriptionSet) {
+              console.log('🧊 ADMIN: Adding ICE candidate immediately');
+              await peerConnectionRef.current.addIceCandidate(candidateData.candidate);
+            } else {
+              console.log('🧊 ADMIN: Queueing ICE candidate (no remote description yet)');
+              pendingIceCandidates.push(candidateData.candidate);
+            }
           }
         } else {
           console.log('⏳ ADMIN: No ICE candidates available yet');
@@ -319,6 +324,18 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
           await peerConnectionRef.current.setRemoteDescription(offer.offer);
           console.log('✅ ADMIN: Set remote description successfully');
           
+          remoteDescriptionSet = true;
+          console.log(`🧊 ADMIN: Processing ${pendingIceCandidates.length} queued ICE candidates`);
+          for (const candidate of pendingIceCandidates) {
+            try {
+              await peerConnectionRef.current.addIceCandidate(candidate);
+              console.log('🧊 ADMIN: Added queued ICE candidate');
+            } catch (error) {
+              console.error('❌ ADMIN: Error adding queued ICE candidate:', error);
+            }
+          }
+          pendingIceCandidates = []; 
+
           console.log('📝 ADMIN: Creating answer...');
           const answer = await peerConnectionRef.current.createAnswer();
           console.log('📝 ADMIN: Created answer:', answer);
