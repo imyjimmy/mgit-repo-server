@@ -61,6 +61,13 @@ class WebRTCSessionManager {
       existingParticipant.status = 'connected';
       existingParticipant.lastSeenAt = Date.now();
       
+      // RESET SESSION DATA for fresh negotiation
+      existingParticipant.sessionData = {
+        hasActiveSession: false,
+        lastOfferAt: null,
+        lastAnswerAt: null
+      };
+      
       // Clear old WebRTC state for fresh negotiation
       room.iceCandidates = room.iceCandidates.filter(ic => ic.from !== pubkey);
       if (room.pendingOffer?.from === pubkey) {
@@ -70,7 +77,7 @@ class WebRTCSessionManager {
         delete room.pendingAnswer;
       }
       
-      console.log(`Cleared old WebRTC state for rejoining participant ${pubkey}`);
+      console.log(`Cleared old WebRTC state and reset session data for rejoining participant ${pubkey}`);
     } else {
       console.log(`NEW JOIN for ${pubkey}`);
       // Create new participant
