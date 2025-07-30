@@ -61,6 +61,9 @@ class WebRTCSessionManager {
       // Update existing participant
       existingParticipant.status = 'connected';
       existingParticipant.lastSeenAt = Date.now();
+
+      room.iceCandidates = room.iceCandidates.filter(ic => ic.from !== pubkey);
+      console.log(`Cleared old ICE candidates for rejoining participant ${pubkey}`);
     } else {
       console.log(`NEW JOIN for ${pubkey}`);
       // Create new participant
