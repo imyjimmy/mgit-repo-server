@@ -16,7 +16,45 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  
+ 
+  function setupPeerConnection() {
+    // Create new peer connection
+    peerConnectionRef.current = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
+    
+    // Add local stream (with null checks)
+    if (localStreamRef.current && peerConnectionRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        if (peerConnectionRef.current && localStreamRef.current) {
+          peerConnectionRef.current.addTrack(track, localStreamRef.current);
+        }
+      });
+    }
+    
+    // Set up event handlers
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.addEventListener('track', (event) => {
+        console.log('ADMIN: Received remote track');
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+      });
+      
+      peerConnectionRef.current.addEventListener('icecandidate', (event) => {
+        if (event.candidate) {
+          // ✅ Pass all required arguments to sendIceCandidate
+          webrtcService.sendIceCandidate(roomId, event.candidate, token);
+        }
+      });
+    }
+    
+    console.log('✅ ADMIN: Fresh peer connection created');
+  }
+
   const joinRoom = async () => {
     try {
       if (!roomId.trim()) {
@@ -171,6 +209,21 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       alert(`Error leaving room: ${err.message}`);
     }
   };
+
+  const handleParticipantRejoin = () => {
+    console.log('🔄 ADMIN: Resetting WebRTC for participant rejoin');
+    
+    // Close existing peer connection
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+    }
+    
+    // Create fresh peer connection
+    setupPeerConnection();
+    
+    // Admin will now respond to the new offer from rejoining participant
+    console.log('✅ ADMIN: Ready for fresh WebRTC negotiation');
+  }
   
   const startParticipantCountUpdates = () => {
     if (eventSourceRef.current) {
@@ -194,6 +247,19 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     eventSource.onerror = (error) => {
       console.error('SSE connection error:', error);
     };
+
+    eventSource.addEventListener('message', (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'participant_rejoined') {
+        console.log(`🔄 Participant ${data.participant} rejoined - resetting WebRTC`);
+        handleParticipantRejoin();
+      }
+      
+      if (data.type === 'participant_count') {
+        setParticipantCount(data.count);
+      }
+    });
   };
   
   const startSignalingLoop = (forceInRoom = isInRoom) => {

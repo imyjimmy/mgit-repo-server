@@ -51,6 +51,10 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     console.log(`Join result:`, joinResult);
     console.log(`Is rejoin: ${joinResult.isRejoin}`);
     
+    if (joinResult.shouldNotifyOthers) {
+      broadcastRejoinEvent(roomId, joinResult.rejoinedParticipant);
+    }
+    
     broadcastParticipantCount(roomId);
     
     res.json({ 
@@ -214,6 +218,27 @@ function setupWebRTCRoutes(app, authenticateJWT) {
       console.log('No SSE connections to broadcast to');
     }
     console.log('=== BROADCAST PARTICIPANT COUNT END ===');
+  }
+
+  function broadcastRejoinEvent(roomId, rejoinedParticipant) {
+    const connections = sseConnections.get(roomId);
+    
+    if (connections && connections.size > 0) {
+      const message = `data: ${JSON.stringify({ 
+        type: 'participant_rejoined', 
+        participant: rejoinedParticipant 
+      })}\n\n`;
+      
+      connections.forEach(res => {
+        try {
+          res.write(message);
+        } catch (error) {
+          connections.delete(res);
+        }
+      });
+      
+      console.log(`📡 Broadcasted rejoin event for ${rejoinedParticipant} to ${connections.size} connected admin(s)`);
+    }
   }
 
   // Add this new SSE endpoint for real-time updates

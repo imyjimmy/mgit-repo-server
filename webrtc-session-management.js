@@ -56,14 +56,21 @@ class WebRTCSessionManager {
     if (isRejoin) {
       console.log(`REJOIN detected for ${pubkey}`);
       console.log(`Previous status: ${existingParticipant.status}`);
-      console.log(`Had active session: ${existingParticipant.sessionData.hasActiveSession}`);
       
       // Update existing participant
       existingParticipant.status = 'connected';
       existingParticipant.lastSeenAt = Date.now();
-
+      
+      // Clear old WebRTC state for fresh negotiation
       room.iceCandidates = room.iceCandidates.filter(ic => ic.from !== pubkey);
-      console.log(`Cleared old ICE candidates for rejoining participant ${pubkey}`);
+      if (room.pendingOffer?.from === pubkey) {
+        delete room.pendingOffer;
+      }
+      if (room.pendingAnswer?.from === pubkey) {
+        delete room.pendingAnswer;
+      }
+      
+      console.log(`Cleared old WebRTC state for rejoining participant ${pubkey}`);
     } else {
       console.log(`NEW JOIN for ${pubkey}`);
       // Create new participant
@@ -78,16 +85,20 @@ class WebRTCSessionManager {
     
     console.log(`Room ${roomId} now has ${participantCount} connected participants`);
     
+    const roomInfo = {
+      createdAt: room.createdAt,
+      firstLeaveAt: room.firstLeaveAt,
+      lastEmptyAt: room.lastEmptyAt,
+      hasExpireTimer: !!room.expireTimer,
+      hasEmptyTimer: !!room.emptyTimer
+    };
+
     return {
       isRejoin,
       participantCount,
-      roomInfo: {
-        createdAt: room.createdAt,
-        firstLeaveAt: room.firstLeaveAt,
-        lastEmptyAt: room.lastEmptyAt,
-        hasExpireTimer: !!room.expireTimer,
-        hasEmptyTimer: !!room.emptyTimer
-      }
+      roomInfo,
+      shouldNotifyOthers: isRejoin, // ✅ Only notify on rejoins
+      rejoinedParticipant: isRejoin ? pubkey : null
     };
   }
 
