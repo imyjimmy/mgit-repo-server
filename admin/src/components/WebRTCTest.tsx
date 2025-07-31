@@ -103,6 +103,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const [isInRoom, setIsInRoom] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('Not connected');
   const [participantCount, setParticipantCount] = useState(0);
+  const [handshakeInProgress, setHandshakeInProgress] = useState(false);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -117,6 +118,8 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const cleanupWebRTCState = useCallback(() => {
     console.log('🧹 ADMIN CLEANUP: Starting comprehensive WebRTC state cleanup');
     console.log('🔍 ADMIN CLEANUP: Active intervals before cleanup:', getActiveIntervals());
+    console.log('🔍 ADMIN CLEANUP: Cleanup context - connectionStatus:', connectionStatus);
+    console.log('🔍 ADMIN CLEANUP: Cleanup context - isInRoom:', isInRoom);
     
     // STEP 1: Clear all managed intervals first to stop ongoing operations
     clearAllIntervals();
@@ -168,7 +171,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     setIsInRoom(false);
     
     console.log('🧹 ADMIN CLEANUP: Comprehensive WebRTC state cleanup completed');
-  }, [clearAllIntervals, getActiveIntervals]);
+  }, [clearAllIntervals, getActiveIntervals, connectionStatus, isInRoom]);
 
   const setupPeerConnection = useCallback(() => {
     console.log('⚙️ ADMIN: Setting up fresh peer connection');
@@ -408,6 +411,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         
         if (offer && offer.offer && peerConnectionRef.current) {
           console.log('🎯 ADMIN: Processing offer from client!');
+          setHandshakeInProgress(true); // Block component unmounting during handshake
           
           // Stop offer polling once we get an offer
           clearManagedInterval('offers-poll');
@@ -465,6 +469,8 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
           } else {
             console.log('⚠️ ADMIN: Peer connection already null, cannot create answer');
           }
+          
+          setHandshakeInProgress(false); // Allow component unmounting again
         } else {
           console.log('⏳ ADMIN: No offer available yet, continuing to poll...');
         }
@@ -479,13 +485,28 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   
   // Cleanup on unmount with dependency to ensure latest leaveRoom reference
   useEffect(() => {
+    console.log('🏗️ ADMIN: Component mounted/effect running');
+    
     return () => {
       console.log('🔄 ADMIN: Component unmounting, performing cleanup');
+      console.log('🔍 ADMIN: Unmount context - isInRoom:', isInRoom);
+      console.log('🔍 ADMIN: Unmount context - connectionStatus:', connectionStatus);
+      console.log('🔍 ADMIN: Unmount context - handshakeInProgress:', handshakeInProgress);
+      console.log('🔍 ADMIN: Unmount context - peerConnection exists:', !!peerConnectionRef.current);
+      
+      // Get stack trace to understand WHY we're unmounting
+      const stack = new Error().stack;
+      console.log('📍 ADMIN: Unmount stack trace:', stack?.split('\n').slice(0, 5).join('\n'));
+      
+      if (handshakeInProgress) {
+        console.log('⚠️ ADMIN: Unmounting during handshake! This may cause issues.');
+      }
+      
       if (isInRoom) {
         cleanupWebRTCState();
       }
     };
-  }, [isInRoom, cleanupWebRTCState]);
+  }, [isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress]);
   
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
@@ -539,6 +560,11 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
             <div className="text-sm text-gray-600">
               Active Intervals: {getActiveIntervals().join(', ') || 'None'}
             </div>
+            {handshakeInProgress && (
+              <div className="text-sm text-amber-600 font-medium">
+                ⚠️ Handshake in progress - do not navigate away
+              </div>
+            )}
           </div>
         </div>
       </div>
