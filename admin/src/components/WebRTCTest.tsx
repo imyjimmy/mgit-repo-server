@@ -231,7 +231,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const joinRoom = async () => {
     try {
       if (!roomId.trim()) {
-        alert('Please enter a room ID');
+        console.log('Please enter a room ID');
         return;
       }
       
@@ -270,11 +270,11 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       startParticipantCountUpdates();
       startSignalingLoop();
 
-      alert(`Joined room: ${roomId}`);
+      console.log(`Joined room: ${roomId}`);
       
     } catch (error) {
       console.error('Error joining WebRTC room:', error);
-      alert(`Failed to join room: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.log(`Failed to join room: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setConnectionStatus('Failed to connect');
     }
   };
@@ -284,12 +284,12 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     try {
       cleanupWebRTCState();
       setParticipantCount(0);
-      alert('Left WebRTC room');
+      console.log('Left WebRTC room');
       console.log('=== ADMIN LEAVE ROOM COMPLETED ===');
     } catch (error: unknown) {
       const err = error as Error;
       console.error('=== ADMIN LEAVE ROOM ERROR ===', err);
-      alert(`Error leaving room: ${err.message}`);
+      console.log(`Error leaving room: ${err.message}`);
     }
   };
 
@@ -323,7 +323,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
     }).catch(error => {
       console.error('❌ ADMIN: Error reinitializing for rejoin:', error);
-      alert('Failed to reinitialize for rejoin. Please refresh and try again.');
+      console.log('Failed to reinitialize for rejoin. Please refresh and try again.');
     });
   }, [cleanupWebRTCState, setupPeerConnection, resetIntervalManager]);
   
@@ -433,7 +433,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         
         if (offer && offer.offer && peerConnectionRef.current && !handshakeAborted) {
           console.log('🎯 ADMIN: Processing offer from client!');
-          setHandshakeInProgress(true);
+          // setHandshakeInProgress(true);
           
           // Stop offer polling once we get an offer
           clearManagedInterval('offers-poll');
