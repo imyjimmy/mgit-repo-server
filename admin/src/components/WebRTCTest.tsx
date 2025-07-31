@@ -29,12 +29,25 @@ function useIntervalManager() {
       return null;
     }
     
-    const intervalId = setInterval(callback, delay);
+    const safeCallback = () => {
+      // Check mount status before each execution to prevent stale callbacks
+      if (mountedRef.current && !cleanupInProgressRef.current) {
+        try {
+          pendingOperationsRef.current++;
+          callback();
+        } catch (error) {
+          console.error(`Interval callback error for ${key}:`, error);
+        } finally {
+          pendingOperationsRef.current--;
+        }
+      }
+    };
+    
+    const intervalId = setInterval(safeCallback, delay);
     intervalsRef.current.set(key, intervalId);
     
     console.log(`✅ DEBUG: Created interval '${key}' with ID:`, intervalId);
     console.log(`🔍 DEBUG: Active intervals after creation:`, Array.from(intervalsRef.current.keys()));
-    
     return intervalId;
   }, []);
   
@@ -76,6 +89,15 @@ function useIntervalManager() {
     mountedRef.current = false;
   }, []);
   
+  // 🔧 NEW: Reset function for rejoin scenarios
+  const resetIntervalManager = useCallback(() => {
+    console.log('🔄 ADMIN: Resetting interval manager for rejoin');
+    cleanupInProgressRef.current = false;
+    mountedRef.current = true;
+    pendingOperationsRef.current = 0;
+    console.log('✅ ADMIN: Interval manager reset completed');
+  }, []);
+  
   // Cleanup all intervals on unmount
   useEffect(() => {
     return () => {
@@ -87,6 +109,7 @@ function useIntervalManager() {
     setManagedInterval, 
     clearManagedInterval, 
     clearAllIntervals,
+    resetIntervalManager,
     getActiveIntervals: () => Array.from(intervalsRef.current.keys())
   };
 }
@@ -105,7 +128,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const eventSourceRef = useRef<EventSource | null>(null);
   
   // Advanced interval management
-  const { setManagedInterval, clearManagedInterval, clearAllIntervals, getActiveIntervals } = useIntervalManager();
+  const { setManagedInterval, clearManagedInterval, clearAllIntervals, resetIntervalManager, getActiveIntervals } = useIntervalManager();
   
   // Thread-safe cleanup with comprehensive resource management
   const cleanupWebRTCState = useCallback(() => {
@@ -208,7 +231,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const joinRoom = async () => {
     try {
       if (!roomId.trim()) {
-        console.log('Please enter a room ID');
+        alert('Please enter a room ID');
         return;
       }
       
@@ -247,11 +270,11 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       startParticipantCountUpdates();
       startSignalingLoop();
 
-      console.log(`✅ ADMIN: Successfully joined room: ${roomId}`);
+      alert(`Joined room: ${roomId}`);
       
     } catch (error) {
       console.error('Error joining WebRTC room:', error);
-      console.error(`Failed to join room: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(`Failed to join room: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setConnectionStatus('Failed to connect');
     }
   };
@@ -261,12 +284,12 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     try {
       cleanupWebRTCState();
       setParticipantCount(0);
-      console.log('Left WebRTC room');
+      alert('Left WebRTC room');
       console.log('=== ADMIN LEAVE ROOM COMPLETED ===');
     } catch (error: unknown) {
       const err = error as Error;
       console.error('=== ADMIN LEAVE ROOM ERROR ===', err);
-      console.error(`Error leaving room: ${err.message}`);
+      alert(`Error leaving room: ${err.message}`);
     }
   };
 
@@ -275,6 +298,9 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     
     // Complete cleanup first
     cleanupWebRTCState();
+    
+    // 🔧 NEW: Reset interval manager to allow new intervals
+    resetIntervalManager();
     
     // Re-initialize everything fresh with error handling
     navigator.mediaDevices.getUserMedia({
@@ -297,9 +323,9 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
     }).catch(error => {
       console.error('❌ ADMIN: Error reinitializing for rejoin:', error);
-      console.error('Failed to reinitialize for rejoin. Please refresh and try again.');
+      alert('Failed to reinitialize for rejoin. Please refresh and try again.');
     });
-  }, [cleanupWebRTCState, setupPeerConnection]);
+  }, [cleanupWebRTCState, setupPeerConnection, resetIntervalManager]);
   
   const startParticipantCountUpdates = useCallback(() => {
     console.log('📊 ADMIN: Starting participant count updates');
@@ -357,12 +383,13 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     // State for ICE candidate queueing (using closure to avoid stale state)
     let remoteDescriptionSet = false;
     let pendingIceCandidates: RTCIceCandidateInit[] = [];
+    let handshakeAborted = false;
 
     // Managed ICE candidates polling
     setManagedInterval('ice-candidates-poll', async () => {
       try {
-        if (!peerConnectionRef.current) {
-          console.log('❌ ADMIN: Stopping ICE polling - no peer connection');
+        if (!peerConnectionRef.current || handshakeAborted) {
+          console.log('❌ ADMIN: Stopping ICE polling - no peer connection or handshake aborted');
           clearManagedInterval('ice-candidates-poll');
           return;
         }
@@ -373,6 +400,8 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         if (candidates && candidates.length > 0) {
           console.log(`📥 ADMIN: Received ${candidates.length} ICE candidates from client`);
           for (const candidateData of candidates) {
+            if (handshakeAborted) break;
+            
             if (remoteDescriptionSet && peerConnectionRef.current) {
               console.log('🧊 ADMIN: Adding ICE candidate immediately');
               await peerConnectionRef.current.addIceCandidate(candidateData.candidate);
@@ -392,8 +421,8 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     // Managed offers polling
     setManagedInterval('offers-poll', async () => {
       try {
-        if (!peerConnectionRef.current) {
-          console.log('❌ ADMIN: Stopping offer polling - no peer connection');
+        if (!peerConnectionRef.current || handshakeAborted) {
+          console.log('❌ ADMIN: Stopping offer polling - no peer connection or handshake aborted');
           clearManagedInterval('offers-poll');
           return;
         }
@@ -402,118 +431,118 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         const { offer } = await webrtcService.getOffer(roomId, token);
         console.log('📋 ADMIN: Offer check result:', offer ? 'OFFER FOUND' : 'no offer yet');
         
-        if (offer && offer.offer && peerConnectionRef.current) {
+        if (offer && offer.offer && peerConnectionRef.current && !handshakeAborted) {
           console.log('🎯 ADMIN: Processing offer from client!');
-          setHandshakeInProgress(true); // Block component unmounting during handshake
+          setHandshakeInProgress(true);
           
           // Stop offer polling once we get an offer
           clearManagedInterval('offers-poll');
           
-          console.log('🔧 ADMIN: Setting remote description from client offer...');
-          await peerConnectionRef.current.setRemoteDescription(offer.offer);
-          console.log('✅ ADMIN: Set remote description successfully');
-          
-          // Process queued ICE candidates now that remote description is set
-          remoteDescriptionSet = true;
-          console.log(`🧊 ADMIN: Processing ${pendingIceCandidates.length} queued ICE candidates`);
-          for (const candidate of pendingIceCandidates) {
-            try {
-              if (peerConnectionRef.current) {
-                await peerConnectionRef.current.addIceCandidate(candidate);
-                console.log('🧊 ADMIN: Added queued ICE candidate');
-              }
-            } catch (error) {
-              console.error('❌ ADMIN: Error adding queued ICE candidate:', error);
-            }
-          }
-          pendingIceCandidates = []; // Clear the queue
-
-          // Create and send answer with robust null checks
-          const currentPeerConnection = peerConnectionRef.current;
-          if (currentPeerConnection) {
-            console.log('📝 ADMIN: Creating answer...');
-            const answer = await currentPeerConnection.createAnswer();
+          try {
+            // Capture peer connection reference for the entire handshake
+            const handshakePeerConnection = peerConnectionRef.current;
             
-            // Check if peer connection still exists after async operation
-            if (peerConnectionRef.current && peerConnectionRef.current === currentPeerConnection) {
-              console.log('🔧 ADMIN: Setting local description (answer)...');
-              await currentPeerConnection.setLocalDescription(answer);
+            console.log('🔧 ADMIN: Setting remote description from client offer...');
+            await handshakePeerConnection.setRemoteDescription(offer.offer);
+            
+            // Check if we're still using the same peer connection
+            if (peerConnectionRef.current !== handshakePeerConnection) {
+              console.log('⚠️ ADMIN: Peer connection changed during handshake, aborting');
+              handshakeAborted = true;
+              setHandshakeInProgress(false);
+              return;
+            }
+            
+            console.log('✅ ADMIN: Set remote description successfully');
+            
+            // Process queued ICE candidates now that remote description is set
+            remoteDescriptionSet = true;
+            console.log(`🧊 ADMIN: Processing ${pendingIceCandidates.length} queued ICE candidates`);
+            for (const candidate of pendingIceCandidates) {
+              if (handshakeAborted || peerConnectionRef.current !== handshakePeerConnection) break;
               
-              // Final check before sending answer
-              if (peerConnectionRef.current && peerConnectionRef.current === currentPeerConnection) {
+              try {
+                await handshakePeerConnection.addIceCandidate(candidate);
+                console.log('🧊 ADMIN: Added queued ICE candidate');
+              } catch (error) {
+                console.error('❌ ADMIN: Error adding queued ICE candidate:', error);
+              }
+            }
+            pendingIceCandidates = []; // Clear the queue
+
+            // Create and send answer
+            if (!handshakeAborted && peerConnectionRef.current === handshakePeerConnection) {
+              console.log('📝 ADMIN: Creating answer...');
+              const answer = await handshakePeerConnection.createAnswer();
+              
+              // Final consistency check
+              if (!handshakeAborted && peerConnectionRef.current === handshakePeerConnection) {
+                console.log('🔧 ADMIN: Setting local description (answer)...');
+                await handshakePeerConnection.setLocalDescription(answer);
+                
                 console.log('📤 ADMIN: Sending answer to server...');
                 await webrtcService.sendAnswer(roomId, answer, token);
                 console.log('🎉 ADMIN: Answer sent! WebRTC handshake should be complete');
                 
                 // Safe connection state logging
-                if (peerConnectionRef.current && peerConnectionRef.current === currentPeerConnection) {
-                  console.log('📊 ADMIN: Connection state:', currentPeerConnection.connectionState);
-                  console.log('📊 ADMIN: ICE connection state:', currentPeerConnection.iceConnectionState);
-                  console.log('📊 ADMIN: Signaling state:', currentPeerConnection.signalingState);
-                } else {
-                  console.log('⚠️ ADMIN: Peer connection changed during handshake, skipping state logging');
-                }
+                console.log('📊 ADMIN: Connection state:', handshakePeerConnection.connectionState);
+                console.log('📊 ADMIN: ICE connection state:', handshakePeerConnection.iceConnectionState);
+                console.log('📊 ADMIN: Signaling state:', handshakePeerConnection.signalingState);
               } else {
-                console.log('⚠️ ADMIN: Peer connection nullified during answer processing, handshake aborted');
+                console.log('⚠️ ADMIN: Handshake aborted or peer connection changed, skipping answer send');
               }
             } else {
-              console.log('⚠️ ADMIN: Peer connection nullified after creating answer, skipping local description');
+              console.log('⚠️ ADMIN: Cannot create answer - handshake aborted or peer connection changed');
             }
-          } else {
-            console.log('⚠️ ADMIN: Peer connection already null, cannot create answer');
+          } catch (error) {
+            console.error('❌ ADMIN: Error during handshake:', error);
+            handshakeAborted = true;
+          } finally {
+            setHandshakeInProgress(false);
           }
-          
-          setHandshakeInProgress(false); // Allow component unmounting again
         } else {
           console.log('⏳ ADMIN: No offer available yet, continuing to poll...');
         }
       } catch (error: any) {
         console.error('❌ ADMIN: Error in offer signaling loop:', error);
+        setHandshakeInProgress(false);
       }
     }, 2000);
+    
+    // Cleanup function for this signaling loop instance
+    return () => {
+      handshakeAborted = true;
+      setHandshakeInProgress(false);
+    };
     
     console.log('✅ ADMIN: Managed signaling loop started');
     console.log('🔍 ADMIN: Active intervals:', getActiveIntervals());
   }, [roomId, token, setManagedInterval, clearManagedInterval, getActiveIntervals]);
   
   // Cleanup on unmount with dependency to ensure latest leaveRoom reference
-  // useEffect(() => {
-  //   console.log('🏗️ ADMIN: Component mounted/effect running');
-    
-  //   return () => {
-  //     console.log('🔄 ADMIN: Component unmounting, performing cleanup');
-  //     console.log('🔍 ADMIN: Unmount context - isInRoom:', isInRoom);
-  //     console.log('🔍 ADMIN: Unmount context - connectionStatus:', connectionStatus);
-  //     console.log('🔍 ADMIN: Unmount context - handshakeInProgress:', handshakeInProgress);
-  //     console.log('🔍 ADMIN: Unmount context - peerConnection exists:', !!peerConnectionRef.current);
-      
-  //     // Get stack trace to understand WHY we're unmounting
-  //     const stack = new Error().stack;
-  //     console.log('📍 ADMIN: Unmount stack trace:', stack?.split('\n').slice(0, 5).join('\n'));
-      
-  //     if (handshakeInProgress) {
-  //       console.log('⚠️ ADMIN: Unmounting during handshake! This may cause issues.');
-  //     }
-      
-  //     if (isInRoom) {
-  //       cleanupWebRTCState();
-  //     }
-  //   };
-  // }, [isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress]);
-  
   useEffect(() => {
     console.log('🏗️ ADMIN: Component mounted/effect running');
     
     return () => {
       console.log('🔄 ADMIN: Component unmounting, performing cleanup');
       console.log('🔍 ADMIN: Unmount context - isInRoom:', isInRoom);
+      console.log('🔍 ADMIN: Unmount context - connectionStatus:', connectionStatus);
+      console.log('🔍 ADMIN: Unmount context - handshakeInProgress:', handshakeInProgress);
+      console.log('🔍 ADMIN: Unmount context - peerConnection exists:', !!peerConnectionRef.current);
       
-      // Only cleanup if we're actually leaving the room or component is unmounting
+      // Get stack trace to understand WHY we're unmounting
+      const stack = new Error().stack;
+      console.log('📍 ADMIN: Unmount stack trace:', stack?.split('\n').slice(0, 5).join('\n'));
+      
+      if (handshakeInProgress) {
+        console.log('⚠️ ADMIN: Unmounting during handshake! This may cause issues.');
+      }
+      
       if (isInRoom) {
         cleanupWebRTCState();
       }
     };
-  }, []); // No dependencies - only run on actual mount/unmount
+  }, [isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress]);
   
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
