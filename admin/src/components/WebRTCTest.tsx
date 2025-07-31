@@ -433,7 +433,16 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         
         if (offer && offer.offer && peerConnectionRef.current && !handshakeAborted) {
           console.log('🎯 ADMIN: Processing offer from client!');
-          // setHandshakeInProgress(true);
+          
+          // 🔧 ADD: Log all state before handshake to find the trigger
+          console.log('🔍 DEBUG: State before handshake:');
+          console.log('  - isInRoom:', isInRoom);
+          console.log('  - connectionStatus:', connectionStatus);
+          console.log('  - participantCount:', participantCount);
+          console.log('  - handshakeInProgress:', handshakeInProgress);
+          
+          setHandshakeInProgress(true);
+          console.log('🔍 DEBUG: Set handshakeInProgress to true');
           
           // Stop offer polling once we get an offer
           clearManagedInterval('offers-poll');
@@ -443,7 +452,9 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
             const handshakePeerConnection = peerConnectionRef.current;
             
             console.log('🔧 ADMIN: Setting remote description from client offer...');
+            console.log('🔍 DEBUG: About to call setRemoteDescription');
             await handshakePeerConnection.setRemoteDescription(offer.offer);
+            console.log('🔍 DEBUG: setRemoteDescription completed');
             
             // Check if we're still using the same peer connection
             if (peerConnectionRef.current !== handshakePeerConnection) {
