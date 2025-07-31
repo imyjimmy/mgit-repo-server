@@ -10,6 +10,7 @@ function useIntervalManager() {
   const intervalsRef = useRef(new Map<string, NodeJS.Timeout>());
   const mountedRef = useRef(true);
   const cleanupInProgressRef = useRef(false);
+  const pendingOperationsRef = useRef(0);
   
   const setManagedInterval = useCallback((key: string, callback: () => void, delay: number) => {
     // Clear any existing interval with the same key to prevent overlaps
@@ -27,9 +28,12 @@ function useIntervalManager() {
       // Check mount status before each execution to prevent stale callbacks
       if (mountedRef.current && !cleanupInProgressRef.current) {
         try {
+          pendingOperationsRef.current++;
           callback();
         } catch (error) {
           console.error(`Interval callback error for ${key}:`, error);
+        } finally {
+          pendingOperationsRef.current--;
         }
       }
     };
@@ -50,7 +54,7 @@ function useIntervalManager() {
     }
   }, []);
   
-  const clearAllIntervals = useCallback(() => {
+  const clearAllIntervals = useCallback(async () => {
     if (cleanupInProgressRef.current) return; // Prevent double cleanup
     cleanupInProgressRef.current = true;
     
@@ -62,6 +66,20 @@ function useIntervalManager() {
     });
     
     intervalsRef.current.clear();
+    
+    // Wait briefly for any pending async operations to complete
+    if (pendingOperationsRef.current > 0) {
+      console.log(`⏳ ADMIN: Waiting for ${pendingOperationsRef.current} pending operations...`);
+      let waitCount = 0;
+      while (pendingOperationsRef.current > 0 && waitCount < 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        waitCount++;
+      }
+      if (pendingOperationsRef.current > 0) {
+        console.log(`⚠️ ADMIN: ${pendingOperationsRef.current} operations still pending after timeout`);
+      }
+    }
+    
     mountedRef.current = false;
   }, []);
   
@@ -413,22 +431,39 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
           }
           pendingIceCandidates = []; // Clear the queue
 
-          // Create and send answer
-          if (peerConnectionRef.current) {
+          // Create and send answer with robust null checks
+          const currentPeerConnection = peerConnectionRef.current;
+          if (currentPeerConnection) {
             console.log('📝 ADMIN: Creating answer...');
-            const answer = await peerConnectionRef.current.createAnswer();
+            const answer = await currentPeerConnection.createAnswer();
             
-            console.log('🔧 ADMIN: Setting local description (answer)...');
-            await peerConnectionRef.current.setLocalDescription(answer);
-            
-            console.log('📤 ADMIN: Sending answer to server...');
-            await webrtcService.sendAnswer(roomId, answer, token);
-            console.log('🎉 ADMIN: Answer sent! WebRTC handshake should be complete');
-            
-            // Log connection states
-            console.log('📊 ADMIN: Connection state:', peerConnectionRef.current.connectionState);
-            console.log('📊 ADMIN: ICE connection state:', peerConnectionRef.current.iceConnectionState);
-            console.log('📊 ADMIN: Signaling state:', peerConnectionRef.current.signalingState);
+            // Check if peer connection still exists after async operation
+            if (peerConnectionRef.current && peerConnectionRef.current === currentPeerConnection) {
+              console.log('🔧 ADMIN: Setting local description (answer)...');
+              await currentPeerConnection.setLocalDescription(answer);
+              
+              // Final check before sending answer
+              if (peerConnectionRef.current && peerConnectionRef.current === currentPeerConnection) {
+                console.log('📤 ADMIN: Sending answer to server...');
+                await webrtcService.sendAnswer(roomId, answer, token);
+                console.log('🎉 ADMIN: Answer sent! WebRTC handshake should be complete');
+                
+                // Safe connection state logging
+                if (peerConnectionRef.current && peerConnectionRef.current === currentPeerConnection) {
+                  console.log('📊 ADMIN: Connection state:', currentPeerConnection.connectionState);
+                  console.log('📊 ADMIN: ICE connection state:', currentPeerConnection.iceConnectionState);
+                  console.log('📊 ADMIN: Signaling state:', currentPeerConnection.signalingState);
+                } else {
+                  console.log('⚠️ ADMIN: Peer connection changed during handshake, skipping state logging');
+                }
+              } else {
+                console.log('⚠️ ADMIN: Peer connection nullified during answer processing, handshake aborted');
+              }
+            } else {
+              console.log('⚠️ ADMIN: Peer connection nullified after creating answer, skipping local description');
+            }
+          } else {
+            console.log('⚠️ ADMIN: Peer connection already null, cannot create answer');
           }
         } else {
           console.log('⏳ ADMIN: No offer available yet, continuing to poll...');
