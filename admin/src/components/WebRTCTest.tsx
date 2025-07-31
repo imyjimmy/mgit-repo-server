@@ -484,29 +484,43 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   }, [roomId, token, setManagedInterval, clearManagedInterval, getActiveIntervals]);
   
   // Cleanup on unmount with dependency to ensure latest leaveRoom reference
+  // useEffect(() => {
+  //   console.log('🏗️ ADMIN: Component mounted/effect running');
+    
+  //   return () => {
+  //     console.log('🔄 ADMIN: Component unmounting, performing cleanup');
+  //     console.log('🔍 ADMIN: Unmount context - isInRoom:', isInRoom);
+  //     console.log('🔍 ADMIN: Unmount context - connectionStatus:', connectionStatus);
+  //     console.log('🔍 ADMIN: Unmount context - handshakeInProgress:', handshakeInProgress);
+  //     console.log('🔍 ADMIN: Unmount context - peerConnection exists:', !!peerConnectionRef.current);
+      
+  //     // Get stack trace to understand WHY we're unmounting
+  //     const stack = new Error().stack;
+  //     console.log('📍 ADMIN: Unmount stack trace:', stack?.split('\n').slice(0, 5).join('\n'));
+      
+  //     if (handshakeInProgress) {
+  //       console.log('⚠️ ADMIN: Unmounting during handshake! This may cause issues.');
+  //     }
+      
+  //     if (isInRoom) {
+  //       cleanupWebRTCState();
+  //     }
+  //   };
+  // }, [isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress]);
+  
   useEffect(() => {
     console.log('🏗️ ADMIN: Component mounted/effect running');
     
     return () => {
       console.log('🔄 ADMIN: Component unmounting, performing cleanup');
       console.log('🔍 ADMIN: Unmount context - isInRoom:', isInRoom);
-      console.log('🔍 ADMIN: Unmount context - connectionStatus:', connectionStatus);
-      console.log('🔍 ADMIN: Unmount context - handshakeInProgress:', handshakeInProgress);
-      console.log('🔍 ADMIN: Unmount context - peerConnection exists:', !!peerConnectionRef.current);
       
-      // Get stack trace to understand WHY we're unmounting
-      const stack = new Error().stack;
-      console.log('📍 ADMIN: Unmount stack trace:', stack?.split('\n').slice(0, 5).join('\n'));
-      
-      if (handshakeInProgress) {
-        console.log('⚠️ ADMIN: Unmounting during handshake! This may cause issues.');
-      }
-      
+      // Only cleanup if we're actually leaving the room or component is unmounting
       if (isInRoom) {
         cleanupWebRTCState();
       }
     };
-  }, [isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress]);
+  }, []); // No dependencies - only run on actual mount/unmount
   
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
