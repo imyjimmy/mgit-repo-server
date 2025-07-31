@@ -214,6 +214,8 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         // Create fresh peer connection
         setupPeerConnection();
         startParticipantCountUpdates();
+        setIsInRoom(true); // Re-enable room state
+        startSignalingLoop(true); // Start fresh signaling
 
         console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
       }).catch(error => {
