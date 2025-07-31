@@ -5,6 +5,81 @@ interface WebRTCTestProps {
   token: string;
 }
 
+// Advanced interval management hook with comprehensive cleanup
+function useIntervalManager() {
+  const intervalsRef = useRef(new Map<string, NodeJS.Timeout>());
+  const mountedRef = useRef(true);
+  const cleanupInProgressRef = useRef(false);
+  
+  const setManagedInterval = useCallback((key: string, callback: () => void, delay: number) => {
+    // Clear any existing interval with the same key to prevent overlaps
+    if (intervalsRef.current.has(key)) {
+      clearInterval(intervalsRef.current.get(key)!);
+      intervalsRef.current.delete(key);
+    }
+    
+    // Don't create new intervals if cleanup is in progress or component unmounted
+    if (cleanupInProgressRef.current || !mountedRef.current) {
+      return null;
+    }
+    
+    const safeCallback = () => {
+      // Check mount status before each execution to prevent stale callbacks
+      if (mountedRef.current && !cleanupInProgressRef.current) {
+        try {
+          callback();
+        } catch (error) {
+          console.error(`Interval callback error for ${key}:`, error);
+        }
+      }
+    };
+    
+    const intervalId = setInterval(safeCallback, delay);
+    intervalsRef.current.set(key, intervalId);
+    
+    console.log(`📅 ADMIN: Created managed interval '${key}' with ${delay}ms delay`);
+    return intervalId;
+  }, []);
+  
+  const clearManagedInterval = useCallback((key: string) => {
+    const intervalId = intervalsRef.current.get(key);
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalsRef.current.delete(key);
+      console.log(`🗑️ ADMIN: Cleared managed interval '${key}'`);
+    }
+  }, []);
+  
+  const clearAllIntervals = useCallback(() => {
+    if (cleanupInProgressRef.current) return; // Prevent double cleanup
+    cleanupInProgressRef.current = true;
+    
+    console.log(`🧹 ADMIN: Clearing ${intervalsRef.current.size} managed intervals`);
+    
+    intervalsRef.current.forEach((intervalId, key) => {
+      clearInterval(intervalId);
+      console.log(`🗑️ ADMIN: Cleared interval '${key}'`);
+    });
+    
+    intervalsRef.current.clear();
+    mountedRef.current = false;
+  }, []);
+  
+  // Cleanup all intervals on unmount
+  useEffect(() => {
+    return () => {
+      clearAllIntervals();
+    };
+  }, [clearAllIntervals]);
+  
+  return { 
+    setManagedInterval, 
+    clearManagedInterval, 
+    clearAllIntervals,
+    getActiveIntervals: () => Array.from(intervalsRef.current.keys())
+  };
+}
+
 export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const [roomId, setRoomId] = useState('bright-dolphin-swimming');
   const [isInRoom, setIsInRoom] = useState(false);
@@ -16,11 +91,19 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
- 
+  
+  // Advanced interval management
+  const { setManagedInterval, clearManagedInterval, clearAllIntervals, getActiveIntervals } = useIntervalManager();
+  
+  // Thread-safe cleanup with comprehensive resource management
   const cleanupWebRTCState = useCallback(() => {
-    console.log('🧹 ADMIN CLEANUP: Starting WebRTC state cleanup');
+    console.log('🧹 ADMIN CLEANUP: Starting comprehensive WebRTC state cleanup');
+    console.log('🔍 ADMIN CLEANUP: Active intervals before cleanup:', getActiveIntervals());
     
-    // Stop local stream tracks
+    // STEP 1: Clear all managed intervals first to stop ongoing operations
+    clearAllIntervals();
+    
+    // STEP 2: Stop local stream tracks
     if (localStreamRef.current) {
       console.log('🧹 ADMIN CLEANUP: Stopping local stream tracks');
       const tracks = localStreamRef.current.getTracks();
@@ -31,21 +114,30 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       localStreamRef.current = null;
     }
   
-    // Close peer connection
+    // STEP 3: Close peer connection with proper event handler cleanup
     if (peerConnectionRef.current) {
       console.log('🧹 ADMIN CLEANUP: Closing peer connection');
-      peerConnectionRef.current.close();
+      const pc = peerConnectionRef.current;
+      
+      // Clear all event handlers to prevent stray events
+      pc.ontrack = null;
+      pc.onicecandidate = null;
+      pc.onconnectionstatechange = null;
+      pc.onsignalingstatechange = null;
+      pc.onicegatheringstatechange = null;
+      
+      pc.close();
       peerConnectionRef.current = null;
     }
     
-    // Close event source
+    // STEP 4: Close event source
     if (eventSourceRef.current) {
       console.log('🧹 ADMIN CLEANUP: Closing event source');
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
     
-    // Clear video elements
+    // STEP 5: Clear video elements
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
     }
@@ -53,14 +145,16 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       remoteVideoRef.current.srcObject = null;
     }
     
-    // Reset UI state
+    // STEP 6: Reset UI state
     setConnectionStatus('Disconnected');
     setIsInRoom(false);
     
-    console.log('🧹 ADMIN CLEANUP: WebRTC state cleanup completed');
-  }, [setConnectionStatus, setIsInRoom]);
+    console.log('🧹 ADMIN CLEANUP: Comprehensive WebRTC state cleanup completed');
+  }, [clearAllIntervals, getActiveIntervals]);
 
-  function setupPeerConnection() {
+  const setupPeerConnection = useCallback(() => {
+    console.log('⚙️ ADMIN: Setting up fresh peer connection');
+    
     // Create new peer connection
     peerConnectionRef.current = new RTCPeerConnection({
       iceServers: [
@@ -81,7 +175,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     // Set up event handlers
     if (peerConnectionRef.current) {
       peerConnectionRef.current.addEventListener('track', (event) => {
-        console.log('ADMIN: Received remote track');
+        console.log('📺 ADMIN: Received remote track');
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = event.streams[0];
         }
@@ -89,14 +183,13 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       
       peerConnectionRef.current.addEventListener('icecandidate', (event) => {
         if (event.candidate) {
-          // ✅ Pass all required arguments to sendIceCandidate
           webrtcService.sendIceCandidate(roomId, event.candidate, token);
         }
       });
     }
     
-    console.log('✅ ADMIN: Fresh peer connection created');
-  }
+    console.log('✅ ADMIN: Fresh peer connection created and configured');
+  }, [roomId, token]);
 
   const joinRoom = async () => {
     try {
@@ -118,44 +211,17 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         localVideoRef.current.srcObject = stream;
       }
       
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      });
-      
-      peerConnectionRef.current = pc;
-      
-      // Add local stream to peer connection
-      stream.getTracks().forEach(track => {
-        pc.addTrack(track, stream);
-      });
-      
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        console.log('Received remote stream');
-        if (event.streams && event.streams[0] && remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
-      };
+      // Create and setup peer connection
+      setupPeerConnection();
       
       // Handle connection state changes
-      pc.onconnectionstatechange = () => {
-        setConnectionStatus(pc.connectionState);
-      };
-      
-      // Handle ICE candidates
-      pc.onicecandidate = async (event) => {
-        if (event.candidate) {
-          try {
-            await webrtcService.sendIceCandidate(roomId, event.candidate, token);
-          } catch (error) {
-            console.error('Error sending ICE candidate:', error);
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.onconnectionstatechange = () => {
+          if (peerConnectionRef.current) {
+            setConnectionStatus(peerConnectionRef.current.connectionState);
           }
-        }
-      };
+        };
+      }
       
       // Join room
       const joinResult = await webrtcService.joinRoom(roomId, token);
@@ -163,13 +229,9 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       setParticipantCount(joinResult.participants);
       setIsInRoom(true);
       
-      // Start participant count updates
+      // Start managed services
       startParticipantCountUpdates();
-      
-      // Start signaling loop
-      console.log('🚀 ADMIN: About to start signaling loop...');
-      startSignalingLoop(true);
-      console.log('✅ ADMIN: startSignalingLoop() called');
+      startSignalingLoop();
 
       alert(`Joined room: ${roomId}`);
       
@@ -184,11 +246,9 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     console.log('=== ADMIN LEAVE ROOM INITIATED ===');
     try {
       cleanupWebRTCState();
-      
       setParticipantCount(0);
       alert('Left WebRTC room');
       console.log('=== ADMIN LEAVE ROOM COMPLETED ===');
-      
     } catch (error: unknown) {
       const err = error as Error;
       console.error('=== ADMIN LEAVE ROOM ERROR ===', err);
@@ -196,34 +256,41 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     }
   };
 
-  const handleParticipantRejoin = () => {
-    console.log('🔄 ADMIN: Resetting WebRTC for participant rejoin');
+  const handleParticipantRejoin = useCallback(() => {
+    console.log('🔄 ADMIN: Handling participant rejoin with full reset');
+    
+    // Complete cleanup first
     cleanupWebRTCState();
     
-      // Re-initialize everything fresh
-      // Get user media again
-      navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      }).then(stream => {
-        localStreamRef.current = stream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
+    // Re-initialize everything fresh with error handling
+    navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    }).then(stream => {
+      localStreamRef.current = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
 
-        // Create fresh peer connection
-        setupPeerConnection();
-        startParticipantCountUpdates();
-        setIsInRoom(true); // Re-enable room state
-        startSignalingLoop(true); // Start fresh signaling
+      // Create fresh peer connection
+      setupPeerConnection();
+      
+      // Restart managed services
+      startParticipantCountUpdates();
+      setIsInRoom(true);
+      startSignalingLoop();
 
-        console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
-      }).catch(error => {
-        console.error('❌ ADMIN: Error reinitializing for rejoin:', error);
-      });
-  }
+      console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
+    }).catch(error => {
+      console.error('❌ ADMIN: Error reinitializing for rejoin:', error);
+      alert('Failed to reinitialize for rejoin. Please refresh and try again.');
+    });
+  }, [cleanupWebRTCState, setupPeerConnection]);
   
-  const startParticipantCountUpdates = () => {
+  const startParticipantCountUpdates = useCallback(() => {
+    console.log('📊 ADMIN: Starting participant count updates');
+    
+    // Close existing event source if any
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
@@ -247,37 +314,42 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     };
 
     eventSource.addEventListener('message', (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'participant_rejoined') {
-        console.log(`🔄 Participant ${data.participant} rejoined - resetting WebRTC`);
-        handleParticipantRejoin();
-      }
-      
-      if (data.type === 'participant_count') {
-        setParticipantCount(data.count);
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'participant_rejoined') {
+          console.log(`🔄 Participant ${data.participant} rejoined - resetting WebRTC`);
+          handleParticipantRejoin();
+        }
+        
+        if (data.type === 'participant_count') {
+          setParticipantCount(data.count);
+        }
+      } catch (error) {
+        console.error('Error parsing SSE event:', error);
       }
     });
-  };
+  }, [roomId, token, handleParticipantRejoin]);
   
-  const startSignalingLoop = (forceInRoom = isInRoom) => {
-    console.log('🔄 ADMIN: Starting signaling loop...');
-    console.log('🔍 ADMIN: isInRoom =', isInRoom);
+  const startSignalingLoop = useCallback(() => {
+    console.log('🔄 ADMIN: Starting managed signaling loop');
     console.log('🔍 ADMIN: peerConnectionRef.current =', !!peerConnectionRef.current);
-    console.log('🔍 ADMIN: Both exist?', !!(isInRoom && peerConnectionRef.current));
 
-    // Use forceInRoom instead of isInRoom
-    const inRoom = forceInRoom;
+    if (!peerConnectionRef.current) {
+      console.error('❌ ADMIN: Cannot start signaling loop - no peer connection');
+      return;
+    }
 
+    // State for ICE candidate queueing (using closure to avoid stale state)
     let remoteDescriptionSet = false;
     let pendingIceCandidates: RTCIceCandidateInit[] = [];
 
-    // Poll for ICE candidates from client
-    const pollIceCandidates = setInterval(async () => {
+    // Managed ICE candidates polling
+    setManagedInterval('ice-candidates-poll', async () => {
       try {
-        if (!inRoom || !peerConnectionRef.current) {
-          console.log('❌ ADMIN: Stopping ICE polling - not in room or no peer connection');
-          clearInterval(pollIceCandidates);
+        if (!peerConnectionRef.current) {
+          console.log('❌ ADMIN: Stopping ICE polling - no peer connection');
+          clearManagedInterval('ice-candidates-poll');
           return;
         }
         
@@ -287,7 +359,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         if (candidates && candidates.length > 0) {
           console.log(`📥 ADMIN: Received ${candidates.length} ICE candidates from client`);
           for (const candidateData of candidates) {
-            if (remoteDescriptionSet) {
+            if (remoteDescriptionSet && peerConnectionRef.current) {
               console.log('🧊 ADMIN: Adding ICE candidate immediately');
               await peerConnectionRef.current.addIceCandidate(candidateData.candidate);
             } else {
@@ -303,13 +375,12 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       }
     }, 2000);
     
-    // Check for offers
-    const checkOffers = setInterval(async () => {
+    // Managed offers polling
+    setManagedInterval('offers-poll', async () => {
       try {
-        if (!inRoom || !peerConnectionRef.current) {
-          console.log('❌ ADMIN: Stopping offer polling - not in room or no peer connection');
-          clearInterval(checkOffers);
-          clearInterval(pollIceCandidates);
+        if (!peerConnectionRef.current) {
+          console.log('❌ ADMIN: Stopping offer polling - no peer connection');
+          clearManagedInterval('offers-poll');
           return;
         }
         
@@ -317,72 +388,75 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         const { offer } = await webrtcService.getOffer(roomId, token);
         console.log('📋 ADMIN: Offer check result:', offer ? 'OFFER FOUND' : 'no offer yet');
         
-        if (offer && offer.offer) {
+        if (offer && offer.offer && peerConnectionRef.current) {
           console.log('🎯 ADMIN: Processing offer from client!');
-          console.log('📄 ADMIN: Offer details:', offer.offer);
-          clearInterval(checkOffers);
+          
+          // Stop offer polling once we get an offer
+          clearManagedInterval('offers-poll');
           
           console.log('🔧 ADMIN: Setting remote description from client offer...');
           await peerConnectionRef.current.setRemoteDescription(offer.offer);
           console.log('✅ ADMIN: Set remote description successfully');
           
+          // Process queued ICE candidates now that remote description is set
           remoteDescriptionSet = true;
           console.log(`🧊 ADMIN: Processing ${pendingIceCandidates.length} queued ICE candidates`);
           for (const candidate of pendingIceCandidates) {
             try {
-              await peerConnectionRef.current.addIceCandidate(candidate);
-              console.log('🧊 ADMIN: Added queued ICE candidate');
+              if (peerConnectionRef.current) {
+                await peerConnectionRef.current.addIceCandidate(candidate);
+                console.log('🧊 ADMIN: Added queued ICE candidate');
+              }
             } catch (error) {
               console.error('❌ ADMIN: Error adding queued ICE candidate:', error);
             }
           }
-          pendingIceCandidates = []; 
+          pendingIceCandidates = []; // Clear the queue
 
-          console.log('📝 ADMIN: Creating answer...');
-          const answer = await peerConnectionRef.current.createAnswer();
-          console.log('📝 ADMIN: Created answer:', answer);
-          
-          console.log('🔧 ADMIN: Setting local description (answer)...');
-          await peerConnectionRef.current.setLocalDescription(answer);
-          console.log('✅ ADMIN: Set local description successfully');
-          
-          console.log('📤 ADMIN: Sending answer to server...');
-          await webrtcService.sendAnswer(roomId, answer, token);
-          console.log('🎉 ADMIN: Answer sent! WebRTC handshake should be complete');
-          
-          // Log connection states after answering
-          console.log('📊 ADMIN: Connection state:', peerConnectionRef.current.connectionState);
-          console.log('📊 ADMIN: ICE connection state:', peerConnectionRef.current.iceConnectionState);
-          console.log('📊 ADMIN: Signaling state:', peerConnectionRef.current.signalingState);
-          
+          // Create and send answer
+          if (peerConnectionRef.current) {
+            console.log('📝 ADMIN: Creating answer...');
+            const answer = await peerConnectionRef.current.createAnswer();
+            
+            console.log('🔧 ADMIN: Setting local description (answer)...');
+            await peerConnectionRef.current.setLocalDescription(answer);
+            
+            console.log('📤 ADMIN: Sending answer to server...');
+            await webrtcService.sendAnswer(roomId, answer, token);
+            console.log('🎉 ADMIN: Answer sent! WebRTC handshake should be complete');
+            
+            // Log connection states
+            console.log('📊 ADMIN: Connection state:', peerConnectionRef.current.connectionState);
+            console.log('📊 ADMIN: ICE connection state:', peerConnectionRef.current.iceConnectionState);
+            console.log('📊 ADMIN: Signaling state:', peerConnectionRef.current.signalingState);
+          }
         } else {
           console.log('⏳ ADMIN: No offer available yet, continuing to poll...');
         }
       } catch (error: any) {
         console.error('❌ ADMIN: Error in offer signaling loop:', error);
-        console.error('❌ ADMIN: Error details:', error.message);
-        console.error('❌ ADMIN: Error stack:', error.stack);
       }
     }, 2000);
     
-    console.log('✅ ADMIN: Signaling loop intervals started');
-    console.log(`🔄 ADMIN: Checking for offers every 2 seconds for room: ${roomId}`);
-  };
+    console.log('✅ ADMIN: Managed signaling loop started');
+    console.log('🔍 ADMIN: Active intervals:', getActiveIntervals());
+  }, [roomId, token, setManagedInterval, clearManagedInterval, getActiveIntervals]);
   
-  // Cleanup on unmount
+  // Cleanup on unmount with dependency to ensure latest leaveRoom reference
   useEffect(() => {
     return () => {
+      console.log('🔄 ADMIN: Component unmounting, performing cleanup');
       if (isInRoom) {
-        leaveRoom();
+        cleanupWebRTCState();
       }
     };
-  }, []);
+  }, [isInRoom, cleanupWebRTCState]);
   
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
       <div className="mb-6">
         <h3 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-500 pb-2">
-          Telehealth
+          Telehealth (Advanced Interval Management)
         </h3>
       </div>
       
@@ -427,6 +501,9 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
           <div className="space-y-2">
             <div className="font-medium">Status: {connectionStatus}</div>
             <div className="font-medium">Participants: {participantCount}</div>
+            <div className="text-sm text-gray-600">
+              Active Intervals: {getActiveIntervals().join(', ') || 'None'}
+            </div>
           </div>
         </div>
       </div>
