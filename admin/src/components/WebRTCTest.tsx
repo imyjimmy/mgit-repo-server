@@ -13,6 +13,10 @@ function useIntervalManager() {
   const pendingOperationsRef = useRef(0);
   
   const setManagedInterval = useCallback((key: string, callback: () => void, delay: number) => {
+    console.log(`🔍 DEBUG: setManagedInterval called for '${key}' with delay ${delay}ms`);
+    console.log(`🔍 DEBUG: cleanupInProgressRef.current =`, cleanupInProgressRef.current);
+    console.log(`🔍 DEBUG: mountedRef.current =`, mountedRef.current);
+    
     // Clear any existing interval with the same key to prevent overlaps
     if (intervalsRef.current.has(key)) {
       clearInterval(intervalsRef.current.get(key)!);
@@ -21,27 +25,16 @@ function useIntervalManager() {
     
     // Don't create new intervals if cleanup is in progress or component unmounted
     if (cleanupInProgressRef.current || !mountedRef.current) {
+      console.log(`❌ DEBUG: Cannot create interval '${key}' - cleanup in progress or unmounted`);
       return null;
     }
     
-    const safeCallback = () => {
-      // Check mount status before each execution to prevent stale callbacks
-      if (mountedRef.current && !cleanupInProgressRef.current) {
-        try {
-          pendingOperationsRef.current++;
-          callback();
-        } catch (error) {
-          console.error(`Interval callback error for ${key}:`, error);
-        } finally {
-          pendingOperationsRef.current--;
-        }
-      }
-    };
-    
-    const intervalId = setInterval(safeCallback, delay);
+    const intervalId = setInterval(callback, delay);
     intervalsRef.current.set(key, intervalId);
     
-    console.log(`📅 ADMIN: Created managed interval '${key}' with ${delay}ms delay`);
+    console.log(`✅ DEBUG: Created interval '${key}' with ID:`, intervalId);
+    console.log(`🔍 DEBUG: Active intervals after creation:`, Array.from(intervalsRef.current.keys()));
+    
     return intervalId;
   }, []);
   
