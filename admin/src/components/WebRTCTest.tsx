@@ -553,7 +553,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         cleanupWebRTCState();
       }
     };
-  }, [isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress]);
+  }, []); //isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress
   
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
