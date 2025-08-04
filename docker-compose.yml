@@ -24,3 +24,52 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+  easyappointments:
+    image: alextselegidis/easyappointments:latest
+    restart: unless-stopped
+    ports:
+      - "8082:80"  # Using 8082 since 8080 is taken by lightning_lnd_1
+    environment:
+      - BASE_URL=http://localhost:8082  # Adjust for your domain
+      - DEBUG_MODE=FALSE  # Set to TRUE for development
+      - DB_HOST=easyapp_mysql
+      - DB_NAME=easyappointments
+      - DB_USERNAME=easyapp_user
+      - DB_PASSWORD=easyapp_secret_password  # Change this!
+      # Email config (optional - skip if you don't need notifications)
+      # - MAIL_PROTOCOL=smtp
+      # - MAIL_SMTP_DEBUG=0
+      # - MAIL_SMTP_AUTH=1
+      # - MAIL_SMTP_HOST=smtp.gmail.com
+      # - MAIL_SMTP_USER=your-email@gmail.com
+      # - MAIL_SMTP_PASS=your-app-password
+      # - MAIL_SMTP_CRYPTO=tls
+      # - MAIL_SMTP_PORT=587
+      # - MAIL_FROM_ADDRESS=appointments@yourdomain.com
+      # - MAIL_FROM_NAME=Your Business Name
+      # - MAIL_REPLY_TO_ADDRESS=appointments@yourdomain.com
+    volumes:
+      - easyappointments_data:/var/www/html
+    depends_on:
+      - easyapp_mysql
+    networks:
+      - plebemr_network  # Use your existing network name
+
+  # Dedicated MySQL for Easy!Appointments
+  easyapp_mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=easyapp_root_password  # Change this!
+      - MYSQL_DATABASE=easyappointments
+      - MYSQL_USER=easyapp_user
+      - MYSQL_PASSWORD=easyapp_secret_password  # Match the above password
+    volumes:
+      - easyapp_mysql_data:/var/lib/mysql
+    networks:
+      - plebemr_network  # Use your existing network name
+
+# Add to your existing volumes section
+volumes:
+  easyappointments_data:
+  easyapp_mysql_data:
