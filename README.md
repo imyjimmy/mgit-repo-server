@@ -198,6 +198,18 @@ mgit init
 
 5. Play around, there's a 1 to 1 mapping between mgit and git commands
 
+Here's a section you can add to your README.md:
+
+### Repository Storage Location
+
+The `private_repos` directory contains all MGit repositories and is mounted as a Docker volume. On your Umbrel system, the physical location is:
+
+```
+/home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos
+```
+
+This directory is mapped to `/private_repos` inside the Docker container via the volume mount configuration in `docker-compose.yml`. To browse your repositories directly on the host system, navigate to the app-data path above. Any repositories created through the MGit API or manually initialized will be stored in subdirectories within this location. The `REPOS_PATH` environment variable in the container points to the mounted `/private_repos` path, ensuring the MGit server can access and manage your repositories regardless of where they're physically stored on the host.
+
 ### Initial Repository State
 When a new repository is created via the API (POST /api/mgit/repos/create), it starts as a standard Git repository with initial medical history structure. At this point:
 
