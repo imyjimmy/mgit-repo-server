@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { WebRTCTest } from './components/WebRTCTest';
+import { AppointmentsTab } from './components/AppointmentsTab';
 import { authService } from './services/auth';
 import { AuthState } from './types';
 
@@ -219,14 +220,8 @@ const App: React.FC = () => {
       {activeSection === 'webrtc' && authState.token && (
         <WebRTCTest token={authState.token} />
       )}
-      {activeSection === 'appointment' && (
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <h3 className="text-xl font-semibold text-white mb-4">Appointment</h3>
-        <div className="text-gray-400">
-        <p>Appointments</p>
-        <p className="text-sm mt-2">Appointments go here...</p>
-        </div>
-        </div>
+      {activeSection === 'appointment' && authState.token && (
+        <AppointmentsTab token={authState.token} />
       )}
       {activeSection === 'settings' && (
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
