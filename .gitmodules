@@ -3,4 +3,4 @@
 	url = https://github.com/imyjimmy/mgit.git
 [submodule "easyappointments"]
 	path = easyappointments
-	url = https://github.com/alextselegidis/easyappointments.git
+	url = git@github.com:imyjimmy/easyappointments.git
