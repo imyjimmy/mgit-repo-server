@@ -290,6 +290,10 @@ app.get('/api/auth/:type/status', (req, res) => {
   });
 });
 
+const { setupProviderEndpoints } = require('./provider-endpoints');
+setupProviderEndpoints(app, validateAuthToken);
+
+
 // Token validation endpoint
 app.get('/api/auth/validate', validateAuthToken, (req, res) => {
   // If we get here, the token is valid (validateAuthToken middleware passed)
