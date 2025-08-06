@@ -5,6 +5,55 @@ const crypto = require('crypto');
 const loginTokenCache = new Map();
 
 function setupProviderEndpoints(app, validateAuthToken) {
+    app.post('/api/appointments/register-provider', validateAuthToken, async (req, res) => {
+    try {
+      const userPubkey = req.user.pubkey;
+      const { firstName, lastName, email, phone, specialties } = req.body;
+      
+      // Check if user already exists as provider
+      const existingProvider = await checkExistingProvider(userPubkey);
+      if (existingProvider) {
+        return res.json({
+          success: true,
+          message: 'Already registered as provider',
+          providerId: existingProvider.id
+        });
+      }
+
+      // Connect to EasyAppointments database
+      const appointmentsDb = await mysql.createConnection({
+        host: 'mgitreposerver-mgit-repo-server_appointments_mysql_1',
+        user: 'user',
+        password: 'password',
+        database: 'easyappointments'
+      });
+
+      // Create provider user account in EasyAppointments
+      const [result] = await appointmentsDb.execute(
+        `INSERT INTO ea_users (first_name, last_name, email, phone_number, nostr_pubkey, id_roles, create_datetime, update_datetime) 
+        VALUES (?, ?, ?, ?, ?, 2, NOW(), NOW())`,
+        [firstName, lastName, email, phone || '', userPubkey]
+      );
+
+      const providerId = result.insertId;
+
+      await appointmentsDb.end();
+
+      res.json({
+        success: true,
+        message: 'Successfully registered as provider',
+        providerId: providerId,
+        email: email
+      });
+
+    } catch (error) {
+      console.error('Provider registration error:', error);
+      res.status(500).json({
+        error: 'Failed to register as provider',
+        details: error.message
+      });
+    }
+  });
   
   // Generate auto-login URL for EasyAppointments dashboard
   app.post('/api/appointments/dashboard-login', validateAuthToken, async (req, res) => {
@@ -92,8 +141,6 @@ function setupProviderEndpoints(app, validateAuthToken) {
       res.status(500).json({ error: 'Token validation failed' });
     }
   });
-
-  // Add other provider endpoints here (register-provider, services, etc.)
 }
 
 async function checkExistingProvider(nostrPubkey) {

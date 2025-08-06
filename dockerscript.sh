@@ -1,22 +1,34 @@
 #!/bin/bash
-set -e # exit on ANY command failure
+# Removed: set -e # exit on ANY command failure
 # Get command line argument, default to "Y" (preserve) if not provided
 REMOVE_REPOS=${1:-Y}
 
 echo "🛑 Stopping containers..."
-docker stop mgitreposerver-mgit-repo-server_web_1
-docker stop mgitreposerver-mgit-repo-server_tor_server_1  
-docker stop mgitreposerver-mgit-repo-server_app_proxy_1
+docker stop mgitreposerver-mgit-repo-server_web_1 2>/dev/null || echo "Container mgitreposerver-mgit-repo-server_web_1 not running"
+docker stop mgitreposerver-mgit-repo-server_tor_server_1 2>/dev/null || echo "Container mgitreposerver-mgit-repo-server_tor_server_1 not running"
+docker stop mgitreposerver-mgit-repo-server_app_proxy_1 2>/dev/null || echo "Container mgitreposerver-mgit-repo-server_app_proxy_1 not running"
 
 echo "🗑️ Removing old container and image..."
-docker rm mgitreposerver-mgit-repo-server_web_1
-docker rmi imyjimmy/mgit-repo-server:latest
+docker rm mgitreposerver-mgit-repo-server_web_1 2>/dev/null || echo "Container mgitreposerver-mgit-repo-server_web_1 already removed"
+docker rmi imyjimmy/mgit-repo-server:latest 2>/dev/null || echo "Image imyjimmy/mgit-repo-server:latest not found locally"
 
 echo "🔨 Building new image..."
 docker build --no-cache -t imyjimmy/mgit-repo-server:latest .
 
+# Exit if build fails (this is critical)
+if [ $? -ne 0 ]; then
+    echo "❌ Docker build failed! Exiting..."
+    exit 1
+fi
+
 echo "📤 Pushing to Docker Hub..."
 docker push imyjimmy/mgit-repo-server:latest
+
+# Exit if push fails (this is critical)
+if [ $? -ne 0 ]; then
+    echo "❌ Docker push failed! Exiting..."
+    exit 1
+fi
 
 # Check if user wants to remove repositories
 if [[ $REMOVE_REPOS =~ ^[Nn]$ ]]; then
@@ -35,9 +47,16 @@ docker run -d --name mgitreposerver-mgit-repo-server_web_1 \
   -v /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos:/private_repos \
   imyjimmy/mgit-repo-server:latest
 
+# Check if main container started successfully
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to start main container! Exiting..."
+    exit 1
+fi
+
 echo "🏗️ Creating EasyAppointments containers..."
 
-# Create MySQL container
+# Create MySQL container (remove existing first)
+docker rm -f mgitreposerver-mgit-repo-server_appointments_mysql_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_mysql_1 \
   --network umbrel_main_network \
   -v /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/appointments/mysql:/var/lib/mysql \
@@ -51,7 +70,8 @@ docker run -d --name mgitreposerver-mgit-repo-server_appointments_mysql_1 \
 echo "⏳ Waiting for MySQL to initialize..."
 sleep 10
 
-# Create OpenLDAP container
+# Create other containers (remove existing first)
+docker rm -f mgitreposerver-mgit-repo-server_appointments_openldap_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_openldap_1 \
   --network umbrel_main_network \
   --hostname openldap \
@@ -70,15 +90,17 @@ docker run -d --name mgitreposerver-mgit-repo-server_appointments_openldap_1 \
   osixia/openldap:1.5.0
 
 # Create PHP-FPM container
+docker rm -f mgitreposerver-mgit-repo-server_appointments_php_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_php_1 \
   --network umbrel_main_network \
   --add-host host.docker.internal:host-gateway \
   -v /home/imyjimmy/dev/mgit-repo-server/easyappointments:/var/www/html \
   -v /home/imyjimmy/dev/mgit-repo-server/easyappointments/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini \
   --workdir /var/www/html \
-  easyappt-php:latest #php:8.1-fpm #imyjimmy/mgit-repo-server-easyappt-php:latest
+  easyappt-php:latest
 
 # Create Nginx container
+docker rm -f mgitreposerver-mgit-repo-server_appointments_nginx_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_nginx_1 \
   --network umbrel_main_network \
   -v /home/imyjimmy/dev/mgit-repo-server/easyappointments:/var/www/html \
@@ -86,18 +108,21 @@ docker run -d --name mgitreposerver-mgit-repo-server_appointments_nginx_1 \
   --workdir /var/www/html \
   nginx:1.23.3-alpine
 
-# Create other supporting containers
+# Create other supporting containers (using same pattern)
+docker rm -f mgitreposerver-mgit-repo-server_appointments_phpmyadmin_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_phpmyadmin_1 \
   --network umbrel_main_network \
   -e PMA_HOST=mgitreposerver-mgit-repo-server_appointments_mysql_1 \
   -e UPLOAD_LIMIT=102400K \
   phpmyadmin:5.2.1
 
+docker rm -f mgitreposerver-mgit-repo-server_appointments_mailpit_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_mailpit_1 \
   --network umbrel_main_network \
   -v /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/appointments/mailpit:/data \
-  axllent/mailpit:v1.7
+  axllent/mailpit:latest
 
+docker rm -f mgitreposerver-mgit-repo-server_appointments_swagger_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_swagger_1 \
   --network umbrel_main_network \
   --platform linux/amd64 \
@@ -105,6 +130,7 @@ docker run -d --name mgitreposerver-mgit-repo-server_appointments_swagger_1 \
   -e API_URL=openapi.yml \
   swaggerapi/swagger-ui:v5.10.5
 
+docker rm -f mgitreposerver-mgit-repo-server_appointments_baikal_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_baikal_1 \
   --network umbrel_main_network \
   -v /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/appointments/baikal:/var/www/html \
@@ -112,6 +138,7 @@ docker run -d --name mgitreposerver-mgit-repo-server_appointments_baikal_1 \
   -v /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/appointments/baikal/data:/var/www/baikal/Specific \
   ckulka/baikal:0.10.1-apache
 
+docker rm -f mgitreposerver-mgit-repo-server_appointments_phpldapadmin_1 2>/dev/null || true
 docker run -d --name mgitreposerver-mgit-repo-server_appointments_phpldapadmin_1 \
   --network umbrel_main_network \
   --hostname phpldapadmin \
@@ -122,7 +149,7 @@ docker run -d --name mgitreposerver-mgit-repo-server_appointments_phpldapadmin_1
 echo "✅ EasyAppointments containers created!"
 
 echo "▶️ Starting other containers..."
-docker start mgitreposerver-mgit-repo-server_app_proxy_1
-docker start mgitreposerver-mgit-repo-server_tor_server_1
+docker start mgitreposerver-mgit-repo-server_app_proxy_1 2>/dev/null || echo "app_proxy container not found, skipping"
+docker start mgitreposerver-mgit-repo-server_tor_server_1 2>/dev/null || echo "tor_server container not found, skipping"
 
 echo "✅ Deployment complete!"
