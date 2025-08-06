@@ -5,8 +5,28 @@ const mysql = require('mysql2/promise');
 // Cache for one-time login tokens
 const loginTokenCache = new Map();
 
+const getEasyAppointmentsUrl = () => {
+  // Check if we're in development environment
+  if (process.env.NODE_ENV !== 'production') {
+    return 'http://localhost:8080';
+  }
+  
+  // Production URL
+  return 'https://appointments.plebemr.com';
+};
+
+const getMySQLHost = () => {
+  // Check if we're in development environment
+  if (process.env.NODE_ENV !== 'production') {
+    return 'mgit-repo-server_appointments_mysql_1';  // macOS container name
+  }
+  
+  // Production hostname
+  return 'mgitreposerver-mgit-repo-server_appointments_mysql_1';  // Umbrel container name
+};
+
 function setupProviderEndpoints(app, validateAuthToken) {
-    app.post('/api/appointments/register-provider', validateAuthToken, async (req, res) => {
+  app.post('/api/appointments/register-provider', validateAuthToken, async (req, res) => {
     try {
       const userPubkey = req.user.pubkey;
       const { firstName, lastName, email, phone, specialties } = req.body;
@@ -23,7 +43,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
 
       // Connect to EasyAppointments database
       const appointmentsDb = await mysql.createConnection({
-        host: 'mgitreposerver-mgit-repo-server_appointments_mysql_1',
+        host: getMySQLHost(),
         user: 'user',
         password: 'password',
         database: 'easyappointments'
@@ -31,7 +51,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
 
       // Create provider user account in EasyAppointments
       const [result] = await appointmentsDb.execute(
-        `INSERT INTO ea_users (first_name, last_name, email, phone_number, nostr_pubkey, id_roles, create_datetime, update_datetime) 
+        `INSERT INTO users (first_name, last_name, email, phone_number, nostr_pubkey, id_roles, create_datetime, update_datetime) 
         VALUES (?, ?, ?, ?, ?, 2, NOW(), NOW())`,
         [firstName, lastName, email, phone || '', userPubkey]
       );
@@ -79,8 +99,9 @@ function setupProviderEndpoints(app, validateAuthToken) {
         expires: Date.now() + (2 * 60 * 1000)
       });
 
-      // Return auto-login URL
-      const autoLoginUrl = `https://appointments.plebemr.com/providers/nostr_login?token=${loginToken}`;
+
+      const easyAppointmentsUrl = getEasyAppointmentsUrl();
+      const autoLoginUrl = `${easyAppointmentsUrl}/providers/nostr_login?token=${loginToken}`;
       
       res.json({
         success: true,
@@ -110,14 +131,14 @@ function setupProviderEndpoints(app, validateAuthToken) {
       // Get provider's EasyAppointments credentials
       const mysql = require('mysql2/promise');
       const appointmentsDb = await mysql.createConnection({
-        host: 'mgitreposerver-mgit-repo-server_appointments_mysql_1',
+        host: getMySQLHost(),
         user: 'user',
         password: 'password',
         database: 'easyappointments'
       });
       
       const [rows] = await appointmentsDb.execute(
-        'SELECT id, email, first_name, last_name FROM ea_users WHERE nostr_pubkey = ? AND id_roles = 2',
+        'SELECT id, email, first_name, last_name FROM users WHERE nostr_pubkey = ? AND id_roles = 2',
         [tokenData.nostrPubkey]
       );
       
@@ -147,14 +168,14 @@ function setupProviderEndpoints(app, validateAuthToken) {
 async function checkExistingProvider(nostrPubkey) {
   const mysql = require('mysql2/promise');
   const appointmentsDb = await mysql.createConnection({
-    host: 'mgitreposerver-mgit-repo-server_appointments_mysql_1',
+    host: getMySQLHost(),
     user: 'user',
     password: 'password',
     database: 'easyappointments'
   });
   
   const [rows] = await appointmentsDb.execute(
-    'SELECT id FROM ea_users WHERE nostr_pubkey = ? AND id_roles = 2',
+    'SELECT id FROM users WHERE nostr_pubkey = ? AND id_roles = 2',
     [nostrPubkey]
   );
   
