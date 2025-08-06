@@ -1,5 +1,6 @@
 // provider-endpoints.js
 const crypto = require('crypto');
+const mysql = require('mysql2/promise');
 
 // Cache for one-time login tokens
 const loginTokenCache = new Map();
@@ -54,7 +55,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
       });
     }
   });
-  
+
   // Generate auto-login URL for EasyAppointments dashboard
   app.post('/api/appointments/dashboard-login', validateAuthToken, async (req, res) => {
     try {
