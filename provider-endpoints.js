@@ -79,39 +79,35 @@ function setupProviderEndpoints(app, validateAuthToken) {
   // Generate auto-login URL for EasyAppointments dashboard
   app.post('/api/appointments/dashboard-login', validateAuthToken, async (req, res) => {
     try {
-      const userPubkey = req.user.pubkey;
+      const { pubkey } = req.user; // From validated JWT
       
-      // Check if user is a registered provider
-      const provider = await checkExistingProvider(userPubkey);
-      if (!provider) {
-        return res.status(403).json({ 
-          error: 'Not registered as provider',
-          needsRegistration: true
-        });
-      }
-
-      // Generate a one-time login token
-      const loginToken = crypto.randomBytes(32).toString('hex');
+      // Check if provider exists in EasyAppointments
+      // const provider = await checkProviderExists(pubkey);
       
-      // Store in temporary cache (expires in 2 minutes)
-      loginTokenCache.set(loginToken, {
-        nostrPubkey: userPubkey,
-        expires: Date.now() + (2 * 60 * 1000)
-      });
-
-
-      const easyAppointmentsUrl = getEasyAppointmentsUrl();
-      const autoLoginUrl = `${easyAppointmentsUrl}/providers/nostr_login?token=${loginToken}`;
+      // if (!provider) {
+      //   return res.status(403).json({ 
+      //     success: false, 
+      //     error: 'Not registered as provider' 
+      //   });
+      // }
+      
+      // Create a one-time login token for the handoff
+      const loginToken = generateLoginToken(pubkey);
+      
+      // Return the EasyAppointments login URL
+      const loginUrl = `/providers_nostr/nostr_login?token=${loginToken}`;
       
       res.json({
         success: true,
-        loginUrl: autoLoginUrl,
-        message: 'Click to access your provider dashboard'
+        loginUrl: loginUrl
       });
-
+      
     } catch (error) {
       console.error('Dashboard login error:', error);
-      res.status(500).json({ error: 'Failed to generate dashboard login' });
+      res.status(500).json({ 
+        success: false, 
+        error: 'Internal server error' 
+      });
     }
   });
 

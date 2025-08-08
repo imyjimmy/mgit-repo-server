@@ -296,6 +296,7 @@ setupProviderEndpoints(app, validateAuthToken);
 
 // Token validation endpoint
 app.get('/api/auth/validate', validateAuthToken, (req, res) => {
+  console.log('/api/auth/validate called with auth: ',  req.headers.authorization);
   // If we get here, the token is valid (validateAuthToken middleware passed)
   res.json({ 
     status: 'valid',

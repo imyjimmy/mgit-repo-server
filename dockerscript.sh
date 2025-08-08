@@ -7,6 +7,16 @@ set -e # exit on ANY command failure
 # Get command line argument, default to "Y" (preserve) if not provided
 REMOVE_REPOS=${1:-Y}
 
+if [[ -f .env ]]; then
+    echo "📄 Loading environment variables from .env"
+    export $(grep -v '^#' .env | xargs)
+else
+    echo "⚠️  No .env file found, using defaults"
+fi
+
+# Now you can use the environment variables
+PHP_ENV=${PHP_ENV:-production}
+
 # Detect environment and set paths accordingly
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS development environment
@@ -155,7 +165,7 @@ EOF
     if ! docker images | grep -q "easyappt-php.*latest"; then
         echo "🔨 Building easyappt-php image..."
         cd "${EASYAPPOINTMENTS_SOURCE_PATH}"
-        docker build -f docker/php-fpm/Dockerfile -t easyappt-php:latest .
+        docker build -f docker/php-fpm/Dockerfile --no-cache -t easyappt-php:latest .
         cd - > /dev/null
     fi
 
@@ -207,6 +217,7 @@ EOF
     docker run -d --name ${CONTAINER_PREFIX}_appointments_php_1 \
       $NETWORK_FLAG \
       --add-host host.docker.internal:host-gateway \
+      -e PHP_ENV="$PHP_ENV" \
       -v "${EASYAPPOINTMENTS_SOURCE_PATH}:/var/www/html" \
       -v "${EASYAPPOINTMENTS_SOURCE_PATH}/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini" \
       --workdir /var/www/html \

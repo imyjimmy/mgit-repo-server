@@ -5,43 +5,36 @@ interface ApptProps {
   token: string;
 }
 
-interface DashboardLoginResponse {
-  success: boolean;
-  loginUrl?: string;
-  error?: string;
-  message?: string;
-}
+/**
+ * Integrate Physician with EasyAppointments
+ * EasyAppointments containers created!
+
+  🌐 EasyAppointments services available at:
+    - Nginx (main app): http://localhost:8080
+    - PHPMyAdmin: http://localhost:8081
+    - Swagger UI: http://localhost:8082
+    - Baikal CalDAV: http://localhost:8083
+    - phpLDAPadmin: http://localhost:8084
+    - Mailpit: http://localhost:8025
+    - MySQL: localhost:3306
+  ✅ Deployment complete!
+  🌐 MGit server available at: http://localhost:3003 
+
+  Go to main app (8080) and add an admin (physician)
+  go to PHPMyAdmi (8081) and add the hex version of your nostr pubkey to nostr_pubkey field under users
+
+  Then Open Provider Dashboard
+ *
+ */
+
 
 export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
-  const [loading, setLoading] = useState<boolean>(false);
   const [showRegistration, setShowRegistration] = useState<boolean>(false);
 
-  async function handleDashboardClick(e: React.MouseEvent<HTMLButtonElement>): Promise<void> {
+  async function handleDashboardClick(e: React.MouseEvent<HTMLButtonElement>): Promise<void> {    
     e.preventDefault();
-    setLoading(true);
-    
-    try {
-      const response = await fetch('/api/appointments/dashboard-login', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      const result: DashboardLoginResponse = await response.json();
-      
-      if (result.success && result.loginUrl) {
-        window.location.href = result.loginUrl;
-      } else if (response.status === 403) {
-        // Not registered as provider
-        setShowRegistration(true);
-      } else {
-        alert(result.error || 'Failed to access dashboard');
-      }
-    } catch (error) {
-      console.error('Dashboard access failed:', error);
-      alert('Failed to access dashboard');
-    } finally {
-      setLoading(false);
-    }
+    // Direct navigation - no API call needed
+    window.location.href = `http://localhost:8080/index.php/providers_nostr/direct_login?token=${token}`;
   }
 
   async function handleProviderRegistration(formData: ProviderFormData): Promise<void> {
@@ -83,10 +76,9 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
         
         <button 
           onClick={handleDashboardClick}
-          disabled={loading}
           className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
         >
-          {loading ? 'Opening Dashboard...' : 'Open Provider Dashboard'}
+        Open Provider Dashboard
         </button>
         
         <p className="text-gray-400 text-sm mt-2">
