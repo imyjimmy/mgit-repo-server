@@ -5,6 +5,29 @@ interface ApptProps {
   token: string;
 }
 
+/**
+ * Integrate Physician with EasyAppointments
+ * EasyAppointments containers created!
+
+  🌐 EasyAppointments services available at:
+    - Nginx (main app): http://localhost:8080
+    - PHPMyAdmin: http://localhost:8081
+    - Swagger UI: http://localhost:8082
+    - Baikal CalDAV: http://localhost:8083
+    - phpLDAPadmin: http://localhost:8084
+    - Mailpit: http://localhost:8025
+    - MySQL: localhost:3306
+  ✅ Deployment complete!
+  🌐 MGit server available at: http://localhost:3003 
+
+  Go to main app (8080) and add an admin (physician)
+  go to PHPMyAdmi (8081) and add the hex version of your nostr pubkey to nostr_pubkey field under users
+
+  Then Open Provider Dashboard
+ *
+ */
+
+
 export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
   const [showRegistration, setShowRegistration] = useState<boolean>(false);
 
