@@ -5,43 +5,13 @@ interface ApptProps {
   token: string;
 }
 
-interface DashboardLoginResponse {
-  success: boolean;
-  loginUrl?: string;
-  error?: string;
-  message?: string;
-}
-
 export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
-  const [loading, setLoading] = useState<boolean>(false);
   const [showRegistration, setShowRegistration] = useState<boolean>(false);
 
-  async function handleDashboardClick(e: React.MouseEvent<HTMLButtonElement>): Promise<void> {
+  async function handleDashboardClick(e: React.MouseEvent<HTMLButtonElement>): Promise<void> {    
     e.preventDefault();
-    setLoading(true);
-    
-    try {
-      const response = await fetch('/api/appointments/dashboard-login', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      const result: DashboardLoginResponse = await response.json();
-      
-      if (result.success && result.loginUrl) {
-        window.location.href = result.loginUrl;
-      } else if (response.status === 403) {
-        // Not registered as provider
-        setShowRegistration(true);
-      } else {
-        alert(result.error || 'Failed to access dashboard');
-      }
-    } catch (error) {
-      console.error('Dashboard access failed:', error);
-      alert('Failed to access dashboard');
-    } finally {
-      setLoading(false);
-    }
+    // Direct navigation - no API call needed
+    window.location.href = `http://localhost:8080/index.php/providers_nostr/direct_login?token=${token}`;
   }
 
   async function handleProviderRegistration(formData: ProviderFormData): Promise<void> {
@@ -83,10 +53,9 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
         
         <button 
           onClick={handleDashboardClick}
-          disabled={loading}
           className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
         >
-          {loading ? 'Opening Dashboard...' : 'Open Provider Dashboard'}
+        Open Provider Dashboard
         </button>
         
         <p className="text-gray-400 text-sm mt-2">
