@@ -18,6 +18,18 @@ services:
     volumes:
       # Repository storage (contains both git repos and SQLite database)
       - ${APP_DATA_DIR}/repos:/private_repos
+      # Development volume mounts - auto-sync local changes
+      - ./admin:/app/admin              # Admin frontend directory
+      - ./server.js:/app/server.js      # Main server file
+      - ./package.json:/app/package.json
+      - ./.env:/app/.env                # Environment file
+      
+      # Optional: Mount other frequently changed files
+      - ./auth-persistence.js:/app/auth-persistence.js
+      - ./admin-routes.js:/app/admin-routes.js
+      - ./provider-endpoints.js/app/provider-endpoints.js
+      - ./db-config.js:/app/db-config.js
+      - ./utils.js:/app/utils.js
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3003/api/health"]
       interval: 30s
