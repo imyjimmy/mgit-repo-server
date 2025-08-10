@@ -50,6 +50,7 @@ RUN npm ci --only=production
 COPY *.js ./
 COPY public/ ./public/
 COPY admin/ ./admin/
+COPY .env ./
 
 # Build admin React app
 WORKDIR /app/admin
