@@ -27,3 +27,19 @@ declare global {
     };
   }
 }
+
+export interface UserInfo {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  timezone: string;
+  language: string;
+  id_roles: number;
+  nostr_pubkey: string;
+  role?: {
+    id: number;
+    name: string;
+    slug: string;
+  };
+}

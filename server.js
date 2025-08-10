@@ -11,7 +11,6 @@ const { execSync, exec } = require('child_process');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 const authPersistence = require('./auth-persistence');
-const { pool } = require('./db-config');
 
 console.log('=== MGit Server Starting - Build Version 2025-06-08-v2 ===');
 
@@ -1583,63 +1582,6 @@ app.get('/api/user/repositories', validateAuthToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching user repositories:', error);
     res.status(500).json({ error: 'Failed to fetch repositories' });
-  }
-});
-
-/**
- * Database endpoints
- */
-
-app.get('/api/admin/database-test', validateAuthToken, async (req, res) => {
-  try {
-    console.log('Testing database connection...');
-    
-    // Test basic connection
-    const connection = await pool.getConnection();
-    console.log('✅ Database connection successful');
-    
-    // Test query - get users count and sample data
-    const [rows] = await connection.execute('SELECT COUNT(*) as user_count FROM users');
-    const userCount = rows[0].user_count;
-    
-    // Get sample user data (excluding sensitive info)
-    const [sampleUsers] = await connection.execute(`
-      SELECT 
-        id, 
-        first_name, 
-        last_name, 
-        email, 
-        timezone, 
-        language,
-        id_roles,
-        create_datetime
-      FROM users 
-      LIMIT 5
-    `);
-    
-    // Get roles data to understand user types
-    const [roles] = await connection.execute('SELECT id, name, slug FROM roles');
-    
-    connection.release();
-    
-    res.json({
-      status: 'success',
-      message: 'Database connection successful',
-      data: {
-        userCount,
-        sampleUsers,
-        roles,
-        timestamp: new Date().toISOString()
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Database connection failed',
-      error: error.message
-    });
   }
 });
 

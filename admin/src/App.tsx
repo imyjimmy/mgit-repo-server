@@ -3,8 +3,9 @@ import { Header } from './components/Header';
 import { WebRTCTest } from './components/WebRTCTest';
 import { AppointmentsTab } from './components/AppointmentsTab';
 import { DatabaseTest } from './components/DatabaseTest';
+import { RegistrationView } from './components/RegistrationView';
 import { authService } from './services/auth';
-import { AuthState } from './types';
+import { AuthState, UserInfo } from './types';
 
 const App: React.FC = () => {
   const [authState, setAuthState] = useState<AuthState>({
@@ -14,39 +15,81 @@ const App: React.FC = () => {
     profile: null
   });
   
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [needsRegistration, setNeedsRegistration] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSection, setActiveSection] = useState('webrtc');
   
   useEffect(() => {
-    // Check for existing auth in localStorage
-    const token = localStorage.getItem('admin_token');
-    const pubkey = localStorage.getItem('admin_pubkey');
-    const profile = localStorage.getItem('admin_profile');
-    
-    if (token && pubkey) {
+    checkExistingAuth();
+  }, []);
+  
+  const checkExistingAuth = async () => {
+    setLoading(true);
+    try {
+      // Check for existing auth in localStorage
+      const token = localStorage.getItem('admin_token');
+      const pubkey = localStorage.getItem('admin_pubkey');
+      const profile = localStorage.getItem('admin_profile');
+      
+      if (token && pubkey) {
+        // Check if user is registered in database
+        const registrationCheck = await authService.checkUserRegistration(pubkey, token);
+        
+        setAuthState({
+          isAuthenticated: true,
+          token,
+          pubkey,
+          profile: profile ? JSON.parse(profile) : null
+        });
+        
+        if (registrationCheck.isRegistered) {
+          setUserInfo(registrationCheck.user || null);
+          setNeedsRegistration(false);
+        } else {
+          setNeedsRegistration(true);
+        }
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      // Clear invalid auth
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_pubkey');
+      localStorage.removeItem('admin_profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleLogin = async () => {
+    try {
+      const { token, pubkey, metadata } = await authService.login();
+      
+      // Store credentials
+      localStorage.setItem('admin_token', token);
+      localStorage.setItem('admin_pubkey', pubkey);
+      localStorage.setItem('admin_profile', JSON.stringify(metadata));
+      
       setAuthState({
         isAuthenticated: true,
         token,
         pubkey,
-        profile: profile ? JSON.parse(profile) : null
+        profile: metadata
       });
+
+      // Check if user is registered
+      const registrationCheck = await authService.checkUserRegistration(pubkey, token);
+      
+      if (registrationCheck.isRegistered) {
+        setUserInfo(registrationCheck.user || null);
+        setNeedsRegistration(false);
+      } else {
+        setNeedsRegistration(true);
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
     }
-  }, []);
-  
-  const handleLogin = async () => {
-    const { token, pubkey, metadata } = await authService.login();
-    
-    // Store credentials
-    localStorage.setItem('admin_token', token);
-    localStorage.setItem('admin_pubkey', pubkey);
-    localStorage.setItem('admin_profile', JSON.stringify(metadata));
-    
-    setAuthState({
-      isAuthenticated: true,
-      token,
-      pubkey,
-      profile: metadata
-    });
   };
   
   const handleLogout = () => {
@@ -62,6 +105,15 @@ const App: React.FC = () => {
     });
   };
   
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+        <div>{userInfo?.nostr_pubkey}</div>
+      </div>
+    );
+  }
+
   if (!authState.isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -83,6 +135,18 @@ const App: React.FC = () => {
       </div>
       </div>
       </div>
+    );
+  }
+
+  if (needsRegistration) {
+    return (
+      <RegistrationView 
+        pubkey={authState.pubkey || ''} 
+        onRegistrationComplete={() => {
+          setNeedsRegistration(false);
+          checkExistingAuth(); // Recheck after registration
+        }}
+      />
     );
   }
   

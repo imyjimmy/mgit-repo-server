@@ -1,6 +1,7 @@
 // provider-endpoints.js
 const crypto = require('crypto');
 const mysql = require('mysql2/promise');
+const { pool } = require('./db-config');
 
 // Cache for one-time login tokens
 const loginTokenCache = new Map();
@@ -157,6 +158,268 @@ function setupProviderEndpoints(app, validateAuthToken) {
     } catch (error) {
       console.error('Token validation error:', error);
       res.status(500).json({ error: 'Token validation failed' });
+    }
+  });
+  
+  /**
+   * Database endpoints
+   */
+  app.get('/api/admin/database-test', validateAuthToken, async (req, res) => {
+    try {
+      console.log('Testing database connection...');
+      
+      // Test basic connection
+      const connection = await pool.getConnection();
+      console.log('✅ Database connection successful');
+      
+      // Test query - get users count and sample data
+      const [rows] = await connection.execute('SELECT COUNT(*) as user_count FROM users');
+      const userCount = rows[0].user_count;
+      
+      // Get sample user data (excluding sensitive info)
+      const [sampleUsers] = await connection.execute(`
+        SELECT 
+          id, 
+          first_name, 
+          last_name, 
+          email, 
+          timezone, 
+          language,
+          id_roles,
+          create_datetime
+        FROM users 
+        LIMIT 5
+      `);
+      
+      // Get roles data to understand user types
+      const [roles] = await connection.execute('SELECT id, name, slug FROM roles');
+      
+      connection.release();
+      
+      res.json({
+        status: 'success',
+        message: 'Database connection successful',
+        data: {
+          userCount,
+          sampleUsers,
+          roles,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Database connection failed:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Database connection failed',
+        error: error.message
+      });
+    }
+  });
+
+  // User lookup by Nostr pubkey
+  app.get('/api/admin/user-lookup/:pubkey', validateAuthToken, async (req, res) => {
+    try {
+      const { pubkey } = req.params;
+      console.log('Looking up user by pubkey:', pubkey);
+      
+      const connection = await pool.getConnection();
+      
+      // Query for user with matching nostr_pubkey (hex format)
+      const [rows] = await connection.execute(`
+        SELECT 
+          id, 
+          first_name, 
+          last_name, 
+          email, 
+          timezone, 
+          language,
+          id_roles,
+          nostr_pubkey,
+          create_datetime,
+          update_datetime
+        FROM users 
+        WHERE nostr_pubkey = ?
+      `, [pubkey]);
+      
+      connection.release();
+      
+      if (rows.length > 0) {
+        // User found
+        const user = rows[0];
+        
+        // Get role information
+        const roleConnection = await pool.getConnection();
+        const [roleRows] = await roleConnection.execute(`
+          SELECT id, name, slug FROM roles WHERE id = ?
+        `, [user.id_roles]);
+        roleConnection.release();
+        
+        res.json({
+          status: 'success',
+          userFound: true,
+          user: {
+            ...user,
+            role: roleRows[0] || null
+          }
+        });
+      } else {
+        // User not found
+        res.json({
+          status: 'success',
+          userFound: false,
+          message: 'No user found with this Nostr pubkey'
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ User lookup failed:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'User lookup failed',
+        error: error.message
+      });
+    }
+  });
+
+  // User registration endpoint
+  app.post('/api/admin/register-user', validateAuthToken, async (req, res) => {
+    try {
+      const { firstName, lastName, email, phoneNumber } = req.body;
+      const { pubkey } = req.user; // From JWT token
+      
+      console.log('Registering new user:', { firstName, lastName, email, phoneNumber, pubkey });
+      
+      // Validate required fields
+      if (!firstName || !lastName || !email) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'First name, last name, and email are required'
+        });
+      }
+      
+      const connection = await pool.getConnection();
+      
+      // Check if user with this email already exists
+      const [existingUsers] = await connection.execute(
+        'SELECT id, email FROM users WHERE email = ?',
+        [email]
+      );
+      
+      if (existingUsers.length > 0) {
+        connection.release();
+        return res.status(400).json({
+          status: 'error',
+          message: 'A user with this email already exists'
+        });
+      }
+      
+      // Check if user with this pubkey already exists
+      const [existingPubkey] = await connection.execute(
+        'SELECT id, email FROM users WHERE nostr_pubkey = ?',
+        [pubkey]
+      );
+      
+      if (existingPubkey.length > 0) {
+        connection.release();
+        return res.status(400).json({
+          status: 'error',
+          message: 'This Nostr identity is already registered'
+        });
+      }
+      
+      // Get the admin role ID (assuming role ID 5 is admin based on your sample data)
+      // You might want to make this configurable
+      const [roleRows] = await connection.execute(
+        'SELECT id FROM roles WHERE slug = ? OR name = ? LIMIT 1',
+        ['admin', 'Administrator']
+      );
+      
+      const roleId = roleRows.length > 0 ? roleRows[0].id : 5; // Default to 5 if no role found
+      
+      // Insert new user
+      const [result] = await connection.execute(`
+        INSERT INTO users (
+          create_datetime,
+          update_datetime, 
+          first_name,
+          last_name,
+          email,
+          phone_number,
+          timezone,
+          language,
+          nostr_pubkey,
+          id_roles
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        new Date().toISOString().slice(0, 19).replace('T', ' '), // create_datetime
+        new Date().toISOString().slice(0, 19).replace('T', ' '), // update_datetime
+        firstName,
+        lastName,
+        email,
+        phoneNumber || null,
+        'UTC', // Default timezone
+        'english', // Default language
+        pubkey, // nostr_pubkey
+        roleId // id_roles
+      ]);
+      
+      const newUserId = result.insertId;
+      
+      // Get the newly created user with role info
+      const [newUserRows] = await connection.execute(`
+        SELECT 
+          u.id, 
+          u.first_name, 
+          u.last_name, 
+          u.email, 
+          u.phone_number,
+          u.timezone, 
+          u.language,
+          u.id_roles,
+          u.nostr_pubkey,
+          u.create_datetime,
+          r.name as role_name,
+          r.slug as role_slug
+        FROM users u
+        LEFT JOIN roles r ON u.id_roles = r.id
+        WHERE u.id = ?
+      `, [newUserId]);
+      
+      connection.release();
+      
+      const newUser = newUserRows[0];
+      
+      console.log('✅ User registered successfully:', newUser);
+      
+      res.json({
+        status: 'success',
+        message: 'User registered successfully',
+        user: {
+          id: newUser.id,
+          first_name: newUser.first_name,
+          last_name: newUser.last_name,
+          email: newUser.email,
+          phone_number: newUser.phone_number,
+          timezone: newUser.timezone,
+          language: newUser.language,
+          id_roles: newUser.id_roles,
+          nostr_pubkey: newUser.nostr_pubkey,
+          role: {
+            id: newUser.id_roles,
+            name: newUser.role_name,
+            slug: newUser.role_slug
+          }
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ User registration failed:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'User registration failed',
+        error: error.message
+      });
     }
   });
 }

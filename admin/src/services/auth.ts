@@ -1,4 +1,4 @@
-import { NostrProfile } from '../types';
+import { NostrProfile, UserInfo } from '../types';
 
 class AuthService {
   private baseUrl = window.location.origin;
@@ -47,6 +47,33 @@ class AuthService {
     const challenge = await this.challenge();
     const signedEvent = await this.signChallenge(challenge);
     return await this.verify(signedEvent);
+  }
+
+  async checkUserRegistration(pubkey: string, token: string): Promise<{
+    isRegistered: boolean;
+    user?: UserInfo;
+  }> {
+    try {
+      const response = await fetch(`/api/admin/user-lookup/${pubkey}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        return {
+          isRegistered: data.userFound,
+          user: data.user || undefined
+        };
+      } else {
+        throw new Error(data.message || 'User lookup failed');
+      }
+    } catch (error) {
+      console.error('User registration check failed:', error);
+      throw error;
+    }
   }
 }
 

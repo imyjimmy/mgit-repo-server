@@ -21,4 +21,6 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+console.log('pool: ', pool);
+
 module.exports = { pool, dbConfig };
