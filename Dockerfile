@@ -1,5 +1,5 @@
 # Use buildx for multi-platform support
-FROM --platform=$BUILDPLATFORM node:20-bullseye-slim AS base
+FROM --platform=linux/amd64 node:20-bullseye-slim AS base
 
 # Install system dependencies
 RUN apt-get update && \

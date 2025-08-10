@@ -67,7 +67,7 @@ docker rm ${CONTAINER_PREFIX}_web_1 2>/dev/null || echo "Container ${CONTAINER_P
 docker rmi imyjimmy/mgit-repo-server:latest 2>/dev/null || echo "Image imyjimmy/mgit-repo-server:latest not found locally"
 
 echo "🔨 Building new image..."
-docker build --platform linux/arm64 --no-cache -t imyjimmy/mgit-repo-server:latest .
+docker build --platform linux/amd64 --no-cache -t imyjimmy/mgit-repo-server:latest .
 
 # Exit if build fails (this is critical)
 if [ $? -ne 0 ]; then
