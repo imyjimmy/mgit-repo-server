@@ -213,6 +213,7 @@ EOF
       osixia/openldap:1.5.0
 
     # Create PHP-FPM container
+    echo "creating PHP container, php env is: $PHP_ENV"
     docker rm -f ${CONTAINER_PREFIX}_appointments_php_1 2>/dev/null || true
     docker run -d --name ${CONTAINER_PREFIX}_appointments_php_1 \
       $NETWORK_FLAG \

@@ -34,7 +34,7 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
   async function handleDashboardClick(e: React.MouseEvent<HTMLButtonElement>): Promise<void> {    
     e.preventDefault();
     // Direct navigation - no API call needed
-    window.location.href = `http://localhost:8080/index.php/providers_nostr/direct_login?token=${token}`;
+    window.location.href = `https://plebemr.com:8082/index.php/providers_nostr/direct_login?token=${token}`;
   }
 
   async function handleProviderRegistration(formData: ProviderFormData): Promise<void> {
