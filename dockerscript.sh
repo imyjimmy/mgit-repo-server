@@ -26,6 +26,15 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     docker network create plebemr_admin_network 2>/dev/null || true
     NETWORK_FLAG="--network plebemr_admin_network"
 
+    # Detect Mac architecture for platform
+    if [[ $(uname -m) == "arm64" ]]; then
+        PLATFORM="linux/arm64"
+        echo "🔧 Detected Apple Silicon (ARM64)"
+    else
+        PLATFORM="linux/amd64"
+        echo "🔧 Detected Intel Mac (AMD64)"
+    fi
+
     # EasyAppointments paths for macOS
     APPOINTMENTS_DATA_PATH="$(pwd)/../app-data"
     EASYAPPOINTMENTS_SOURCE_PATH="$(pwd)/easyappointments"
@@ -35,6 +44,18 @@ else
     REPOS_PATH="/home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos"
     CONTAINER_PREFIX="mgitreposerver-mgit-repo-server"
     NETWORK_FLAG="--network umbrel_main_network"
+
+    # Detect Linux architecture for platform
+    if [[ $(uname -m) == "aarch64" ]]; then
+        PLATFORM="linux/arm64"
+        echo "🔧 Detected ARM64 Linux"
+    elif [[ $(uname -m) == "x86_64" ]]; then
+        PLATFORM="linux/amd64" 
+        echo "🔧 Detected x86_64 Linux"
+    else
+        PLATFORM="linux/amd64"  # Default fallback
+        echo "🔧 Unknown architecture, defaulting to AMD64"
+    fi
 
     # EasyAppointments paths for Umbrel
     APPOINTMENTS_DATA_PATH="/home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/appointments"
@@ -66,8 +87,8 @@ echo "🗑️ Removing old container and image..."
 docker rm ${CONTAINER_PREFIX}_web_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_web_1 already removed"
 docker rmi imyjimmy/mgit-repo-server:latest 2>/dev/null || echo "Image imyjimmy/mgit-repo-server:latest not found locally"
 
-echo "🔨 Building new image..."
-docker build --platform linux/amd64 --no-cache -t imyjimmy/mgit-repo-server:latest .
+echo "🔨 Building new image on platform $PLATFORM"
+docker build --platform ${PLATFORM} --no-cache -t imyjimmy/mgit-repo-server:latest .
 
 # Exit if build fails (this is critical)
 if [ $? -ne 0 ]; then
