@@ -49,6 +49,30 @@ class AuthService {
     return await this.verify(signedEvent);
   }
 
+  async registerUser(userData: { firstName: string; lastName: string; email: string; phoneNumber?: string; nostr_pubkey: string }, token: string): Promise<any> {
+    try {
+      const response = await fetch('/api/admin/register-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(userData)
+      });
+      
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        return data.user;
+      } else {
+        throw new Error(data.message || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('User registration failed:', error);
+      throw error;
+    }
+  }
+
   async checkUserRegistration(pubkey: string, token: string): Promise<{
     isRegistered: boolean;
     user?: UserInfo;
