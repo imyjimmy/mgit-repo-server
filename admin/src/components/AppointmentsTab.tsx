@@ -6,6 +6,10 @@ interface TimeSlot {
   hour: number;
 }
 
+interface ApptProps {
+  token: string;
+}
+
 // interface CalendarEvent {
 //   id: string;
 //   title: string;
@@ -57,7 +61,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export const AppointmentsTab: React.FC = () => {
+export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [viewType, setViewType] = useState<'Day' | 'Week' | 'Month'>('Week');
   const [nostrUsername] = useState(() => {
@@ -77,8 +81,36 @@ export const AppointmentsTab: React.FC = () => {
     date: null,
     time: null
   });
-  
+  const [workingPlan, setWorkingPlan] = useState<any>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Scroll to 7am on component mount
+    if (scrollContainerRef.current) {
+      const scrollTo = 7 * 72; // 7am in pixels (assuming 60px per hour)
+      scrollContainerRef.current.scrollTop = scrollTo;
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchWorkingPlan = async () => {
+      try {
+        const response = await fetch('/api/admin/working-plan', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+          setWorkingPlan(data.working_plan);
+        }
+      } catch (error) {
+        console.error('Failed to fetch working plan:', error);
+      }
+    };
+    
+    fetchWorkingPlan();
+  }, [token]);
 
   // Generate time slots for 24 hours
   const timeSlots: TimeSlot[] = [];
@@ -145,22 +177,36 @@ export const AppointmentsTab: React.FC = () => {
     setShowAddEventModal(true);
   };
 
-  // Check if a time slot is unavailable (for demo purposes)
+  // Check if a time slot is unavailable check against working plan
   const isUnavailable = (date: Date, hour: number) => {
-    // Demo unavailability for Monday 8am-11am (consecutive block)
-    if (date.getDay() === 1 && hour >= 8 && hour < 11) {
+    if (!workingPlan) return false;
+    
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[date.getDay()];
+    const dayPlan = workingPlan[dayName];
+    
+    if (!dayPlan) return false; // Day is available if no plan defined
+    
+    const currentTime = `${hour.toString().padStart(2, '0')}:00`;
+    const startTime = dayPlan.start;
+    const endTime = dayPlan.end;
+    
+    // Check if outside working hours
+    if (currentTime < startTime || currentTime >= endTime) {
       return true;
     }
+    
+    // Check if during break time
+    if (dayPlan.breaks) {
+      for (const breakTime of dayPlan.breaks) {
+        if (currentTime >= breakTime.start && currentTime < breakTime.end) {
+          return true;
+        }
+      }
+    }
+    
     return false;
   };
-
-  useEffect(() => {
-    // Scroll to 7am on component mount
-    if (scrollContainerRef.current) {
-      const scrollTo = 7 * 72; // 7am in pixels (assuming 60px per hour)
-      scrollContainerRef.current.scrollTop = scrollTo;
-    }
-  }, []);
 
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 h-full flex flex-col">

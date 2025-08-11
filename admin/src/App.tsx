@@ -308,7 +308,7 @@ const App: React.FC = () => {
         <WebRTCTest token={authState.token} />
       )}
       {activeSection === 'appointment' && authState.token && (
-        <AppointmentsTab />
+        <AppointmentsTab token={authState.token} />
       )}
       {activeSection === 'settings' && (
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">

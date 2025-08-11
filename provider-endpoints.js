@@ -716,6 +716,42 @@ function setupProviderEndpoints(app, validateAuthToken) {
       });
     }
   });
+
+  // Get working plan from settings
+  app.get('/api/admin/working-plan', validateAuthToken, async (req, res) => {
+    try {
+      console.log('GET /api/admin/working-plan');
+      const connection = await pool.getConnection();
+      
+      const [rows] = await connection.execute(`
+        SELECT value FROM settings WHERE name = 'company_working_plan'
+      `);
+      
+      connection.release();
+      
+      if (rows.length === 0) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Working plan not found'
+        });
+      }
+      
+      const workingPlan = JSON.parse(rows[0].value);
+      
+      res.json({
+        status: 'success',
+        working_plan: workingPlan
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to fetch working plan:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to fetch working plan',
+        error: error.message
+      });
+    }
+  });
 }
 
 async function checkExistingProvider(nostrPubkey) {
