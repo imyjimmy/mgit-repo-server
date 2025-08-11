@@ -4,6 +4,7 @@ import { ChevronLeftIcon, ChevronRightIcon, CalendarIcon, ArrowPathIcon, Squares
 interface TimeSlot {
   time: string;
   hour: number;
+  minute: number;
 }
 
 interface ApptProps {
@@ -38,7 +39,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose }) => {
             onClick={onClose}
             className="text-gray-300 hover:text-white transition-colors"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-6 h-4" />
           </button>
         </div>
         
@@ -87,7 +88,7 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
   useEffect(() => {
     // Scroll to 7am on component mount
     if (scrollContainerRef.current) {
-      const scrollTo = 7 * 72; // 7am in pixels (assuming 60px per hour)
+      const scrollTo = 7 * 4 * 18; // 7am in pixels (assuming 60px per hour)
       scrollContainerRef.current.scrollTop = scrollTo;
     }
   }, []);
@@ -112,13 +113,21 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
     fetchWorkingPlan();
   }, [token]);
 
-  // Generate time slots for 24 hours
+  // Generate time slots for 24 hours in 15-minute increments
   const timeSlots: TimeSlot[] = [];
   for (let hour = 0; hour < 24; hour++) {
-    timeSlots.push({
-      time: hour === 0 ? '12 am' : hour <= 12 ? `${hour} am` : `${hour - 12} pm`,
-      hour
-    });
+    for (let minute = 0; minute < 60; minute += 15) {
+      const timeString = hour === 0 && minute === 0 ? '12 am' : 
+                        hour < 12 ? `${hour}:${minute.toString().padStart(2, '0')} am` :
+                        hour === 12 ? `12:${minute.toString().padStart(2, '0')} pm` :
+                        `${hour - 12}:${minute.toString().padStart(2, '0')} pm`;
+      
+      timeSlots.push({
+        time: minute === 0 ? (hour === 0 ? '12 am' : hour <= 12 ? `${hour} am` : `${hour - 12} pm`) : '',
+        hour,
+        minute
+      });
+    }
   }
 
   // Get week dates
@@ -178,16 +187,16 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
   };
 
   // Check if a time slot is unavailable check against working plan
-  const isUnavailable = (date: Date, hour: number) => {
+  const isUnavailable = (date: Date, hour: number, minute: number) => {
     if (!workingPlan) return false;
     
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = dayNames[date.getDay()];
     const dayPlan = workingPlan[dayName];
     
-    if (!dayPlan) return false; // Day is available if no plan defined
+    if (!dayPlan) return false;
     
-    const currentTime = `${hour.toString().padStart(2, '0')}:00`;
+    const currentTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     const startTime = dayPlan.start;
     const endTime = dayPlan.end;
     
@@ -312,7 +321,7 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
               {timeSlots.map((slot) => (
                 <div 
                   key={slot.hour}
-                  className="h-16 flex items-start justify-end pr-2 pt-1 text-xs text-gray-400 border-b border-gray-700"
+                  className="h-4 flex items-start justify-end pr-2 pt-1 text-xs text-gray-400 border-b border-r border-gray-700"
                 >
                   {slot.time}
                 </div>
@@ -325,34 +334,34 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
               return (
                 <div key={dayIndex} className={`flex-1 border-r border-gray-700 last:border-r-0 ${isToday ? 'bg-blue-900 bg-opacity-20' : ''}`}>
                   {timeSlots.map((slot) => {
-                    const unavailable = isUnavailable(date, slot.hour);
+                    const unavailable = isUnavailable(date, slot.hour, slot.minute);
                     
                     // Count consecutive unavailable hours before this one
-                    let consecutiveCount = 0;
-                    for (let h = slot.hour - 1; h >= 0; h--) {
-                      if (isUnavailable(date, h)) {
-                        consecutiveCount++;
-                      } else {
-                        break;
-                      }
-                    }
+                    // let consecutiveCount = 0;
+                    // for (let h = slot.hour - 1; h >= 0; h--) {
+                    //   if (isUnavailable(date, h, m)) {
+                    //     consecutiveCount++;
+                    //   } else {
+                    //     break;
+                    //   }
+                    // }
                     
-                    // Offset even consecutive hours to align stripes
-                    const isEvenConsecutive = unavailable && consecutiveCount > 0 && consecutiveCount % 2 === 1;
-                    const stripeOffset = isEvenConsecutive ? '0px' : '0px';
+                    // // Offset even consecutive hours to align stripes
+                    // const isEvenConsecutive = unavailable && consecutiveCount > 0 && consecutiveCount % 2 === 1;
+                    // const stripeOffset = isEvenConsecutive ? '0px' : '0px';
                     
                     return (
                       <div
                         key={`${dayIndex}-${slot.hour}`}
                         onClick={() => !unavailable && handleTimeSlotClick(date, slot.time)}
-                        className={`h-16 border-b border-gray-700 relative ${
+                        className={`h-4 border-b border-gray-700 relative ${
                           unavailable 
                             ? 'bg-gray-600 bg-opacity-50 cursor-not-allowed' 
                             : 'hover:bg-gray-700 cursor-pointer'
                         }`}
                         style={unavailable ? {
                           backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.1) 6px, rgba(255,255,255,0.1) 8px)',
-                          backgroundPosition: `${stripeOffset} 0`
+                          backgroundPosition: `0 0` // ${stripOffset} 0
                         } : {}}
                       />
                     );
