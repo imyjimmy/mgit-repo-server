@@ -1,11 +1,11 @@
-version: "3.7"
+# version: "3.7"
 
 services:
-  app_proxy:
-    environment:
-      BASE_URL: "https://plebemr.com"
-      APP_HOST: mgitreposerver-mgit-repo-server_web_1
-      APP_PORT: 3003
+  # app_proxy:
+  #   environment:
+  #     BASE_URL: "https://plebemr.com"
+  #     APP_HOST: mgitreposerver-mgit-repo-server_web_1
+  #     APP_PORT: 3003
       
   web:
     image: imyjimmy/mgit-repo-server:latest
@@ -27,7 +27,7 @@ services:
       # Optional: Mount other frequently changed files
       - ./auth-persistence.js:/app/auth-persistence.js
       - ./admin-routes.js:/app/admin-routes.js
-      - ./provider-endpoints.js/app/provider-endpoints.js
+      - ./provider-endpoints.js:/app/provider-endpoints.js
       - ./db-config.js:/app/db-config.js
       - ./utils.js:/app/utils.js
     healthcheck:
@@ -36,12 +36,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-  
-  appointments_proxy:
-    environment:
-      BASE_URL: "https://appointments.plebemr.com"
-      APP_HOST: mgitreposerver-mgit-repo-server_appointments_nginx_1
-      APP_PORT: 80
 
   appointments_php:
     build: ./easyappointments/docker/php-fpm

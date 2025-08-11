@@ -332,7 +332,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
       // You might want to make this configurable
       const [roleRows] = await connection.execute(
         'SELECT id FROM roles WHERE slug = ? OR name = ? LIMIT 1',
-        ['admin', 'Administrator']
+        ['admin-provider', 'Admin Provider']
       );
       
       const roleId = roleRows.length > 0 ? roleRows[0].id : 5; // Default to 5 if no role found
@@ -418,6 +418,271 @@ function setupProviderEndpoints(app, validateAuthToken) {
       res.status(500).json({
         status: 'error',
         message: 'User registration failed',
+        error: error.message
+      });
+    }
+  });
+
+  // Service management endpoints
+app.get('/api/admin/services', validateAuthToken, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    // Get all services with category information
+    const [services] = await connection.execute(`
+      SELECT 
+        s.*,
+        sc.name as category_name
+      FROM services s
+      LEFT JOIN service_categories sc ON s.id_service_categories = sc.id
+      ORDER BY s.name
+    `);
+    
+    connection.release();
+    
+    res.json({
+      status: 'success',
+      services: services
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to load services:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to load services',
+      error: error.message
+    });
+  }
+});
+
+// Get service categories
+app.get('/api/admin/service-categories', validateAuthToken, async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    const [categories] = await connection.execute(`
+      SELECT id, name, description
+      FROM service_categories
+      ORDER BY name
+    `);
+    
+    connection.release();
+    
+    res.json({
+      status: 'success',
+      categories: categories
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to load service categories:', error);
+    res.status(500).json({
+      status: 'success', // Don't fail if categories don't exist
+      categories: []
+    });
+  }
+});
+
+  // Create new service
+  app.post('/api/admin/services', validateAuthToken, async (req, res) => {
+    try {
+      const {
+        name,
+        duration,
+        price,
+        currency,
+        description,
+        location,
+        color,
+        availabilities_type,
+        attendants_number,
+        id_service_categories,
+        is_private
+      } = req.body;
+      
+      // Validation
+      if (!name || !duration) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Service name and duration are required'
+        });
+      }
+      
+      const connection = await pool.getConnection();
+      
+      const [result] = await connection.execute(`
+        INSERT INTO services (
+          create_datetime,
+          update_datetime,
+          name,
+          duration,
+          price,
+          currency,
+          description,
+          location,
+          color,
+          availabilities_type,
+          attendants_number,
+          id_service_categories
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        new Date().toISOString().slice(0, 19).replace('T', ' '),
+        new Date().toISOString().slice(0, 19).replace('T', ' '),
+        name,
+        duration,
+        price || 0,
+        currency || 'USD',
+        description || '',
+        location || '',
+        color || '#3fbd5e',
+        availabilities_type || 'flexible',
+        attendants_number || 1,
+        id_service_categories || null
+      ]);
+      
+      connection.release();
+      
+      res.json({
+        status: 'success',
+        message: 'Service created successfully',
+        service_id: result.insertId
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to create service:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to create service',
+        error: error.message
+      });
+    }
+  });
+
+  // Update service
+  app.put('/api/admin/services/:id', validateAuthToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        name,
+        duration,
+        price,
+        currency,
+        description,
+        location,
+        color,
+        availabilities_type,
+        attendants_number,
+        id_service_categories,
+        is_private
+      } = req.body;
+      
+      // Validation
+      if (!name || !duration) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Service name and duration are required'
+        });
+      }
+      
+      const connection = await pool.getConnection();
+      
+      const [result] = await connection.execute(`
+        UPDATE services SET
+          update_datetime = ?,
+          name = ?,
+          duration = ?,
+          price = ?,
+          currency = ?,
+          description = ?,
+          location = ?,
+          color = ?,
+          availabilities_type = ?,
+          attendants_number = ?,
+          id_service_categories = ?
+        WHERE id = ?
+      `, [
+        new Date().toISOString().slice(0, 19).replace('T', ' '),
+        name,
+        duration,
+        price || 0,
+        currency || 'USD',
+        description || '',
+        location || '',
+        color || '#3fbd5e',
+        availabilities_type || 'flexible',
+        attendants_number || 1,
+        id_service_categories || null,
+        id
+      ]);
+      
+      connection.release();
+      
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Service not found'
+        });
+      }
+      
+      res.json({
+        status: 'success',
+        message: 'Service updated successfully'
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to update service:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to update service',
+        error: error.message
+      });
+    }
+  });
+
+  // Delete service
+  app.delete('/api/admin/services/:id', validateAuthToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const connection = await pool.getConnection();
+      
+      // Check if service has any appointments
+      const [appointments] = await connection.execute(
+        'SELECT COUNT(*) as count FROM appointments WHERE id_services = ?',
+        [id]
+      );
+      
+      if (appointments[0].count > 0) {
+        connection.release();
+        return res.status(400).json({
+          status: 'error',
+          message: 'Cannot delete service with existing appointments'
+        });
+      }
+      
+      const [result] = await connection.execute(
+        'DELETE FROM services WHERE id = ?',
+        [id]
+      );
+      
+      connection.release();
+      
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Service not found'
+        });
+      }
+      
+      res.json({
+        status: 'success',
+        message: 'Service deleted successfully'
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to delete service:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to delete service',
         error: error.message
       });
     }

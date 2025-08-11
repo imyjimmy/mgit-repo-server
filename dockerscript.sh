@@ -122,6 +122,7 @@ echo "🚀 Starting new container..."
 docker run -d --name ${CONTAINER_PREFIX}_web_1 \
   $NETWORK_FLAG \
   -v "${REPOS_PATH}:/private_repos" \
+  -v "$(pwd)/admin:/app/admin" \
   -p 3003:3003 \
   imyjimmy/mgit-repo-server:latest
 
@@ -211,7 +212,20 @@ EOF
 
     # Wait for MySQL to be ready
     echo "⏳ Waiting for MySQL to initialize..."
-    sleep 10
+    wait_for_mysql() {
+        for i in {1..60}; do
+            if docker exec ${CONTAINER_PREFIX}_appointments_mysql_1 mysqladmin ping -h"localhost" -u"user" -p"password" --silent 2>/dev/null; then
+                echo "✅ MySQL is ready!"
+                return 0
+            fi
+            echo "Attempt $i/60: MySQL not ready yet, waiting 5 seconds..."
+            sleep 5
+        done
+        echo "❌ MySQL failed to start within 5 minutes"
+        return 1
+    }
+
+    wait_for_mysql
 
     # Create OpenLDAP container
     docker rm -f ${CONTAINER_PREFIX}_appointments_openldap_1 2>/dev/null || true
@@ -244,6 +258,25 @@ EOF
       -v "${EASYAPPOINTMENTS_SOURCE_PATH}/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini" \
       --workdir /var/www/html \
       easyappt-php:latest
+
+    # Wait for PHP container to be ready
+    echo "⏳ Waiting for PHP container to be ready..."
+    sleep 10
+
+    # Run EasyAppointments console installation
+    echo "🔧 Running EasyAppointments console installation..."
+    docker exec ${CONTAINER_PREFIX}_appointments_php_1 bash -c "
+    cd /var/www/html && 
+    php index.php console install
+    "
+
+    if [ $? -eq 0 ]; then
+        echo "✅ EasyAppointments installation completed successfully!"
+    else
+        echo "❌ EasyAppointments installation failed!"
+        echo "📋 Check PHP container logs:"
+        echo "docker logs ${CONTAINER_PREFIX}_appointments_php_1"
+    fi
 
     # Create PHPMyAdmin container
     docker rm -f ${CONTAINER_PREFIX}_appointments_phpmyadmin_1 2>/dev/null || true

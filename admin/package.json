@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:watch": "vite build --watch",
     "clean": "rm -rf dist",
     "preview": "vite preview"
   },
