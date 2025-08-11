@@ -424,63 +424,63 @@ function setupProviderEndpoints(app, validateAuthToken) {
   });
 
   // Service management endpoints
-app.get('/api/admin/services', validateAuthToken, async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    
-    // Get all services with category information
-    const [services] = await connection.execute(`
-      SELECT 
-        s.*,
-        sc.name as category_name
-      FROM services s
-      LEFT JOIN service_categories sc ON s.id_service_categories = sc.id
-      ORDER BY s.name
-    `);
-    
-    connection.release();
-    
-    res.json({
-      status: 'success',
-      services: services
-    });
-    
-  } catch (error) {
-    console.error('❌ Failed to load services:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to load services',
-      error: error.message
-    });
-  }
-});
+  app.get('/api/admin/services', validateAuthToken, async (req, res) => {
+    try {
+      const connection = await pool.getConnection();
+      
+      // Get all services with category information
+      const [services] = await connection.execute(`
+        SELECT 
+          s.*,
+          sc.name as category_name
+        FROM services s
+        LEFT JOIN service_categories sc ON s.id_service_categories = sc.id
+        ORDER BY s.name
+      `);
+      
+      connection.release();
+      
+      res.json({
+        status: 'success',
+        services: services
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to load services:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to load services',
+        error: error.message
+      });
+    }
+  });
 
-// Get service categories
-app.get('/api/admin/service-categories', validateAuthToken, async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    
-    const [categories] = await connection.execute(`
-      SELECT id, name, description
-      FROM service_categories
-      ORDER BY name
-    `);
-    
-    connection.release();
-    
-    res.json({
-      status: 'success',
-      categories: categories
-    });
-    
-  } catch (error) {
-    console.error('❌ Failed to load service categories:', error);
-    res.status(500).json({
-      status: 'success', // Don't fail if categories don't exist
-      categories: []
-    });
-  }
-});
+  // Get service categories
+  app.get('/api/admin/service-categories', validateAuthToken, async (req, res) => {
+    try {
+      const connection = await pool.getConnection();
+      
+      const [categories] = await connection.execute(`
+        SELECT id, name, description
+        FROM service_categories
+        ORDER BY name
+      `);
+      
+      connection.release();
+      
+      res.json({
+        status: 'success',
+        categories: categories
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to load service categories:', error);
+      res.status(500).json({
+        status: 'success', // Don't fail if categories don't exist
+        categories: []
+      });
+    }
+  });
 
   // Create new service
   app.post('/api/admin/services', validateAuthToken, async (req, res) => {
@@ -539,6 +539,35 @@ app.get('/api/admin/service-categories', validateAuthToken, async (req, res) => 
         id_service_categories || null
       ]);
       
+      const serviceId = result.insertId;
+
+      // Get current user ID from users table using nostr_pubkey
+      const [userRows] = await connection.execute(`
+        SELECT id FROM users WHERE nostr_pubkey = ?
+      `, [req.user.pubkey]);
+
+      if (userRows.length === 0) {
+        await connection.rollback();
+        connection.release();
+        return res.status(400).json({
+          status: 'error',
+          message: 'User not found in database'
+        });
+      }
+
+      console.log('POST /api/admin/services got users: ', userRows);
+
+      const currentUserId = userRows[0].id;
+
+      // Insert into services_providers table
+      await connection.execute(`
+        INSERT INTO services_providers (id_users, id_services) 
+        VALUES (?, ?)
+      `, [currentUserId, serviceId]);
+      
+      // Commit transaction
+      await connection.commit();
+
       connection.release();
       
       res.json({

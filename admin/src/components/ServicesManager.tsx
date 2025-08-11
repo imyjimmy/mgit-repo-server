@@ -287,11 +287,11 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, categories, onEdit, 
             </div>
           )}
 
-          {service.location && (
+          {/* {service.location && (
             <div className="mt-2 text-sm text-gray-300">
               <span className="text-gray-400">Location:</span> {service.location}
             </div>
-          )}
+          )} */}
 
           {service.description && (
             <div className="mt-2 text-sm text-gray-300">
@@ -483,42 +483,33 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Attendants Number
-              </label>
-              <input
-                type="number"
-                name="attendants_number"
-                value={formData.attendants_number}
-                onChange={handleInputChange}
-                min="1"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Color
               </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  name="color"
-                  value={formData.color}
-                  onChange={handleInputChange}
-                  className="w-12 h-10 bg-gray-700 border border-gray-600 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  name="color"
-                  value={formData.color}
-                  onChange={handleInputChange}
-                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
+              <div className="flex space-x-3">
+                {[
+                  { value: '#3B82F6', name: 'Blue' },
+                  { value: '#10B981', name: 'Green' },
+                  { value: '#F59E0B', name: 'Amber' },
+                  { value: '#EF4444', name: 'Red' },
+                  { value: '#8B5CF6', name: 'Purple' }
+                ].map((color) => (
+                  <div
+                    key={color.value}
+                    onClick={() => setFormData(prev => ({ ...prev, color: color.value }))}
+                    className={`w-12 h-10 rounded-lg cursor-pointer border-2 transition-all ${
+                      formData.color === color.value 
+                        ? 'border-white shadow-lg scale-105' 
+                        : 'border-gray-600 hover:border-gray-400'
+                    }`}
+                    style={{ backgroundColor: color.value }}
+                    title={color.name}
+                  />
+                ))}
               </div>
             </div>
           </div>
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Location
             </label>
@@ -530,7 +521,7 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
               placeholder="Enter service location"
             />
-          </div>
+          </div> */}
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
