@@ -39,7 +39,7 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose }) => {
             onClick={onClose}
             className="text-gray-300 hover:text-white transition-colors"
           >
-            <XMarkIcon className="w-6 h-4" />
+            <XMarkIcon className="w-6 h-8" />
           </button>
         </div>
         
@@ -117,10 +117,10 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
   const timeSlots: TimeSlot[] = [];
   for (let hour = 0; hour < 24; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
-      const timeString = hour === 0 && minute === 0 ? '12 am' : 
-                        hour < 12 ? `${hour}:${minute.toString().padStart(2, '0')} am` :
-                        hour === 12 ? `12:${minute.toString().padStart(2, '0')} pm` :
-                        `${hour - 12}:${minute.toString().padStart(2, '0')} pm`;
+      // const timeString = hour === 0 && minute === 0 ? '12 am' : 
+      //                   hour < 12 ? `${hour}:${minute.toString().padStart(2, '0')} am` :
+      //                   hour === 12 ? `12:${minute.toString().padStart(2, '0')} pm` :
+      //                   `${hour - 12}:${minute.toString().padStart(2, '0')} pm`;
       
       timeSlots.push({
         time: minute === 0 ? (hour === 0 ? '12 am' : hour <= 12 ? `${hour} am` : `${hour - 12} pm`) : '',
@@ -235,13 +235,13 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
           {/* View Options */}
           <div className="flex items-center space-x-2">
             <button className="p-2 text-gray-400 hover:text-white bg-gray-700 rounded">
-              <CalendarIcon className="w-4 h-4" />
+              <CalendarIcon className="w-4 h-8" />
             </button>
             <button className="p-2 text-gray-400 hover:text-white bg-gray-700 rounded">
-              <ArrowPathIcon className="w-4 h-4" />
+              <ArrowPathIcon className="w-4 h-8" />
             </button>
             <button className="p-2 text-gray-400 hover:text-white bg-gray-700 rounded">
-              <Squares2X2Icon className="w-4 h-4" />
+              <Squares2X2Icon className="w-4 h-8" />
             </button>
           </div>
         </div>
@@ -321,7 +321,7 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
               {timeSlots.map((slot) => (
                 <div 
                   key={slot.hour}
-                  className="h-4 flex items-start justify-end pr-2 pt-1 text-xs text-gray-400 border-b border-r border-gray-700"
+                  className="h-8 flex items-start justify-end pr-2 pt-1 text-xs text-gray-400 border-b border-r border-gray-700"
                 >
                   {slot.time}
                 </div>
@@ -336,33 +336,15 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
                   {timeSlots.map((slot) => {
                     const unavailable = isUnavailable(date, slot.hour, slot.minute);
                     
-                    // Count consecutive unavailable hours before this one
-                    // let consecutiveCount = 0;
-                    // for (let h = slot.hour - 1; h >= 0; h--) {
-                    //   if (isUnavailable(date, h, m)) {
-                    //     consecutiveCount++;
-                    //   } else {
-                    //     break;
-                    //   }
-                    // }
-                    
-                    // // Offset even consecutive hours to align stripes
-                    // const isEvenConsecutive = unavailable && consecutiveCount > 0 && consecutiveCount % 2 === 1;
-                    // const stripeOffset = isEvenConsecutive ? '0px' : '0px';
-                    
                     return (
                       <div
                         key={`${dayIndex}-${slot.hour}`}
                         onClick={() => !unavailable && handleTimeSlotClick(date, slot.time)}
-                        className={`h-4 border-b border-gray-700 relative ${
+                        className={`h-8 border-b border-gray-700 relative ${
                           unavailable 
                             ? 'bg-gray-600 bg-opacity-50 cursor-not-allowed' 
                             : 'hover:bg-gray-700 cursor-pointer'
                         }`}
-                        style={unavailable ? {
-                          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,255,255,0.1) 6px, rgba(255,255,255,0.1) 8px)',
-                          backgroundPosition: `0 0` // ${stripOffset} 0
-                        } : {}}
                       />
                     );
                   })}

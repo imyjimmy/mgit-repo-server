@@ -255,11 +255,11 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, categories, onEdit, 
               style={{ backgroundColor: service.color }}
             ></div>
             <h3 className="text-lg font-semibold text-white">{service.name}</h3>
-            {service.is_private && (
+            {/* {service.is_private && (
               <span className="ml-2 px-2 py-1 bg-gray-600 text-gray-300 text-xs rounded">
                 Hidden from Public
               </span>
-            )}
+            )} */}
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-300">

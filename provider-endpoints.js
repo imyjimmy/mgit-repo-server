@@ -27,6 +27,72 @@ const getMySQLHost = () => {
 };
 
 function setupProviderEndpoints(app, validateAuthToken) {
+    // Get all providers - PUBLIC endpoint
+  app.get('/api/admin/providers', async (req, res) => {
+    try {
+      // Connect to EasyAppointments database
+      const appointmentsDb = await mysql.createConnection({
+        host: getMySQLHost(),
+        user: 'user',
+        password: 'password',
+        database: 'easyappointments'
+      });
+
+      const [providers] = await appointmentsDb.execute(
+        'SELECT id, first_name, last_name, email, id_roles FROM users WHERE id_roles = 5'
+      );
+      
+      const formattedProviders = providers.map(provider => ({
+        id: provider.id.toString(),
+        name: `${provider.first_name} ${provider.last_name}`,
+        email: provider.email,
+        role: provider.id_roles === 1 ? 'admin' : 'provider'
+      }));
+
+      await appointmentsDb.end();
+      res.json(formattedProviders);
+    } catch (error) {
+      console.error('Error fetching providers:', error);
+      res.status(500).json({ error: 'Failed to fetch providers' });
+    }
+  });
+
+  // Get services for a specific provider - PUBLIC endpoint  
+  app.get('/api/admin/providers/:providerId/services', async (req, res) => {
+    console.log('GET /api/admin/providers/:providerId/services');
+    try {
+      const { providerId } = req.params;
+      
+      // Connect to EasyAppointments database
+      const appointmentsDb = await mysql.createConnection({
+        host: getMySQLHost(),
+        user: 'user',
+        password: 'password',
+        database: 'easyappointments'
+      });
+      
+      const [services] = await appointmentsDb.execute(`
+        SELECT s.id, s.name, s.duration, s.price, s.description
+        FROM services s
+        INNER JOIN services_providers sp ON s.id = sp.id_services
+        WHERE sp.id_users = ? AND s.is_private = 0
+      `, [providerId]);
+      
+      const formattedServices = services.map(service => ({
+        id: service.id.toString(),
+        name: service.name,
+        duration: service.duration,
+        price: service.price || '0'
+      }));
+
+      await appointmentsDb.end();
+      res.json(formattedServices);
+    } catch (error) {
+      console.error('Error fetching services for provider:', error);
+      res.status(500).json({ error: 'Failed to fetch services' });
+    }
+  });
+
   app.post('/api/appointments/register-provider', validateAuthToken, async (req, res) => {
     try {
       const userPubkey = req.user.pubkey;

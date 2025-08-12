@@ -1597,6 +1597,11 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return next();
   }
+
+  if (req.path.startsWith('/admin')) {
+    return res.sendFile(path.join(__dirname, 'admin/dist', 'index.html'));
+  }
+  
   // Serve the main index.html for all non-API routes to support client-side routing
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

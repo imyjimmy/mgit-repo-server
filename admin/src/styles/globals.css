@@ -11,6 +11,15 @@
   }
 }
 
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #374151 inset !important; /* bg-gray-700 */
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 @layer components {
   .btn {
     @apply px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-300 ease-in-out cursor-pointer border-none;
