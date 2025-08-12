@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const { pool } = require('./db-config');
+const utils = require('./utils');
 
 // Cache for one-time login tokens
 const loginTokenCache = new Map();
@@ -38,6 +39,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
         database: 'easyappointments'
       });
 
+      // role = 5 is admin-provider
       const [providers] = await appointmentsDb.execute(
         'SELECT id, first_name, last_name, email, id_roles FROM users WHERE id_roles = 5'
       );
@@ -90,6 +92,96 @@ function setupProviderEndpoints(app, validateAuthToken) {
     } catch (error) {
       console.error('Error fetching services for provider:', error);
       res.status(500).json({ error: 'Failed to fetch services' });
+    }
+  });
+
+  // Get available time slots for a provider on a specific date - PUBLIC endpoint
+  app.get('/api/providers/:providerId/availability', async (req, res) => {
+    console.log('GET /api/providers/:providerId/availability');
+    
+    let connection;
+    try {
+      const { providerId } = req.params;
+      const { serviceId, date } = req.query;
+      
+      if (!serviceId || !date) {
+        return res.status(400).json({ 
+          error: 'Missing required parameters: serviceId, date' 
+        });
+      }
+
+      connection = await pool.getConnection();
+
+      // Get basic provider data
+      const [providers] = await connection.execute(`
+        SELECT id, first_name, last_name, timezone
+        FROM users 
+        WHERE id = ?
+      `, [providerId]);
+
+      if (providers.length === 0) {
+        return res.status(404).json({ error: 'Provider not found' });
+      }
+
+      const provider = providers[0];
+
+      // Get company working plan from settings
+      const [workingPlanRows] = await connection.execute(`
+        SELECT value FROM settings WHERE name = 'company_working_plan'
+      `);
+
+      // Get service data
+      const [services] = await connection.execute(`
+        SELECT id, name, duration, availabilities_type, attendants_number
+        FROM services 
+        WHERE id = ?
+      `, [serviceId]);
+
+      if (services.length === 0) {
+        return res.status(404).json({ error: 'Service not found' });
+      }
+
+      const service = services[0];
+
+      // Get existing appointments for this date and provider
+      const [appointments] = await connection.execute(`
+        SELECT start_datetime, end_datetime, is_unavailability
+        FROM appointments 
+        WHERE id_users_provider = ? 
+        AND DATE(start_datetime) <= ? 
+        AND DATE(end_datetime) >= ?
+      `, [providerId, date, date]);
+
+      // Build provider object with working plan
+      const workingPlan = workingPlanRows.length > 0 ? workingPlanRows[0].value : null;
+      const providerWithPlan = {
+        ...provider,
+        settings: {
+          working_plan: workingPlan,
+          working_plan_exceptions: '{}' // No exceptions for now
+        }
+      };
+
+      console.log('🔍 Working plan:', workingPlan);
+
+      // Calculate available hours
+      const availableHours = utils.calculateAvailableHours(date, service, providerWithPlan, appointments);
+
+      res.json({
+        date,
+        providerId,
+        serviceId,
+        providerName: `${provider.first_name} ${provider.last_name}`,
+        serviceName: service.name,
+        serviceDuration: service.duration,
+        availableHours
+      });
+
+    } catch (error) {
+      console.error('Error fetching provider availability:', error);
+      res.status(500).json({ error: 'Failed to fetch availability' });
+    } finally {
+      if (connection) connection.release();
     }
   });
 
@@ -192,20 +284,15 @@ function setupProviderEndpoints(app, validateAuthToken) {
       loginTokenCache.delete(token);
 
       // Get provider's EasyAppointments credentials
-      const mysql = require('mysql2/promise');
-      const appointmentsDb = await mysql.createConnection({
-        host: getMySQLHost(),
-        user: 'user',
-        password: 'password',
-        database: 'easyappointments'
-      });
+      // const mysql = require('mysql2/promise');
+      const connection = await pool.getConnection();
       
-      const [rows] = await appointmentsDb.execute(
+      const [rows] = await connection.execute(
         'SELECT id, email, first_name, last_name FROM users WHERE nostr_pubkey = ? AND id_roles = 2',
         [tokenData.nostrPubkey]
       );
       
-      await appointmentsDb.end();
+      connection.release();
       
       if (rows.length === 0) {
         return res.status(404).json({ error: 'Provider not found' });
@@ -227,9 +314,6 @@ function setupProviderEndpoints(app, validateAuthToken) {
     }
   });
   
-  /**
-   * Database endpoints
-   */
   app.get('/api/admin/database-test', validateAuthToken, async (req, res) => {
     try {
       console.log('Testing database connection...');

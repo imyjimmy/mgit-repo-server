@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { Step1ProviderService } from './Step1ProviderService';
-// import { Step2Availability } from './Step2Availability';
+import { Step2Availability } from './Step2Availability';
 // import { Step3PatientInfo } from './Step3PatientInfo';
 // import { Step4Confirmation } from './Step4Confirmation';
 
@@ -12,10 +12,10 @@ export interface BookingData {
   patient: {
     firstName: string;
     lastName: string;
-    email: string;
-    phone: string;
+    email?: string;
+    phone?: string;
     nostrPubkey: string;
-    notes: string;
+    notes?: string;
   } | null;
 }
 
@@ -34,11 +34,11 @@ export function BookingWorkflow() {
     }
   };
 
-  // const prevStep = () => {
-  //   if (currentStep > 1) {
-  //     setCurrentStep(currentStep - 1);
-  //   }
-  // };
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
 
   const updateBookingData = (updates: Partial<BookingData>) => {
     setBookingData(prev => ({ ...prev, ...updates }));
@@ -48,7 +48,7 @@ export function BookingWorkflow() {
     <div className="py-6">
       <ProgressBar currentStep={currentStep} />
       
-      <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+      <div className="w-3/5 mx-auto bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         {currentStep === 1 && (
           <Step1ProviderService
             data={bookingData}
@@ -57,7 +57,7 @@ export function BookingWorkflow() {
           />
         )}
         
-        {/* {currentStep === 2 && (
+       {currentStep === 2 && (
           <Step2Availability
             data={bookingData}
             onNext={nextStep}
@@ -66,6 +66,7 @@ export function BookingWorkflow() {
           />
         )}
         
+        {/* 
         {currentStep === 3 && (
           <Step3PatientInfo
             data={bookingData}

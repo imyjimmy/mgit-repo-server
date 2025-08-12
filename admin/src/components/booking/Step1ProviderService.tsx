@@ -147,7 +147,7 @@ export function Step1ProviderService({ data, onNext, onUpdate }: Step1Props) {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-5/6">
       <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">Select Provider & Service</h2>
       
       <div className="space-y-6">
