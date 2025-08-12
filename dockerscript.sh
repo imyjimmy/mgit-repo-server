@@ -118,7 +118,7 @@ fi
 echo "📥 Pulling fresh image from Docker Hub..."
 docker pull imyjimmy/mgit-repo-server:latest
 
-echo "🚀 Starting new container..."
+echo "🚀 Starting new container with hot reloading..."
 docker run -d --name ${CONTAINER_PREFIX}_web_1 \
   $NETWORK_FLAG \
   -v "${REPOS_PATH}:/private_repos" \
@@ -128,8 +128,13 @@ docker run -d --name ${CONTAINER_PREFIX}_web_1 \
   -v "$(pwd)/admin-routes.js:/app/admin-routes.js" \
   -v "$(pwd)/auth-persistence.js:/app/auth-persistence.js" \
   -v "$(pwd)/utils.js:/app/utils.js" \
+  -v "$(pwd)/package.json:/app/package.json" \
+  -v "$(pwd)/.env:/app/.env" \
+  -e NODE_ENV=development \
   -p 3003:3003 \
-  imyjimmy/mgit-repo-server:latest
+  --restart unless-stopped \
+  imyjimmy/mgit-repo-server:latest \
+  sh -c "npm install nodemon --save-dev 2>/dev/null; npx nodemon server.js"
 
 # Exit if container start fails
 if [ $? -ne 0 ]; then
