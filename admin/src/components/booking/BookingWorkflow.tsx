@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { Step1ProviderService } from './Step1ProviderService';
 import { Step2Availability } from './Step2Availability';
-// import { Step3PatientInfo } from './Step3PatientInfo';
+import { Step3PatientInfo } from './Step3PatientInfo';
 // import { Step4Confirmation } from './Step4Confirmation';
 
 export interface BookingData {
@@ -66,7 +66,6 @@ export function BookingWorkflow() {
           />
         )}
         
-        {/* 
         {currentStep === 3 && (
           <Step3PatientInfo
             data={bookingData}
@@ -75,7 +74,8 @@ export function BookingWorkflow() {
             onUpdate={updateBookingData}
           />
         )}
-        
+
+        {/* 
         {currentStep === 4 && (
           <Step4Confirmation
             data={bookingData}
