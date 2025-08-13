@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { Step1ProviderService } from './Step1ProviderService';
 import { Step2Availability } from './Step2Availability';
 import { Step3PatientInfo } from './Step3PatientInfo';
-// import { Step4Confirmation } from './Step4Confirmation';
+import { Step4Confirmation } from './Step4Confirmation';
 
 export interface BookingData {
   provider: { id: string; name: string; email?: string } | null;
@@ -14,7 +14,7 @@ export interface BookingData {
     lastName: string;
     email?: string;
     phone?: string;
-    nostrPubkey: string;
+    nostrPubkey?: string;
     notes?: string;
   } | null;
 }
@@ -74,15 +74,14 @@ export function BookingWorkflow() {
             onUpdate={updateBookingData}
           />
         )}
-
-        {/* 
+         
         {currentStep === 4 && (
           <Step4Confirmation
             data={bookingData}
             onPrev={prevStep}
             onUpdate={updateBookingData}
           />
-        )} */}
+        )}
       </div>
     </div>
   );

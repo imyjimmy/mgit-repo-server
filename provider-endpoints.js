@@ -41,14 +41,14 @@ function setupProviderEndpoints(app, validateAuthToken) {
 
       // role = 5 is admin-provider
       const [providers] = await appointmentsDb.execute(
-        'SELECT id, first_name, last_name, email, id_roles FROM users WHERE id_roles = 5'
+        'SELECT id, first_name, last_name, email, id_roles FROM users WHERE id_roles in (2,5)'
       );
       
       const formattedProviders = providers.map(provider => ({
         id: provider.id.toString(),
         name: `${provider.first_name} ${provider.last_name}`,
         email: provider.email,
-        role: provider.id_roles === 1 ? 'admin' : 'provider'
+        role: provider.id_roles === 2 ? 'provider' : 'admin-provider'
       }));
 
       await appointmentsDb.end();
@@ -185,55 +185,190 @@ function setupProviderEndpoints(app, validateAuthToken) {
     }
   });
 
-  app.post('/api/appointments/register-provider', validateAuthToken, async (req, res) => {
+  // Add this inside setupProviderEndpoints function
+  app.post('/api/appointments/verify-booking', async (req, res) => {
+    const { bookingData, signedEvent } = req.body;
+  
     try {
-      const userPubkey = req.user.pubkey;
-      const { firstName, lastName, email, phone, specialties } = req.body;
+      console.log('=== BOOKING VERIFICATION DEBUG ===');
+      console.log('Received bookingData:', JSON.stringify(bookingData, null, 2));
+      console.log('Received signedEvent:', JSON.stringify(signedEvent, null, 2));
       
-      // Check if user already exists as provider
-      const existingProvider = await checkExistingProvider(userPubkey);
-      if (existingProvider) {
-        return res.json({
-          success: true,
-          message: 'Already registered as provider',
-          providerId: existingProvider.id
+      // Import necessary Nostr verification functions
+      const { validateEvent, verifyEvent } = require('nostr-tools/pure');
+      
+      // 1. Verify the Nostr event signature
+      if (!validateEvent(signedEvent) || !verifyEvent(signedEvent)) {
+        console.log('❌ Signature validation failed');
+        return res.status(400).json({ 
+          status: 'error', 
+          reason: 'Invalid signature' 
         });
       }
+      console.log('✅ Signature validation passed');
 
-      // Connect to EasyAppointments database
-      const appointmentsDb = await mysql.createConnection({
-        host: getMySQLHost(),
-        user: 'user',
-        password: 'password',
-        database: 'easyappointments'
-      });
+      // 2. Verify the signed content matches the booking data
+      const expectedContent = JSON.stringify(bookingData);
+      console.log('Expected content:', expectedContent);
+      console.log('Signed content:', signedEvent.content);
+      console.log('Contents match:', expectedContent === signedEvent.content);
+      
+      if (signedEvent.content !== expectedContent) {
+        console.log('❌ Content mismatch detected');
+        return res.status(400).json({ 
+          status: 'error', 
+          reason: 'Signed content does not match booking data' 
+        });
+      }
+      console.log('✅ Content verification passed');
+      console.log('signedEvent pubkey bech32: ', utils.hexToBech32(signedEvent.pubkey));
 
-      // Create provider user account in EasyAppointments
-      const [result] = await appointmentsDb.execute(
-        `INSERT INTO users (first_name, last_name, email, phone_number, nostr_pubkey, id_roles, create_datetime, update_datetime) 
-        VALUES (?, ?, ?, ?, ?, 2, NOW(), NOW())`,
-        [firstName, lastName, email, phone || '', userPubkey]
-      );
+      // 3. Create appointment using connection pool
+      const connection = await pool.getConnection();
+      
+      try {
+        await connection.beginTransaction();
 
-      const providerId = result.insertId;
+        // First, check if customer exists or create one
+        let customerId;
+        const [existingCustomers] = await connection.execute(
+          'SELECT u.id FROM users u JOIN roles r ON u.id_roles = r.id WHERE u.notes = ? AND r.slug = "customer"',
+          [signedEvent.pubkey]
+        );
 
-      await appointmentsDb.end();
+        if (existingCustomers.length > 0) {
+          customerId = existingCustomers[0].id;
+        } else {
+          // Create new customer user
+          const [customerRole] = await connection.execute(
+            'SELECT id FROM roles WHERE slug = "customer"'
+          );
+          
+          if (customerRole.length === 0) {
+            throw new Error('Customer role not found');
+          }
 
-      res.json({
-        success: true,
-        message: 'Successfully registered as provider',
-        providerId: providerId,
-        email: email
-      });
+          const [customerResult] = await connection.execute(
+            `INSERT INTO users (id_roles, first_name, last_name, email, phone_number, notes, create_datetime, update_datetime) 
+            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            [
+              customerRole[0].id,
+              bookingData.patientInfo.firstName,
+              bookingData.patientInfo.lastName,
+              bookingData.patientInfo.email || null,
+              bookingData.patientInfo.phone || null,
+              signedEvent.pubkey // Store pubkey in notes field
+            ]
+          );
+          
+          customerId = customerResult.insertId;
+        }
 
+        // Get service duration for end_datetime calculation
+        const [serviceResult] = await connection.execute(
+          'SELECT duration FROM services WHERE id = ?',
+          [bookingData.serviceId]
+        );
+        
+        if (serviceResult.length === 0) {
+          throw new Error('Service not found');
+        }
+
+        const durationMinutes = serviceResult[0].duration;
+        const startTime = new Date(bookingData.startTime);
+        const endTime = new Date(startTime.getTime() + (durationMinutes * 60000));
+
+        // Create appointment
+        const [appointmentResult] = await connection.execute(
+          `INSERT INTO appointments (
+            id_users_provider, id_users_customer, id_services, 
+            start_datetime, end_datetime, notes, 
+            book_datetime, create_datetime, update_datetime, hash
+          ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW(), ?)`,
+          [
+            bookingData.providerId,
+            customerId,
+            bookingData.serviceId,
+            startTime.toISOString().slice(0, 19).replace('T', ' '),
+            endTime.toISOString().slice(0, 19).replace('T', ' '),
+            bookingData.patientInfo.notes || null,
+            Math.random().toString(36).substring(7) // Simple hash
+          ]
+        );
+
+        await connection.commit();
+
+        res.json({ 
+          status: 'OK',
+          appointmentId: appointmentResult.insertId,
+          message: 'Appointment created successfully'
+        });
+        
+      } catch (dbError) {
+        await connection.rollback();
+        throw dbError;
+      } finally {
+        connection.release();
+      }
+      
     } catch (error) {
-      console.error('Provider registration error:', error);
-      res.status(500).json({
-        error: 'Failed to register as provider',
-        details: error.message
+      console.error('Booking verification error:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        reason: error.message || 'Verification failed' 
       });
     }
   });
+
+  // app.post('/api/appointments/register-provider', validateAuthToken, async (req, res) => {
+  //   try {
+  //     const userPubkey = req.user.pubkey;
+  //     const { firstName, lastName, email, phone, specialties } = req.body;
+      
+  //     // Check if user already exists as provider
+  //     const existingProvider = await checkExistingProvider(userPubkey);
+  //     if (existingProvider) {
+  //       return res.json({
+  //         success: true,
+  //         message: 'Already registered as provider',
+  //         providerId: existingProvider.id
+  //       });
+  //     }
+
+  //     // Connect to EasyAppointments database
+  //     const appointmentsDb = await mysql.createConnection({
+  //       host: getMySQLHost(),
+  //       user: 'user',
+  //       password: 'password',
+  //       database: 'easyappointments'
+  //     });
+
+  //     // Create provider user account in EasyAppointments
+  //     const [result] = await appointmentsDb.execute(
+  //       `INSERT INTO users (first_name, last_name, email, phone_number, nostr_pubkey, id_roles, create_datetime, update_datetime) 
+  //       VALUES (?, ?, ?, ?, ?, 2, NOW(), NOW())`,
+  //       [firstName, lastName, email, phone || '', userPubkey]
+  //     );
+
+  //     const providerId = result.insertId;
+
+  //     await appointmentsDb.end();
+
+  //     res.json({
+  //       success: true,
+  //       message: 'Successfully registered as provider',
+  //       providerId: providerId,
+  //       email: email
+  //     });
+
+  //   } catch (error) {
+  //     console.error('Provider registration error:', error);
+  //     res.status(500).json({
+  //       error: 'Failed to register as provider',
+  //       details: error.message
+  //     });
+  //   }
+  // });
 
   // Generate auto-login URL for EasyAppointments dashboard
   app.post('/api/appointments/dashboard-login', validateAuthToken, async (req, res) => {

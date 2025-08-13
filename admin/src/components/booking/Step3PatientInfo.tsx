@@ -8,12 +8,11 @@ interface Step3Props {
   onUpdate: (updates: Partial<BookingData>) => void;
 }
 
-export function Step3PatientInfo({ data, onNext, onPrev, onUpdate }: Step3Props) {
+const Step3PatientInfo: React.FC<Step3Props> = ({ data, onNext, onPrev, onUpdate }) => {
   const [firstName, setFirstName] = useState(data.patient?.firstName || '');
   const [lastName, setLastName] = useState(data.patient?.lastName || '');
   const [email, setEmail] = useState(data.patient?.email || '');
   const [phone, setPhone] = useState(data.patient?.phone || '');
-  const [nostrPubkey, setNostrPubkey] = useState(data.patient?.nostrPubkey || '');
   const [notes, setNotes] = useState(data.patient?.notes || '');
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -25,12 +24,11 @@ export function Step3PatientInfo({ data, onNext, onPrev, onUpdate }: Step3Props)
       lastName,
       email: email || undefined,
       phone: phone || undefined,
-      nostrPubkey,
       notes: notes || undefined,
     };
 
     onUpdate({ patient: patientData });
-  }, [firstName, lastName, email, phone, nostrPubkey, notes, onUpdate]);
+  }, [firstName, lastName, email, phone, notes]);
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -41,12 +39,6 @@ export function Step3PatientInfo({ data, onNext, onPrev, onUpdate }: Step3Props)
 
     if (!lastName.trim()) {
       newErrors.lastName = 'Last name is required';
-    }
-
-    if (!nostrPubkey.trim()) {
-      newErrors.nostrPubkey = 'Nostr public key is required';
-    } else if (!nostrPubkey.startsWith('npub1') || nostrPubkey.length !== 63) {
-      newErrors.nostrPubkey = 'Please enter a valid Nostr public key (npub1...)';
     }
 
     if (email && email.trim() && !isValidEmail(email)) {
@@ -71,7 +63,7 @@ export function Step3PatientInfo({ data, onNext, onPrev, onUpdate }: Step3Props)
     return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
   };
 
-  const canContinue = firstName.trim() && lastName.trim() && nostrPubkey.trim() && Object.keys(errors).length === 0;
+  const canContinue = firstName.trim() && lastName.trim() && Object.keys(errors).length === 0;
 
   const handleNext = () => {
     if (validateForm() && canContinue) {
@@ -116,7 +108,7 @@ export function Step3PatientInfo({ data, onNext, onPrev, onUpdate }: Step3Props)
               id="firstName"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className={`mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white ${
+              className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 ${
                 errors.firstName ? 'border-red-500' : ''
               }`}
               placeholder="Enter your first name"
@@ -136,7 +128,7 @@ export function Step3PatientInfo({ data, onNext, onPrev, onUpdate }: Step3Props)
               id="lastName"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className={`mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white ${
+              className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 ${
                 errors.lastName ? 'border-red-500' : ''
               }`}
               placeholder="Enter your last name"
@@ -145,29 +137,6 @@ export function Step3PatientInfo({ data, onNext, onPrev, onUpdate }: Step3Props)
               <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
             )}
           </div>
-        </div>
-
-        {/* Nostr Public Key */}
-        <div>
-          <label htmlFor="nostrPubkey" className="block text-sm font-medium text-gray-900 dark:text-white">
-            Nostr Public Key <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            id="nostrPubkey"
-            value={nostrPubkey}
-            onChange={(e) => setNostrPubkey(e.target.value)}
-            className={`mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white ${
-              errors.nostrPubkey ? 'border-red-500' : ''
-            }`}
-            placeholder="npub1..."
-          />
-          {errors.nostrPubkey && (
-            <p className="mt-1 text-sm text-red-500">{errors.nostrPubkey}</p>
-          )}
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Your Nostr public key for authentication and medical record access
-          </p>
         </div>
 
         {/* Optional Fields */}
@@ -258,3 +227,5 @@ export function Step3PatientInfo({ data, onNext, onPrev, onUpdate }: Step3Props)
     </div>
   );
 }
+
+export { Step3PatientInfo }
