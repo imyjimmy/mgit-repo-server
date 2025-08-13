@@ -53,7 +53,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
           <h3 className="text-red-800 font-semibold">Incomplete Booking Data</h3>
           <p className="text-red-700">Please complete all previous steps before confirming your appointment.</p>
           <button 
-            onClick={onBack}
+            onClick={onPrev}
             className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >
             Go Back
@@ -287,7 +287,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
           onClick={onPrev}
           className="rounded-md bg-gray-300 dark:bg-gray-600 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm hover:bg-gray-400 dark:hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-500"
         >
-          Back: Select Time
+          {isSubmitting ? ('Creating Appointment...'):('Back: Select Time')}
         </button>
         
         <button

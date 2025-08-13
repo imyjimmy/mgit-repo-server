@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { Step1ProviderService } from './Step1ProviderService';
 import { Step2Availability } from './Step2Availability';
