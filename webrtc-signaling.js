@@ -2,6 +2,7 @@
 const express = require('express');
 const { generateRoomId } = require('./webrtc-room-generator');
 const sessionManager = require('./webrtc-session-management');
+const { pool } = require('./db-config');
 
 const BASE_URL = process.env.BASE_URL || 'https://plebemr.com';
 
@@ -37,33 +38,52 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     });
   });
   
-  app.post('/api/webrtc/rooms/:roomId/join', authenticateJWT, (req, res) => {
+  app.post('/api/webrtc/rooms/:roomId/join', authenticateJWT, async (req, res) => {
     const { roomId } = req.params;
     const { pubkey } = req.user;
     
+    let connection;
+
     console.log(`=== JOIN ROOM REQUEST ===`);
     console.log(`Room ID: ${roomId}`);
     console.log(`User pubkey: ${pubkey}`);
     console.log(`Timestamp: ${new Date().toISOString()}`);
     
-    const joinResult = sessionManager.handleParticipantJoin(roomId, pubkey);
+    connection = await pool.getConnection();
+
+    const [rows] = connection.execute(`
+    SELECT a.*, u.nostr_pubkey 
+    FROM appointments a 
+    JOIN users u ON (u.id = a.doctor_id OR u.id = a.patient_id)
+    WHERE a.location = ? AND u.id = ?
+    `, [roomId, authenticatedUserId]);
+
+    let joinResult; 
     
-    console.log(`Join result:`, joinResult);
-    console.log(`Is rejoin: ${joinResult.isRejoin}`);
-    
-    if (joinResult.shouldNotifyOthers) {
-      broadcastRejoinEvent(roomId, joinResult.rejoinedParticipant);
+    if (rows.length === 0) {
+      connection.release();
+      console.error('Error, not permitted to join room: ', roomId, pubkey);
+      res.status(403).json({ error: 'Not authorized for this room' });
+    } else {
+      joinResult = sessionManager.handleParticipantJoin(roomId, pubkey);
+      console.log(`Join result:`, joinResult);
+      console.log(`Is rejoin: ${joinResult.isRejoin}`);
+      
+      if (joinResult.shouldNotifyOthers) {
+        broadcastRejoinEvent(roomId, joinResult.rejoinedParticipant);
+      }
+      
+      broadcastParticipantCount(roomId);
+      connection.release();
+
+      res.json({ 
+        status: joinResult.isRejoin ? 'rejoined' : 'joined',
+        participants: joinResult.participantCount,
+        isRejoin: joinResult.isRejoin,
+        roomInfo: joinResult.roomInfo
+      });
     }
-    
-    broadcastParticipantCount(roomId);
-    
-    res.json({ 
-      status: joinResult.isRejoin ? 'rejoined' : 'joined',
-      participants: joinResult.participantCount,
-      isRejoin: joinResult.isRejoin,
-      roomInfo: joinResult.roomInfo
-    });
-    
+  
     console.log(`=== JOIN ROOM REQUEST COMPLETED ===`);
   });
 
