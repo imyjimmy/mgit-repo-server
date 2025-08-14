@@ -122,7 +122,7 @@ echo "📥 Pulling fresh image from Docker Hub..."
 docker pull imyjimmy/mgit-repo-server:latest
 
 echo "🚀 Starting new container with hot reloading...NODE_ENV: $NODE_ENV"
-if [ "$NODE_ENV" = 'development']; then
+if [ "$NODE_ENV" = 'development' ]; then
     docker run -d --name ${CONTAINER_PREFIX}_web_1 \
     $NETWORK_FLAG \
     -v "${REPOS_PATH}:/private_repos" \
