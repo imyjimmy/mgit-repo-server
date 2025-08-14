@@ -185,7 +185,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
     }
   });
 
-  // Add this inside setupProviderEndpoints function
+  // creates an appointment
   app.post('/api/appointments/verify-booking', async (req, res) => {
     const { bookingData, signedEvent } = req.body;
   
@@ -249,7 +249,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
           }
 
           const [customerResult] = await connection.execute(
-            `INSERT INTO users (id_roles, first_name, last_name, email, phone_number, notes, create_datetime, update_datetime) 
+            `INSERT INTO users (id_roles, first_name, last_name, email, phone_number, nostr_pubkey, create_datetime, update_datetime) 
             VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
             [
               customerRole[0].id,
@@ -257,7 +257,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
               bookingData.patientInfo.lastName,
               bookingData.patientInfo.email || null,
               bookingData.patientInfo.phone || null,
-              signedEvent.pubkey // Store pubkey in notes field
+              signedEvent.pubkey
             ]
           );
           

@@ -16,6 +16,7 @@ fi
 
 # Now you can use the environment variables
 PHP_ENV=${PHP_ENV:-production}
+NODE_ENV=${NODE_ENV:-production}
 
 # Detect environment and set paths accordingly
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -25,7 +26,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     CONTAINER_PREFIX="mgit-repo-server"
     docker network create plebemr_admin_network 2>/dev/null || true
     NETWORK_FLAG="--network plebemr_admin_network"
-
+    HAS_PROXY_TOR=false
+    
     # Detect Mac architecture for platform
     if [[ $(uname -m) == "arm64" ]]; then
         PLATFORM="linux/arm64"
@@ -44,6 +46,7 @@ else
     REPOS_PATH="/home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos"
     CONTAINER_PREFIX="mgitreposerver-mgit-repo-server"
     NETWORK_FLAG="--network umbrel_main_network"
+    HAS_PROXY_TOR=true
 
     # Detect Linux architecture for platform
     if [[ $(uname -m) == "aarch64" ]]; then
@@ -118,23 +121,54 @@ fi
 echo "📥 Pulling fresh image from Docker Hub..."
 docker pull imyjimmy/mgit-repo-server:latest
 
-echo "🚀 Starting new container with hot reloading..."
-docker run -d --name ${CONTAINER_PREFIX}_web_1 \
-  $NETWORK_FLAG \
-  -v "${REPOS_PATH}:/private_repos" \
-  -v "$(pwd)/admin:/app/admin" \
-  -v "$(pwd)/server.js:/app/server.js" \
-  -v "$(pwd)/provider-endpoints.js:/app/provider-endpoints.js" \
-  -v "$(pwd)/admin-routes.js:/app/admin-routes.js" \
-  -v "$(pwd)/auth-persistence.js:/app/auth-persistence.js" \
-  -v "$(pwd)/utils.js:/app/utils.js" \
-  -v "$(pwd)/package.json:/app/package.json" \
-  -v "$(pwd)/.env:/app/.env" \
-  -e NODE_ENV=development \
-  -p 3003:3003 \
-  --restart unless-stopped \
-  imyjimmy/mgit-repo-server:latest \
-  sh -c "npm install nodemon --save-dev 2>/dev/null; npx nodemon server.js"
+echo "🚀 Starting new container with hot reloading...NODE_ENV: $NODE_ENV"
+if [ "$NODE_ENV" = 'development']; then
+    docker run -d --name ${CONTAINER_PREFIX}_web_1 \
+    $NETWORK_FLAG \
+    -v "${REPOS_PATH}:/private_repos" \
+    -v "$(pwd)/admin:/app/admin" \
+    -v "$(pwd)/server.js:/app/server.js" \
+    -v "$(pwd)/provider-endpoints.js:/app/provider-endpoints.js" \
+    -v "$(pwd)/admin-routes.js:/app/admin-routes.js" \
+    -v "$(pwd)/auth-persistence.js:/app/auth-persistence.js" \
+    -v "$(pwd)/utils.js:/app/utils.js" \
+    -v "$(pwd)/package.json:/app/package.json" \
+    -v "$(pwd)/.env:/app/.env" \
+    -e "NODE_ENV=${NODE_ENV}" \
+    -p 3003:3003 \
+    --restart unless-stopped \
+    imyjimmy/mgit-repo-server:latest \
+    sh -c "npm install nodemon --save-dev 2>/dev/null; npx nodemon server.js"
+else
+    docker run -d --name ${CONTAINER_PREFIX}_web_1 \
+    $NETWORK_FLAG \
+    -v "${REPOS_PATH}:/private_repos" \
+    -v "$(pwd)/admin:/app/admin" \
+    -v "$(pwd)/server.js:/app/server.js" \
+    -v "$(pwd)/provider-endpoints.js:/app/provider-endpoints.js" \
+    -v "$(pwd)/admin-routes.js:/app/admin-routes.js" \
+    -v "$(pwd)/auth-persistence.js:/app/auth-persistence.js" \
+    -v "$(pwd)/utils.js:/app/utils.js" \
+    -v "$(pwd)/package.json:/app/package.json" \
+    -v "$(pwd)/.env:/app/.env" \
+    -e "NODE_ENV=${NODE_ENV}" \
+    -p 3003:3003 \
+    --restart unless-stopped \
+    imyjimmy/mgit-repo-server:latest \
+
+fi
+
+if [ "$HAS_PROXY_TOR" = true ]; then
+    echo "▶️ Starting other containers..."
+    docker start ${CONTAINER_PREFIX}_app_proxy_1 2>/dev/null || echo "Proxy container not found"
+    docker start ${CONTAINER_PREFIX}_tor_server_1 2>/dev/null || echo "Tor container not found"
+    
+    if [ $? -ne 0 ]; then
+        echo "⚠️  Some containers failed to start - this is normal if they don't exist yet"
+    fi
+else
+    echo "📝 Skipping Tor/Proxy startup (standalone environment)"
+fi
 
 # Exit if container start fails
 if [ $? -ne 0 ]; then
