@@ -121,7 +121,7 @@ fi
 echo "📥 Pulling fresh image from Docker Hub..."
 docker pull imyjimmy/mgit-repo-server:latest
 
-echo "🚀 Starting new container with hot reloading...NODE_ENV: $NODE_ENV"
+echo "🚀 Starting new web_1 container, NODE_ENV: $NODE_ENV"
 if [ "$NODE_ENV" = 'development' ]; then
     docker run -d --name ${CONTAINER_PREFIX}_web_1 \
     $NETWORK_FLAG \
@@ -143,7 +143,6 @@ else
     docker run -d --name ${CONTAINER_PREFIX}_web_1 \
     $NETWORK_FLAG \
     -v "${REPOS_PATH}:/private_repos" \
-    -v "$(pwd)/admin:/app/admin" \
     -v "$(pwd)/server.js:/app/server.js" \
     -v "$(pwd)/provider-endpoints.js:/app/provider-endpoints.js" \
     -v "$(pwd)/admin-routes.js:/app/admin-routes.js" \
@@ -155,7 +154,7 @@ else
     -p 3003:3003 \
     --restart unless-stopped \
     imyjimmy/mgit-repo-server:latest \
-
+    # sh -c "cd admin && bun install && bun run build && cd .. && node server.js"
 fi
 
 if [ "$HAS_PROXY_TOR" = true ]; then
@@ -271,26 +270,6 @@ EOF
 
     wait_for_mysql
 
-    # Create OpenLDAP container
-    docker rm -f ${CONTAINER_PREFIX}_appointments_openldap_1 2>/dev/null || true
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_openldap_1 \
-      $NETWORK_FLAG \
-      --hostname openldap \
-      -v "${APPOINTMENTS_DATA_PATH}/openldap/certificates:/container/service/slapd/assets/certs" \
-      -v "${APPOINTMENTS_DATA_PATH}/openldap/slapd/database:/var/lib/ldap" \
-      -v "${APPOINTMENTS_DATA_PATH}/openldap/slapd/config:/etc/ldap/slapd.d" \
-      -e LDAP_ORGANISATION=example \
-      -e LDAP_DOMAIN=example.org \
-      -e LDAP_ADMIN_USERNAME=admin \
-      -e LDAP_ADMIN_PASSWORD=admin \
-      -e LDAP_CONFIG_PASSWORD=config_pass \
-      -e LDAP_BASE_DN=dc=example,dc=org \
-      -e LDAP_READONLY_USER=true \
-      -e LDAP_READONLY_USER_USERNAME=user \
-      -e LDAP_READONLY_USER_PASSWORD=password \
-      $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 389:389 -p 636:636"; fi) \
-      osixia/openldap:1.5.0
-
     # Create PHP-FPM container
     echo "creating PHP container, php env is: $PHP_ENV"
     docker rm -f ${CONTAINER_PREFIX}_appointments_php_1 2>/dev/null || true
@@ -334,14 +313,6 @@ EOF
     echo "⏳ Waiting for PHP container to be ready..."
     sleep 5
 
-    # Create Mailpit container
-    docker rm -f ${CONTAINER_PREFIX}_appointments_mailpit_1 2>/dev/null || true
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_mailpit_1 \
-      $NETWORK_FLAG \
-      -v "${APPOINTMENTS_DATA_PATH}/mailpit:/data" \
-      $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8025:8025 -p 1025:1025"; fi) \
-      axllent/mailpit:latest
-
     # Create Swagger container
     docker rm -f ${CONTAINER_PREFIX}_appointments_swagger_1 2>/dev/null || true
     docker run -d --name ${CONTAINER_PREFIX}_appointments_swagger_1 \
@@ -351,26 +322,6 @@ EOF
       -e API_URL=openapi.yml \
       $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8082:8080"; fi) \
       swaggerapi/swagger-ui:v5.10.5
-
-    # Create Baikal container
-    docker rm -f ${CONTAINER_PREFIX}_appointments_baikal_1 2>/dev/null || true
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_baikal_1 \
-      $NETWORK_FLAG \
-      -v "${APPOINTMENTS_DATA_PATH}/baikal:/var/www/html" \
-      -v "${APPOINTMENTS_DATA_PATH}/baikal/config:/var/www/baikal/config" \
-      -v "${APPOINTMENTS_DATA_PATH}/baikal/data:/var/www/baikal/Specific" \
-      $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8083:80"; fi) \
-      ckulka/baikal:0.10.1-apache
-
-    # Create phpLDAPadmin container
-    docker rm -f ${CONTAINER_PREFIX}_appointments_phpldapadmin_1 2>/dev/null || true
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_phpldapadmin_1 \
-      $NETWORK_FLAG \
-      --hostname phpldapadmin \
-      -e PHPLDAPADMIN_LDAP_HOSTS=${CONTAINER_PREFIX}_appointments_openldap_1 \
-      -e PHPLDAPADMIN_HTTPS=false \
-      $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8084:80"; fi) \
-      osixia/phpldapadmin:0.9.0
 
     # Create Nginx container
     docker rm -f ${CONTAINER_PREFIX}_appointments_nginx_1 2>/dev/null || true
@@ -394,9 +345,7 @@ EOF
         echo "   - Nginx (main app): http://localhost:8080"
         echo "   - PHPMyAdmin: http://localhost:8081"
         echo "   - Swagger UI: http://localhost:8082"
-        echo "   - Baikal CalDAV: http://localhost:8083"
         echo "   - phpLDAPadmin: http://localhost:8084"
-        echo "   - Mailpit: http://localhost:8025"
         echo "   - MySQL: localhost:3306"
     fi
 }
