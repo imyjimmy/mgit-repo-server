@@ -296,52 +296,75 @@ function calculateAvailableHours(date, service, provider, appointments) {
   }
 }
 
-// Simplified availability generation with past time filtering and buffer
-function generateSimpleAvailableHours(date, service) {
-  const dayOfWeek = new Date(date).getDay(); // 0 = Sunday, 1 = Monday, etc.
-  
-  // Skip weekends for now
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
-    return [];
-  }
-
-  const slots = [];
-  const duration = parseInt(service.duration);
-  const interval = 30; // 30 minute intervals
-  const bufferMinutes = 15; // Require 15 min advance booking
-
-  // Check if the selected date is today
-  const selectedDate = new Date(date);
-  const today = new Date();
-
-  const centralTime = new Date(today.toLocaleString("en-US", {timeZone: "America/Chicago"}));
-  const isToday = selectedDate.toDateString() === centralTime.toDateString();
-
-  // Get current time in minutes + buffer for comparison (if it's today)
-  const nowMinutes = isToday ? (today.getHours() * 60 + today.getMinutes() + bufferMinutes) : 0;
-
-  // Generate slots from 9:00 to 17:00
-  for (let hour = 9; hour < 17; hour++) {
-    for (let minute = 0; minute < 60; minute += interval) {
-      const slotMinutes = hour * 60 + minute;
-      
-      // Skip past times + buffer if it's today
-      if (isToday && slotMinutes <= nowMinutes) {
-        continue;
-      }
-
-      // Make sure there's enough time for the service before end of day
-      const endOfDay = 17 * 60; // 5 PM
-      
-      if (slotMinutes + duration <= endOfDay) {
-        const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        slots.push(timeStr);
-      }
+// check an appointment time against current time
+function timeCheck(appointmentDateTime, doctorTimezone = 'central') {
+  try {
+    console.log('🕐 Time check debug:');
+    console.log('  Appointment datetime:', appointmentDateTime);
+    console.log('  Doctor timezone:', doctorTimezone);
+    
+    // Get current time in doctor's timezone (following your existing pattern)
+    const today = new Date();
+    const utcTime = today.getTime();
+    
+    // Determine timezone offset (expanding your existing pattern)
+    let timezoneOffset;
+    switch(doctorTimezone.toLowerCase()) {
+      case 'central':
+      case 'america/chicago':
+        timezoneOffset = -5 * 60 * 60 * 1000; // CDT is UTC-5
+        break;
+      case 'eastern':
+      case 'america/new_york':
+        timezoneOffset = -4 * 60 * 60 * 1000; // EDT is UTC-4
+        break;
+      case 'pacific':
+      case 'america/los_angeles':
+        timezoneOffset = -7 * 60 * 60 * 1000; // PDT is UTC-7
+        break;
+      case 'utc':
+      default:
+        timezoneOffset = 0; // UTC
     }
+    
+    const doctorTime = new Date(utcTime + timezoneOffset);
+    
+    // Parse appointment datetime
+    const appointmentTime = new Date(appointmentDateTime);
+    
+    // Calculate 15 minutes before appointment in doctor's timezone
+    const appointmentTimeInDoctorTz = new Date(appointmentTime.getTime() + timezoneOffset);
+    const earliestJoinTime = new Date(appointmentTimeInDoctorTz.getTime() - (15 * 60 * 1000)); // 15 minutes before
+    
+    console.log('  UTC time:', today.toISOString());
+    console.log('  Doctor time:', doctorTime.toISOString());
+    console.log('  Appointment time:', appointmentTime.toISOString());
+    console.log('  Earliest join time:', earliestJoinTime.toISOString());
+    
+    const canJoin = doctorTime >= earliestJoinTime;
+    console.log('  Can join?', canJoin);
+    
+    // Optional: Check if appointment is too far in the past (2 hours after)
+    const maxTimeAfter = new Date(appointmentTimeInDoctorTz.getTime() + (2 * 60 * 60 * 1000));
+    const tooLate = doctorTime > maxTimeAfter;
+    
+    if (tooLate) {
+      console.log('  Appointment has ended');
+      return false;
+    }
+    
+    return canJoin;
+    
+  } catch (error) {
+    console.error('Error in timeCheck:', error);
+    return false; // Fail closed - don't allow access on error
   }
-
-  return slots;
 }
+
+module.exports = {
+  // ... your existing exports
+  timeCheck
+};
 
 // Helper functions
 function timeToMinutes(timeStr) {
@@ -362,5 +385,5 @@ module.exports = {
   validateJWTToken,
   processAuthToken,
   calculateAvailableHours,
-  generateSimpleAvailableHours
+  timeCheck
 }

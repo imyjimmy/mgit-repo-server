@@ -28,6 +28,100 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     });
   });
 
+  app.get('/api/patients/appointments', authenticateJWT, async (req, res) => {
+    const { pubkey } = req.user; // Only pubkey is guaranteed to be in JWT
+    
+    let connection;
+
+    console.log(`=== GET PATIENT APPOINTMENTS ===`);
+    console.log(`User pubkey: ${pubkey}`);
+    console.log(`Timestamp: ${new Date().toISOString()}`);
+    
+    try {
+      connection = await pool.getConnection();
+
+      // First, get the user ID from the pubkey
+      const [userRows] = await connection.execute(`
+        SELECT id FROM users WHERE nostr_pubkey = ?
+      `, [pubkey]);
+
+      if (userRows.length === 0) {
+        connection.release();
+        return res.status(403).json({
+          success: false,
+          error: 'User not found for this pubkey'
+        });
+      }
+
+      const userId = userRows[0].id;
+
+      // Now get appointments for this user ID
+      const [rows] = await connection.execute(`
+        SELECT 
+          a.id,
+          a.appointment_datetime,
+          a.location,
+          a.notes,
+          a.status,
+          a.created_at,
+          doctor.first_name as doctor_first_name,
+          doctor.last_name as doctor_last_name,
+          doctor.email as doctor_email,
+          doctor.timezone as doctor_timezone,
+          s.name as service_name,
+          s.duration as service_duration
+        FROM appointments a 
+        JOIN users doctor ON doctor.id = a.doctor_id
+        LEFT JOIN services s ON s.id = a.service_id
+        WHERE a.patient_id = ?
+        ORDER BY a.appointment_datetime ASC
+      `, [userId]);
+
+      console.log(`Found ${rows.length} appointments for patient ${userId} (pubkey: ${pubkey})`);
+
+      // Format the response...
+      const appointments = rows.map(appointment => ({
+        id: appointment.id,
+        datetime: appointment.appointment_datetime,
+        location: appointment.location,
+        notes: appointment.notes,
+        status: appointment.status,
+        createdAt: appointment.created_at,
+        doctor: {
+          firstName: appointment.doctor_first_name,
+          lastName: appointment.doctor_last_name,
+          email: appointment.doctor_email,
+          timezone: appointment.doctor_timezone
+        },
+        service: appointment.service_name ? {
+          name: appointment.service_name,
+          duration: appointment.service_duration
+        } : null,
+        isVideoAppointment: appointment.location === 'bright-dolphin-swimming',
+        videoRoomUrl: appointment.location === 'bright-dolphin-swimming' 
+          ? `${process.env.CLIENT_BASE_URL}/video-call?room=${appointment.location}`
+          : null
+      }));
+
+      connection.release();
+
+      res.json({
+        success: true,
+        appointments: appointments,
+        count: appointments.length
+      });
+
+    } catch (error) {
+      if (connection) connection.release();
+      
+      console.error('Error fetching patient appointments:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch appointments'
+      });
+    }
+  });
+
   // Endpoint for testing room generation
   app.get('/api/appointments/generate-room', authenticateJWT, (req, res) => {
     const roomId = generateRoomId();
@@ -59,11 +153,20 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     `, [roomId, authenticatedUserId]);
 
     let joinResult; 
+
+    const isAuthorized = rows.length > 0;
+    const timeCheck = isAuthorized ? utils.timeCheck(rows[0].appointment_datetime, rows[0].effective_timezone) : false;
     
-    if (rows.length === 0) {
-      connection.release();
-      console.error('Error, not permitted to join room: ', roomId, pubkey);
-      res.status(403).json({ error: 'Not authorized for this room' });
+    if (!isAuthorized || !timeCheck) {
+      cconnection.release();
+    
+      if (!isAuthorized) {
+        console.error('Error, not authorized for room: ', roomId, pubkey);
+        res.status(403).json({ error: 'Not authorized for this room' });
+      } else {
+        console.error('Error, too early to join room: ', roomId, pubkey);
+        res.status(403).json({ error: 'Room not available yet. You can join 15 minutes before the appointment.' });
+      }
     } else {
       joinResult = sessionManager.handleParticipantJoin(roomId, pubkey);
       console.log(`Join result:`, joinResult);

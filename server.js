@@ -210,6 +210,7 @@ const validateAuthToken = (req, res, next) => {
     });
   }
   
+  console.log('validateAuthToken, result.decoded: ', result.decoded);
   req.user = result.decoded;
   next();
 };

@@ -18,6 +18,11 @@ interface AvailabilityData {
   availableHours: string[];
 }
 
+const formatDate = (dateString: string) => {
+  const [year, month, day] = dateString.split('-');
+  return `${month}/${day}/${year}`;
+};
+
 export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props) {
   const [selectedDate, setSelectedDate] = useState<string>(
     data.appointment?.date || new Date().toISOString().split('T')[0]
@@ -92,7 +97,7 @@ export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props
       onNext();
     }
   };
-
+  
   if (!data.provider || !data.service) {
     return (
       <div className="text-center py-8">
@@ -148,7 +153,7 @@ export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props
             <div className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               <p>Provider: {data.provider.name}</p>
               <p>Service: {data.service.name} ({data.service.duration} min)</p>
-              <p>Date: {new Date(selectedDate).toLocaleDateString()}</p>
+              <p>Date: {formatDate(selectedDate)}</p>
             </div>
           )}
 
