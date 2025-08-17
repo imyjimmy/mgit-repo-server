@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const mysql = require('mysql2/promise');
 const { pool } = require('./db-config');
 const utils = require('./utils');
+const { generateRoomId } = require('./webrtc-room-generator');
 
 // Cache for one-time login tokens
 const loginTokenCache = new Map();
@@ -232,13 +233,15 @@ function setupProviderEndpoints(app, validateAuthToken) {
         // First, check if customer exists or create one
         let customerId;
         const [existingCustomers] = await connection.execute(
-          'SELECT u.id FROM users u JOIN roles r ON u.id_roles = r.id WHERE u.notes = ? AND r.slug = "customer"',
+          'SELECT u.id FROM users u JOIN roles r ON u.id_roles = r.id WHERE u.nostr_pubkey = ? AND r.slug = "customer"',
           [signedEvent.pubkey]
         );
 
         if (existingCustomers.length > 0) {
           customerId = existingCustomers[0].id;
+          console.log(`✅ Found existing customer with ID: ${customerId}`);
         } else {
+          console.log('🆕 Creating new customer user');
           // Create new customer user
           const [customerRole] = await connection.execute(
             'SELECT id FROM roles WHERE slug = "customer"'
@@ -262,6 +265,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
           );
           
           customerId = customerResult.insertId;
+          console.log(`✅ Created new customer with ID: ${customerId}`);
         }
 
         // Get service duration for end_datetime calculation
@@ -283,8 +287,8 @@ function setupProviderEndpoints(app, validateAuthToken) {
           `INSERT INTO appointments (
             id_users_provider, id_users_customer, id_services, 
             start_datetime, end_datetime, notes, 
-            book_datetime, create_datetime, update_datetime, hash
-          ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW(), ?)`,
+            book_datetime, create_datetime, update_datetime, hash, location
+          ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW(), ?, ?)`,
           [
             bookingData.providerId,
             customerId,
@@ -292,7 +296,8 @@ function setupProviderEndpoints(app, validateAuthToken) {
             startTime.toISOString().slice(0, 19).replace('T', ' '),
             endTime.toISOString().slice(0, 19).replace('T', ' '),
             bookingData.patientInfo.notes || null,
-            Math.random().toString(36).substring(7) // Simple hash
+            Math.random().toString(36).substring(7), // Simple hash,
+            generateRoomId()
           ]
         );
 

@@ -59,11 +59,12 @@ function setupWebRTCRoutes(app, authenticateJWT) {
       const [rows] = await connection.execute(`
         SELECT 
           a.id,
-          a.appointment_datetime,
+          a.start_datetime,
+          a.end_datetime,
           a.location,
           a.notes,
           a.status,
-          a.created_at,
+          a.create_datetime,
           doctor.first_name as doctor_first_name,
           doctor.last_name as doctor_last_name,
           doctor.email as doctor_email,
@@ -71,10 +72,10 @@ function setupWebRTCRoutes(app, authenticateJWT) {
           s.name as service_name,
           s.duration as service_duration
         FROM appointments a 
-        JOIN users doctor ON doctor.id = a.doctor_id
-        LEFT JOIN services s ON s.id = a.service_id
-        WHERE a.patient_id = ?
-        ORDER BY a.appointment_datetime ASC
+        JOIN users doctor ON doctor.id = a.id_users_provider
+        LEFT JOIN services s ON s.id = a.id_services
+        WHERE a.id_users_customer = ?
+        ORDER BY a.start_datetime ASC
       `, [userId]);
 
       console.log(`Found ${rows.length} appointments for patient ${userId} (pubkey: ${pubkey})`);

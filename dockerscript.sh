@@ -126,13 +126,8 @@ if [ "$NODE_ENV" = 'development' ]; then
     docker run -d --name ${CONTAINER_PREFIX}_web_1 \
     $NETWORK_FLAG \
     -v "${REPOS_PATH}:/private_repos" \
-    -v "$(pwd)/admin:/app/admin" \
-    -v "$(pwd)/server.js:/app/server.js" \
-    -v "$(pwd)/provider-endpoints.js:/app/provider-endpoints.js" \
-    -v "$(pwd)/admin-routes.js:/app/admin-routes.js" \
-    -v "$(pwd)/auth-persistence.js:/app/auth-persistence.js" \
-    -v "$(pwd)/utils.js:/app/utils.js" \
-    -v "$(pwd)/package.json:/app/package.json" \
+    -v "$(pwd):/app" \
+    -v "/app/node_modules" \
     -v "$(pwd)/.env:/app/.env" \
     -e "NODE_ENV=${NODE_ENV}" \
     -p 3003:3003 \
