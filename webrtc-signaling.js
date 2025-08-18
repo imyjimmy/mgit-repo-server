@@ -83,7 +83,7 @@ function setupWebRTCRoutes(app, authenticateJWT) {
       // Format the response...
       const appointments = rows.map(appointment => ({
         id: appointment.id,
-        datetime: appointment.appointment_datetime,
+        datetime: appointment.start_datetime,
         location: appointment.location,
         notes: appointment.notes,
         status: appointment.status,
