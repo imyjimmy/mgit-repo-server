@@ -78,8 +78,6 @@ function setupWebRTCRoutes(app, authenticateJWT) {
         ORDER BY a.start_datetime ASC
       `, [userId]);
 
-      console.log(`Found ${rows.length} appointments for patient ${userId} (pubkey: ${pubkey})`);
-
       // Format the response...
       const appointments = rows.map(appointment => ({
         id: appointment.id,
@@ -100,9 +98,11 @@ function setupWebRTCRoutes(app, authenticateJWT) {
         } : null,
         isVideoAppointment: appointment.location === 'bright-dolphin-swimming',
         videoRoomUrl: appointment.location === 'bright-dolphin-swimming' 
-          ? `${process.env.CLIENT_BASE_URL}/video-call?room=${appointment.location}`
+          ? `${process.env.BASE_URL}/video-call?room=${appointment.location}`
           : null
       }));
+
+      console.log(`Found ${rows.length} appointments for patient ${userId} (pubkey: ${pubkey}), appt start: ${appointments}`);
 
       connection.release();
 

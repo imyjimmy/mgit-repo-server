@@ -10,7 +10,8 @@ const dbConfig = {
   charset: 'utf8mb4',
   acquireTimeout: 60000,
   timeout: 60000,
-  reconnect: true
+  reconnect: true,
+  dateStrings: true
 };
 
 // Create connection pool for better performance
