@@ -361,11 +361,6 @@ function timeCheck(appointmentDateTime, doctorTimezone = 'UTC') {
   }
 }
 
-module.exports = {
-  // ... your existing exports
-  timeCheck
-};
-
 // Helper functions
 function timeToMinutes(timeStr) {
   const [hours, minutes] = timeStr.split(':').map(Number);
