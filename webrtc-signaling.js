@@ -3,7 +3,7 @@ const express = require('express');
 const { generateRoomId } = require('./webrtc-room-generator');
 const sessionManager = require('./webrtc-session-management');
 const { pool } = require('./db-config');
-
+const { timeCheck } = require('./utils');
 const BASE_URL = process.env.BASE_URL || 'https://plebemr.com';
 
 // In-memory storage for signaling (use Redis in production)
@@ -156,9 +156,9 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     let joinResult; 
 
     const isAuthorized = rows.length > 0;
-    const timeCheck = isAuthorized ? utils.timeCheck(rows[0].appointment_datetime, rows[0].effective_timezone) : false;
+    const timeCheckResult = isAuthorized ? timeCheck(rows[0].appointment_datetime, rows[0].effective_timezone) : false;
     
-    if (!isAuthorized || !timeCheck) {
+    if (!isAuthorized || !timeCheckResult) {
       cconnection.release();
     
       if (!isAuthorized) {
