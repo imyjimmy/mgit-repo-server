@@ -134,7 +134,7 @@ function validateJWTToken(token, jwtSecret) {
       error: null
     };
   } catch (error) {
-    console.log('❌ JWT validation failed:', error.message);
+    console.log('❌ JWT validation failed:', error.message, error.name);
     
     let errorMessage = 'Invalid token';
     if (error.name === 'TokenExpiredError') {

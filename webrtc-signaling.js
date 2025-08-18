@@ -146,12 +146,12 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     
     connection = await pool.getConnection();
 
-    const [rows] = connection.execute(`
+    const [rows] = await connection.execute(`
     SELECT a.*, u.nostr_pubkey 
     FROM appointments a 
-    JOIN users u ON (u.id = a.doctor_id OR u.id = a.patient_id)
-    WHERE a.location = ? AND u.id = ?
-    `, [roomId, authenticatedUserId]);
+    JOIN users u ON (u.id = a.id_users_provider OR u.id = a.id_users_customer)
+    WHERE a.location = ? AND u.nostr_pubkey = ?
+    `, [roomId, pubkey]);
 
     let joinResult; 
 
