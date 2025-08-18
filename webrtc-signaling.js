@@ -11,7 +11,7 @@ const sseConnections = new Map(); // roomId -> Set of SSE response objects
 
 // WebRTC Signaling Endpoints
 function setupWebRTCRoutes(app, authenticateJWT) {
-  
+
   // Endpoint to create a new appointment/room
   app.post('/api/appointments/create', authenticateJWT, (req, res) => {
     const { doctorName, appointmentTime, notes } = req.body;
@@ -147,7 +147,7 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     connection = await pool.getConnection();
 
     const [rows] = await connection.execute(`
-    SELECT a.*, u.nostr_pubkey 
+    SELECT a.*, u.nostr_pubkey, u.timezone 
     FROM appointments a 
     JOIN users u ON (u.id = a.id_users_provider OR u.id = a.id_users_customer)
     WHERE a.location = ? AND u.nostr_pubkey = ?
@@ -156,10 +156,10 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     let joinResult; 
 
     const isAuthorized = rows.length > 0;
-    const timeCheckResult = isAuthorized ? timeCheck(rows[0].appointment_datetime, rows[0].effective_timezone) : false;
+    const timeCheckResult = isAuthorized ? timeCheck(rows[0].appointment_datetime, rows[0].timezone) : false;
     
     if (!isAuthorized || !timeCheckResult) {
-      cconnection.release();
+      connection.release();
     
       if (!isAuthorized) {
         console.error('Error, not authorized for room: ', roomId, pubkey);

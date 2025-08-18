@@ -297,7 +297,7 @@ function calculateAvailableHours(date, service, provider, appointments) {
 }
 
 // check an appointment time against current time
-function timeCheck(appointmentDateTime, doctorTimezone = 'central') {
+function timeCheck(appointmentDateTime, doctorTimezone = 'UTC') {
   try {
     console.log('🕐 Time check debug:');
     console.log('  Appointment datetime:', appointmentDateTime);
@@ -310,7 +310,7 @@ function timeCheck(appointmentDateTime, doctorTimezone = 'central') {
     // Determine timezone offset (expanding your existing pattern)
     let timezoneOffset;
     switch(doctorTimezone.toLowerCase()) {
-      case 'central':
+      case 'UTC':
       case 'america/chicago':
         timezoneOffset = -5 * 60 * 60 * 1000; // CDT is UTC-5
         break;
