@@ -171,8 +171,15 @@ function processAuthToken(authHeader, jwtSecret) {
 /**
  * Complete availability calculation with working plan, breaks, appointments, and time filtering
  */
-function calculateAvailableHours(date, service, provider, appointments) {
+function calculateAvailableHours(date, clientCurrentTime, clientTimezone, service, provider, appointments) {
   try {
+    console.log('🚀 calculateAvailableHours called with:', { 
+      date, 
+      serviceName: service.name, 
+      providerName: provider.first_name,
+      clientTimezone 
+    });
+    
     if (!provider.settings.working_plan) {
       console.log('❌ No working plan found');
       return [];
@@ -181,79 +188,65 @@ function calculateAvailableHours(date, service, provider, appointments) {
     const workingPlan = JSON.parse(provider.settings.working_plan);
     const workingPlanExceptions = JSON.parse(provider.settings.working_plan_exceptions || '{}');
     
-    // Get day of week (monday, tuesday, etc.)
-    const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    console.log('📋 Working plan:', workingPlan);
     
-    // Check if there's a custom plan for this specific date
-    let dayPlan = workingPlanExceptions[date] || workingPlan[dayOfWeek];
+    // Get day of week and working plan
+    const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const dayPlan = workingPlanExceptions[date] || workingPlan[dayOfWeek];
+    
+    console.log('📅 Day of week:', dayOfWeek);
+    console.log('📋 Day plan:', dayPlan);
     
     if (!dayPlan || !dayPlan.start || !dayPlan.end) {
       console.log('❌ No day plan found for', dayOfWeek);
-      return []; // Provider doesn't work on this day
+      return [];
     }
 
-    console.log('📋 Day plan for', dayOfWeek, ':', dayPlan);
+    // Check if it's today for time filtering
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: clientTimezone });
+    const isToday = date === today;
+    
+    let currentMinutes = 0;
+    if (isToday && clientCurrentTime) {
+      const [hours, minutes] = clientCurrentTime.split(':');
+      currentMinutes = parseInt(hours) * 60 + parseInt(minutes) + 15; // 15 min buffer
+    }
 
+    console.log('🕐 Time filtering info:');
+    console.log('  Client timezone:', clientTimezone);
+    console.log('  Client current time:', clientCurrentTime);
+    console.log('  Today (client timezone):', today);
+    console.log('  Requested date:', date);
+    console.log('  Is today?', isToday);
+    console.log('  Current minutes + buffer:', currentMinutes);
+
+    // Generate time slots
     const slots = [];
-    const startTime = dayPlan.start; // e.g., "09:00"
-    const endTime = dayPlan.end;     // e.g., "18:00"
-    const duration = parseInt(service.duration); // service duration in minutes
-    const interval = service.availabilities_type === 'flexible' ? 15 : Math.min(duration, 30); // 15 min intervals for flexible, max 30 min
-    const bufferMinutes = 15; // 15 minute advance booking buffer
+    const duration = parseInt(service.duration);
+    const interval = service.availabilities_type === 'flexible' ? 15 : Math.min(duration, 30);
+    const startMinutes = timeToMinutes(dayPlan.start);
+    const endMinutes = timeToMinutes(dayPlan.end);
 
-    console.log('slots: ', slots);
-    // WORKING timezone conversion
-    const selectedDate = new Date(date);
-    const today = new Date();
-
-    // Get current time in Central timezone 
-    const utcTime = today.getTime();
-    const centralOffset = -5 * 60 * 60 * 1000; // CDT is UTC-5
-    const centralTime = new Date(utcTime + centralOffset);
-
-    const isToday = selectedDate.toDateString() === centralTime.toDateString();
-    const nowMinutes = isToday ? (centralTime.getUTCHours() * 60 + centralTime.getUTCMinutes() + bufferMinutes) : 0;
-
-    console.log('🕐 Timezone debug:');
-    console.log('  UTC time:', today.toISOString());
-    console.log('  Central time:', centralTime.toISOString()); 
-    console.log('  Central hours:minutes:', centralTime.getUTCHours() + ':' + centralTime.getUTCMinutes());
-    console.log('  nowMinutes (Central + buffer):', nowMinutes);
-
-    // Convert times to minutes for easier calculation
-    const startMinutes = timeToMinutes(startTime);
-    const endMinutes = timeToMinutes(endTime);
-
-    console.log('🔍 Debug values:');
-    console.log('  startTime:', startTime, '-> startMinutes:', startMinutes);
-    console.log('  endTime:', endTime, '-> endMinutes:', endMinutes);
-    console.log('  duration:', duration);
-    console.log('  interval:', interval);
-    console.log('  Loop condition: startMinutes + duration <= endMinutes?', startMinutes + duration <= endMinutes);
+    console.log('⚙️ Slot generation settings:');
+    console.log('  Duration:', duration, 'minutes');
+    console.log('  Interval:', interval, 'minutes');
+    console.log('  Start time:', dayPlan.start, '-> minutes:', startMinutes);
+    console.log('  End time:', dayPlan.end, '-> minutes:', endMinutes);
+    console.log('  Appointments to check:', appointments.length);
 
     for (let time = startMinutes; time + duration <= endMinutes; time += interval) {
-      console.log('🔄 Loop iteration: time =', time);
-      const slotMinutes = time;
-      
-      // Debug the time filtering
-      console.log('  🕐 Time filtering debug:');
-      console.log('    isToday:', isToday);
-      console.log('    slotMinutes:', slotMinutes);
-      console.log('    nowMinutes:', nowMinutes);
-      console.log('    slotMinutes <= nowMinutes?', slotMinutes <= nowMinutes);
-      
-      // Skip past times + buffer if it's today
-      if (isToday && slotMinutes <= nowMinutes) {
-        console.log('  ⏭️ SKIPPING: Past time + buffer');
-        continue;
-      }
-
       const slotTime = minutesToTime(time);
       const slotEndTime = minutesToTime(time + duration);
       
-      console.log('  🕐 Slot time:', slotTime, 'to', slotEndTime);
+      console.log(`\n🔄 Checking slot: ${slotTime} - ${slotEndTime} (${time} minutes)`);
       
-      // Check if this slot conflicts with breaks
+      // Skip past times if it's today
+      if (isToday && time <= currentMinutes) {
+        console.log('  ⏭️ SKIPPING: Past time (', time, '<=', currentMinutes, ')');
+        continue;
+      }
+
+      // Check conflicts with breaks
       const conflictsWithBreak = dayPlan.breaks?.some(breakPeriod => {
         const breakStart = timeToMinutes(breakPeriod.start);
         const breakEnd = timeToMinutes(breakPeriod.end);
@@ -264,20 +257,18 @@ function calculateAvailableHours(date, service, provider, appointments) {
 
       console.log('  🛑 Conflicts with break?', conflictsWithBreak);
 
-      // Check if this slot conflicts with existing appointments
+      // Check conflicts with appointments
       const conflictsWithAppointment = appointments.some(apt => {
         const aptStart = new Date(apt.start_datetime);
         const aptEnd = new Date(apt.end_datetime);
         const slotStart = new Date(`${date} ${slotTime}`);
         const slotEnd = new Date(`${date} ${slotEndTime}`);
-        
         const hasConflict = slotStart < aptEnd && slotEnd > aptStart;
-        console.log(`    📅 Appointment check: ${apt.start_datetime} conflicts? ${hasConflict}`);
+        console.log(`    📅 Appointment check: ${apt.start_datetime} to ${apt.end_datetime} conflicts? ${hasConflict}`);
         return hasConflict;
       });
 
       console.log('  📅 Conflicts with appointment?', conflictsWithAppointment);
-      console.log('  appointments.length:', appointments.length);
 
       if (!conflictsWithBreak && !conflictsWithAppointment) {
         console.log('  ✅ ADDING slot:', slotTime);
@@ -287,11 +278,13 @@ function calculateAvailableHours(date, service, provider, appointments) {
       }
     }
 
-    console.log('slots: ', slots);
+    console.log('\n🎯 Final available slots:', slots);
+    console.log('🎯 Total slots found:', slots.length);
+    
     return slots;
 
   } catch (error) {
-    console.error('Error calculating available hours:', error);
+    console.error('❌ Error calculating available hours:', error);
     return [];
   }
 }

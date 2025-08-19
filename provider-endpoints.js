@@ -103,8 +103,8 @@ function setupProviderEndpoints(app, validateAuthToken) {
     let connection;
     try {
       const { providerId } = req.params;
-      const { serviceId, date } = req.query;
-      
+      const { serviceId, date, timezone, currentTime } = req.query;
+
       if (!serviceId || !date) {
         return res.status(400).json({ 
           error: 'Missing required parameters: serviceId, date' 
@@ -166,7 +166,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
       console.log('🔍 Working plan:', workingPlan);
 
       // Calculate available hours
-      const availableHours = utils.calculateAvailableHours(date, service, providerWithPlan, appointments);
+      const availableHours = utils.calculateAvailableHours(date, currentTime, timezone, service, providerWithPlan, appointments);
 
       res.json({
         date,

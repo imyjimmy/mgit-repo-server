@@ -25,7 +25,7 @@ const formatDate = (dateString: string) => {
 
 export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props) {
   const [selectedDate, setSelectedDate] = useState<string>(
-    data.appointment?.date || new Date().toISOString().split('T')[0]
+    data.appointment?.date || new Date().toLocaleDateString('en-CA')
   );
   const [selectedTime, setSelectedTime] = useState<string>(data.appointment?.time || '');
   const [availability, setAvailability] = useState<AvailabilityData | null>(null);
@@ -42,8 +42,10 @@ export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props
 
     setLoadingAvailability(true);
     try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const currentTime = new Date().toLocaleTimeString('en-CA', { hour12: false }); // HH:MM:SS format
       const response = await fetch(
-        `/api/providers/${data.provider.id}/availability?serviceId=${data.service.id}&date=${date}`
+        `/api/providers/${data.provider.id}/availability?serviceId=${data.service.id}&date=${date}&timezone=${encodeURIComponent(timezone)}&currentTime=${encodeURIComponent(currentTime)}`
       );
 
       if (response.ok) {
@@ -97,7 +99,7 @@ export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props
       onNext();
     }
   };
-  
+
   if (!data.provider || !data.service) {
     return (
       <div className="text-center py-8">
@@ -136,7 +138,7 @@ export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props
                 type="date"
                 value={selectedDate}
                 onChange={(e) => handleDateChange(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                min={new Date().toLocaleDateString('en-CA')}
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
               />
             </div>
