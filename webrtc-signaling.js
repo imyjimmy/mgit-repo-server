@@ -158,8 +158,9 @@ function setupWebRTCRoutes(app, authenticateJWT) {
     const isAuthorized = rows.length > 0;
     console.log('checking appt rows: ', rows);
     const timeCheckResult = isAuthorized ? timeCheck(rows[0].start_datetime, rows[0].timezone) : false;
+    console.log('timecheck result: ', timeCheckResult);
     
-    if (!isAuthorized || !timeCheckResult) {
+    if (!isAuthorized) { // !timeCheckResult
       connection.release();
     
       if (!isAuthorized) {
