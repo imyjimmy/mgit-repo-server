@@ -36,7 +36,7 @@ RUN cd /go/src/mgit && \
     chmod +x /usr/local/bin/mgit
 
 # Final stage
-FROM node:20-bullseye-slim
+FROM base
 COPY --from=builder /usr/local/bin/mgit /usr/local/bin/mgit
 COPY --from=builder /usr/local/bin/bun /usr/local/bin/bun
 

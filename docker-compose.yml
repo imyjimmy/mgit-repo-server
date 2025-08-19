@@ -14,6 +14,7 @@ services:
     environment:
       REPOS_PATH: /private_repos
       NODE_ENV: production
+      MGITPATH: /usr/local/bin
       # PORT: 3003
     volumes:
       # Repository storage (contains both git repos and SQLite database)

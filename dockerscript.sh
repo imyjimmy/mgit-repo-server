@@ -123,6 +123,10 @@ docker pull imyjimmy/mgit-repo-server:latest
 
 echo "🚀 Starting new web_1 container, NODE_ENV: $NODE_ENV"
 if [ "$NODE_ENV" = 'development' ]; then
+    # Mounts the entire current directory into /app in the container
+    # Uses nodemon for auto-restarting when files change
+    # Anonymous volume for node_modules to avoid conflicts between host and container dependencies
+    # Hot reload capability - any changes you make to files locally are immediately reflected in the running container
     docker run -d --name ${CONTAINER_PREFIX}_web_1 \
     $NETWORK_FLAG \
     -v "${REPOS_PATH}:/private_repos" \
@@ -130,11 +134,16 @@ if [ "$NODE_ENV" = 'development' ]; then
     -v "/app/node_modules" \
     -v "$(pwd)/.env:/app/.env" \
     -e "NODE_ENV=${NODE_ENV}" \
+    -e "MGITPATH=/usr/local/bin" \
     -p 3003:3003 \
     --restart unless-stopped \
     imyjimmy/mgit-repo-server:latest \
     sh -c "npm install nodemon --save-dev 2>/dev/null; npx nodemon server.js"
 else
+    # Mounts specific files only - just the exact files needed to run
+    # Uses regular node (not nodemon)
+    # No hot reload - changes to local files won't affect the running container
+    # More secure/isolated - only necessary files are accessible inside container
     docker run -d --name ${CONTAINER_PREFIX}_web_1 \
     $NETWORK_FLAG \
     -v "${REPOS_PATH}:/private_repos" \
@@ -146,6 +155,7 @@ else
     -v "$(pwd)/package.json:/app/package.json" \
     -v "$(pwd)/.env:/app/.env" \
     -e "NODE_ENV=${NODE_ENV}" \
+    -e "MGITPATH=/usr/local/bin" \
     -p 3003:3003 \
     --restart unless-stopped \
     imyjimmy/mgit-repo-server:latest \
