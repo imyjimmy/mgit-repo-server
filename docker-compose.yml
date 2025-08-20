@@ -125,3 +125,7 @@ services:
       - PHPLDAPADMIN_HTTPS=false
     depends_on:
       - appointments_openldap
+
+networks:
+  plebemr_admin_network:
+    external: true

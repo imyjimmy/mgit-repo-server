@@ -2,7 +2,7 @@ const mysql = require('mysql2/promise');
 
 // Database configuration based on your Docker setup
 const dbConfig = {
-  host: process.env.NODE_ENV === 'production' ? 'mgitreposerver-mgit-repo-server_appointments_mysql_1' : 'mgit-repo-server_appointments_mysql_1',
+  host: process.env.NODE_ENV === 'production' ? process.env.APPOINTMENTS_DB_HOST : 'mgit-repo-server_appointments_mysql_1',
   port: 3306,
   user: 'user',
   password: 'password', 

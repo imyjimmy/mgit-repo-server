@@ -33,15 +33,10 @@ function setupProviderEndpoints(app, validateAuthToken) {
   app.get('/api/admin/providers', async (req, res) => {
     try {
       // Connect to EasyAppointments database
-      const appointmentsDb = await mysql.createConnection({
-        host: getMySQLHost(),
-        user: 'user',
-        password: 'password',
-        database: 'easyappointments'
-      });
+      const connection = await pool.getConnection();
 
       // role = 5 is admin-provider
-      const [providers] = await appointmentsDb.execute(
+      const [providers] = await connection.execute(
         'SELECT id, first_name, last_name, email, id_roles FROM users WHERE id_roles in (2,5)'
       );
       
@@ -52,7 +47,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
         role: provider.id_roles === 2 ? 'provider' : 'admin-provider'
       }));
 
-      await appointmentsDb.end();
+      connection.release();
       res.json(formattedProviders);
     } catch (error) {
       console.error('Error fetching providers:', error);
@@ -66,15 +61,9 @@ function setupProviderEndpoints(app, validateAuthToken) {
     try {
       const { providerId } = req.params;
       
-      // Connect to EasyAppointments database
-      const appointmentsDb = await mysql.createConnection({
-        host: getMySQLHost(),
-        user: 'user',
-        password: 'password',
-        database: 'easyappointments'
-      });
+      const connection = await pool.getConnection();
       
-      const [services] = await appointmentsDb.execute(`
+      const [services] = await connection.execute(`
         SELECT s.id, s.name, s.duration, s.price, s.description
         FROM services s
         INNER JOIN services_providers sp ON s.id = sp.id_services
@@ -88,7 +77,7 @@ function setupProviderEndpoints(app, validateAuthToken) {
         price: service.price || '0'
       }));
 
-      await appointmentsDb.end();
+      connection.release();
       res.json(formattedServices);
     } catch (error) {
       console.error('Error fetching services for provider:', error);

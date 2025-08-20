@@ -149,6 +149,7 @@ else
     -v "${REPOS_PATH}:/private_repos" \
     -e "NODE_ENV=${NODE_ENV}" \
     -e "MGITPATH=/usr/local/bin" \
+    -e "APPOINTMENTS_DB_HOST=${CONTAINER_PREFIX}_appointments_mysql_1" \
     -p 3003:3003 \
     --restart unless-stopped \
     imyjimmy/mgit-repo-server:latest \
@@ -173,77 +174,15 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# EasyAppointments container creation function
-create_easyappointments_containers() {
-    echo "🏗️ Creating EasyAppointments containers..."
+create_appointments_service_containers() {
+    echo "🏗️ Creating Appointments Service containers..."
     
-    # # create a netowrk
-    # if [[ "$OSTYPE" == "darwin"* ]]; then
-    #     docker network create easyappt-network 2>/dev/null || true
-    #     NETWORK_FLAG="--network easyappt-network"
-    # fi
-
-    # Generate nginx config with correct container name
-    NGINX_CONFIG_TEMP="$(pwd)/nginx-easyappt-${CONTAINER_PREFIX}.conf"
-    cat > "$NGINX_CONFIG_TEMP" << EOF
-server {
-    listen 80 default;
-    
-    server_name localhost;
-
-    client_max_body_size 128M;
-
-    access_log /var/log/nginx/application.access.log;
-
-    root /var/www/html;
-    
-    index index.php index.html;
-    
-    location / {
-        try_files \$uri \$uri/ /index.php?\$args;
-    }
-        
-    location ~ ^.+.php {
-        fastcgi_pass ${CONTAINER_PREFIX}_appointments_php_1:9000;
-        fastcgi_split_path_info ^(.+?.php)(/.*)$;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        fastcgi_param PHP_VALUE "error_log=/var/log/nginx/application_php_errors.log";
-        fastcgi_buffers 16 16k;
-        fastcgi_buffer_size 32k;
-        fastcgi_index index.php;
-        include fastcgi_params;
-    }
-    
-    location ~ /\.ht {
-        deny all;
-    }
-}
-EOF
-
-    echo "Generated config file at: $NGINX_CONFIG_TEMP"
-    ls -la "$NGINX_CONFIG_TEMP"
-    cat "$NGINX_CONFIG_TEMP"
-
-    # Build required custom images if they don't exist
-    if ! docker images | grep -q "easyappt-php.*latest"; then
-        echo "🔨 Building easyappt-php image..."
-        cd "${EASYAPPOINTMENTS_SOURCE_PATH}"
-        docker build -f docker/php-fpm/Dockerfile --no-cache -t easyappt-php:latest .
-        cd - > /dev/null
-    fi
-
-    # Clear mysql data for fresh install
-    if [[ "$REMOVE_REPOS" =~ ^[Nn]$ ]] || [[ "${3:-}" == "fresh-db" ]]; then
-        echo "🗑️ Clearing MySQL data for fresh installation..."
-        rm -rf "${APPOINTMENTS_DATA_PATH}/mysql"
-        mkdir -p "${APPOINTMENTS_DATA_PATH}/mysql"
-    fi
-
-    # Create MySQL container (remove existing first)
+    # Create appointments MySQL container (remove existing first)
     docker rm -f ${CONTAINER_PREFIX}_appointments_mysql_1 2>/dev/null || true
     docker run -d --name ${CONTAINER_PREFIX}_appointments_mysql_1 \
       $NETWORK_FLAG \
       -v "${APPOINTMENTS_DATA_PATH}/mysql:/var/lib/mysql" \
+      -v "$(pwd)/../appointments-service/init-scripts:/docker-entrypoint-initdb.d" \
       -e MYSQL_ROOT_PASSWORD=secret \
       -e MYSQL_DATABASE=easyappointments \
       -e MYSQL_USER=user \
@@ -268,82 +207,27 @@ EOF
 
     wait_for_mysql
 
-    # Create PHP-FPM container
-    echo "creating PHP container, php env is: $PHP_ENV"
-    docker rm -f ${CONTAINER_PREFIX}_appointments_php_1 2>/dev/null || true
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_php_1 \
-      $NETWORK_FLAG \
-      --add-host host.docker.internal:host-gateway \
-      -e PHP_ENV="$PHP_ENV" \
-      -v "${EASYAPPOINTMENTS_SOURCE_PATH}:/var/www/html" \
-      -v "${EASYAPPOINTMENTS_SOURCE_PATH}/docker/php-fpm/php-ini-overrides.ini:/usr/local/etc/php/conf.d/99-overrides.ini" \
-      --workdir /var/www/html \
-      easyappt-php:latest
-
-    # Wait for PHP container to be ready
-    echo "⏳ Waiting for PHP container to be ready..."
-    sleep 10
-
-    # Run EasyAppointments console installation
-    echo "🔧 Running EasyAppointments console installation..."
-    docker exec ${CONTAINER_PREFIX}_appointments_php_1 bash -c "
-    cd /var/www/html && 
-    php index.php console install
-    "
-
-    if [ $? -eq 0 ]; then
-        echo "✅ EasyAppointments installation completed successfully!"
-    else
-        echo "❌ EasyAppointments installation failed!"
-        echo "📋 Check PHP container logs:"
-        echo "docker logs ${CONTAINER_PREFIX}_appointments_php_1"
-    fi
-
     # Create PHPMyAdmin container
     docker rm -f ${CONTAINER_PREFIX}_appointments_phpmyadmin_1 2>/dev/null || true
     docker run -d --name ${CONTAINER_PREFIX}_appointments_phpmyadmin_1 \
       $NETWORK_FLAG \
       -e PMA_HOST=${CONTAINER_PREFIX}_appointments_mysql_1 \
       -e UPLOAD_LIMIT=102400K \
+      -e PMA_USER=user \
+      -e PMA_PASSWORD=password \
       $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8081:80"; fi) \
       phpmyadmin:5.2.1
 
-    echo "⏳ Waiting for PHP container to be ready..."
+    echo "⏳ Waiting for PHPMyAdmin to be ready..."
     sleep 5
 
-    # Create Swagger container
-    docker rm -f ${CONTAINER_PREFIX}_appointments_swagger_1 2>/dev/null || true
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_swagger_1 \
-      $NETWORK_FLAG \
-      --platform linux/amd64 \
-      -v "${EASYAPPOINTMENTS_SOURCE_PATH}/openapi.yml:/usr/share/nginx/html/openapi.yml" \
-      -e API_URL=openapi.yml \
-      $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8082:8080"; fi) \
-      swaggerapi/swagger-ui:v5.10.5
-
-    # Create Nginx container
-    docker rm -f ${CONTAINER_PREFIX}_appointments_nginx_1 2>/dev/null || true
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_nginx_1 \
-      $NETWORK_FLAG \
-      -v "${EASYAPPOINTMENTS_SOURCE_PATH}:/var/www/html" \
-      -v "$NGINX_CONFIG_TEMP:/etc/nginx/conf.d/default.conf" \
-      --workdir /var/www/html \
-      $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8080:80"; fi) \
-      nginx:1.23.3-alpine
-
-    # Clean up temp file
-    # rm -f "$NGINX_CONFIG_TEMP"
-
-    echo "✅ EasyAppointments containers created!"
+    echo "✅ Appointments Service containers created!"
     
     # Show access info for macOS
     if [[ "$OSTYPE" == "darwin"* ]]; then
         echo ""
-        echo "🌐 EasyAppointments services available at:"
-        echo "   - Nginx (main app): http://localhost:8080"
+        echo "🌐 Appointments services available at:"
         echo "   - PHPMyAdmin: http://localhost:8081"
-        echo "   - Swagger UI: http://localhost:8082"
-        echo "   - phpLDAPadmin: http://localhost:8084"
         echo "   - MySQL: localhost:3306"
     fi
 }
@@ -357,7 +241,7 @@ fi
 
 # Add EasyAppointments creation at the end
 if [[ "${2:-}" != "no-appt" ]]; then
-    create_easyappointments_containers
+    create_appointments_service_containers
 fi
 
 echo "✅ Deployment complete!"
