@@ -5,14 +5,62 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS development environment
     echo "🍎 Running on macOS (development)"
     CONTAINER_PREFIX="mgit-repo-server"
+    BACKUP_PATH="./mysql-backups"
 else
     # Umbrel/Linux environment
     echo "🐧 Running on Umbrel/Linux (production)"
     CONTAINER_PREFIX="mgitreposerver-mgit-repo-server"
+    BACKUP_PATH="/home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/mysql-backups"
 fi
 
 echo "🎯 Targeting mgit and easyappointment containers only..."
 echo "🔧 Using container prefix: ${CONTAINER_PREFIX}"
+
+# Function to backup MySQL data
+backup_mysql_data() {
+    local mysql_container="${CONTAINER_PREFIX}_appointments_mysql_1"
+    
+    echo "🔍 Checking if MySQL container exists..."
+    if docker ps -a --format "table {{.Names}}" | grep -q "^${mysql_container}$"; then
+        echo "📦 Found MySQL container: ${mysql_container}"
+        
+        # Create backup directory
+        mkdir -p "${BACKUP_PATH}"
+        
+        # Generate timestamp for backup file
+        local timestamp=$(date +"%Y%m%d_%H%M%S")
+        local backup_file="${BACKUP_PATH}/easyappointments_backup_${timestamp}.sql"
+        
+        echo "💾 Creating MySQL backup..."
+        if docker exec "${mysql_container}" mysqldump \
+            -u user -ppassword \
+            --single-transaction \
+            --routines \
+            --triggers \
+            easyappointments > "${backup_file}" 2>/dev/null; then
+            
+            echo "✅ MySQL backup created: ${backup_file}"
+            
+            # Also create a "latest" backup for easy reference
+            local latest_backup="${BACKUP_PATH}/easyappointments_latest.sql"
+            cp "${backup_file}" "${latest_backup}"
+            echo "📋 Latest backup updated: ${latest_backup}"
+            
+            # Compress the timestamped backup to save space
+            gzip "${backup_file}"
+            echo "🗜️ Backup compressed: ${backup_file}.gz"
+            
+        else
+            echo "⚠️ MySQL backup failed, but continuing with container removal..."
+            echo "   (Container might be stopped or database inaccessible)"
+        fi
+    else
+        echo "ℹ️ MySQL container not found, skipping backup"
+    fi
+}
+
+# Backup MySQL data before destroying containers
+backup_mysql_data
 
 # Stop and remove mgit repo server containers
 echo "🛑 Stopping mgit repo server containers..."
@@ -57,3 +105,4 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 fi
 
 echo "✅ Targeted cleanup complete! Other services left untouched."
+echo "📁 MySQL backups stored in: ${BACKUP_PATH}"
