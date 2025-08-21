@@ -101,7 +101,7 @@ docker image prune -f
 if [[ "$OSTYPE" != "darwin"* ]]; then
     echo "🗑️ Removing mgit app data..."
     rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/appointments/mysql 2>/dev/null || true
-    rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos 2>/dev/null || true
+    # rm -rf /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos 2>/dev/null || true
 fi
 
 echo "✅ Targeted cleanup complete! Other services left untouched."

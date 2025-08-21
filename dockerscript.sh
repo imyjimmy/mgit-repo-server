@@ -237,7 +237,7 @@ create_appointments_service_containers() {
         -e UPLOAD_LIMIT=102400K \
         -e PMA_USER=user \
         -e PMA_PASSWORD=password \
-        $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8081:80"; fi) \
+        $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8089:80"; fi) \
         phpmyadmin:5.2.1
 
     echo "⏳ Waiting for PHPMyAdmin to be ready..."
