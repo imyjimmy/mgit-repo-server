@@ -192,37 +192,30 @@ create_appointments_service_containers() {
     # Check if we have a backup to restore
     if [ -f "$latest_backup" ]; then
         echo "📋 Found existing backup: $latest_backup"
-        read -p "🤔 Do you want to restore from this backup? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo "🔄 Starting MySQL with backup restoration..."
-            
-            # Start MySQL container
-            docker run -d --name ${CONTAINER_PREFIX}_appointments_mysql_1 \
-              $NETWORK_FLAG \
-              -v "${APPOINTMENTS_DATA_PATH}/mysql:/var/lib/mysql" \
-              -v "$(pwd)/../plebdoc-scheduler-service/init-scripts:/docker-entrypoint-initdb.d" \
-              -e MYSQL_ROOT_PASSWORD=secret \
-              -e MYSQL_DATABASE=easyappointments \
-              -e MYSQL_USER=user \
-              -e MYSQL_PASSWORD=password \
-              $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 3306:3306"; fi) \
-              mysql:8.0
-            
-            # Wait for MySQL to be ready
-            echo "⏳ Waiting for MySQL to initialize..."
-            if wait_for_mysql; then
-                echo "📥 Restoring database from backup..."
-                if docker exec -i ${CONTAINER_PREFIX}_appointments_mysql_1 mysql \
-                    -u user -ppassword easyappointments < "$latest_backup"; then
-                    echo "✅ Database restored successfully!"
-                else
-                    echo "❌ Database restoration failed"
-                fi
+        echo "🔄 Automatically restoring from backup..."
+        
+        # Start MySQL container
+        docker run -d --name ${CONTAINER_PREFIX}_appointments_mysql_1 \
+          $NETWORK_FLAG \
+          -v "${APPOINTMENTS_DATA_PATH}/mysql:/var/lib/mysql" \
+          -v "$(pwd)/../plebdoc-scheduler-service/init-scripts:/docker-entrypoint-initdb.d" \
+          -e MYSQL_ROOT_PASSWORD=secret \
+          -e MYSQL_DATABASE=easyappointments \
+          -e MYSQL_USER=user \
+          -e MYSQL_PASSWORD=password \
+          $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 3306:3306"; fi) \
+          mysql:8.0
+        
+        # Wait for MySQL to be ready
+        echo "⏳ Waiting for MySQL to initialize..."
+        if wait_for_mysql; then
+            echo "📥 Restoring database from backup..."
+            if docker exec -i ${CONTAINER_PREFIX}_appointments_mysql_1 mysql \
+                -u user -ppassword easyappointments < "$latest_backup"; then
+                echo "✅ Database restored successfully!"
+            else
+                echo "❌ Database restoration failed"
             fi
-        else
-            echo "🆕 Starting fresh MySQL container..."
-            start_fresh_mysql
         fi
     else
         echo "ℹ️ No backup found, starting fresh MySQL container..."
