@@ -201,7 +201,7 @@ create_appointments_service_containers() {
             docker run -d --name ${CONTAINER_PREFIX}_appointments_mysql_1 \
               $NETWORK_FLAG \
               -v "${APPOINTMENTS_DATA_PATH}/mysql:/var/lib/mysql" \
-              -v "$(pwd)/../plebdoc-appointments-service/init-scripts:/docker-entrypoint-initdb.d" \
+              -v "$(pwd)/../plebdoc-scheduler-service/init-scripts:/docker-entrypoint-initdb.d" \
               -e MYSQL_ROOT_PASSWORD=secret \
               -e MYSQL_DATABASE=easyappointments \
               -e MYSQL_USER=user \
@@ -264,7 +264,7 @@ start_fresh_mysql() {
     docker run -d --name ${CONTAINER_PREFIX}_appointments_mysql_1 \
       $NETWORK_FLAG \
       -v "${APPOINTMENTS_DATA_PATH}/mysql:/var/lib/mysql" \
-      -v "$(pwd)/../plebdoc-appointments-service/init-scripts:/docker-entrypoint-initdb.d" \
+      -v "$(pwd)/../plebdoc-scheduler-service/init-scripts:/docker-entrypoint-initdb.d" \
       -e MYSQL_ROOT_PASSWORD=secret \
       -e MYSQL_DATABASE=easyappointments \
       -e MYSQL_USER=user \
