@@ -223,20 +223,27 @@ create_appointments_service_containers() {
     fi
 
     # Create PHPMyAdmin container
-    docker rm -f ${CONTAINER_PREFIX}_appointments_phpmyadmin_1 2>/dev/null || true
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_phpmyadmin_1 \
+    docker rm -f ${CONTAINER_PREFIX}_plebdoc_phpmyadmin_1 2>/dev/null || true
+    docker run -d --name ${CONTAINER_PREFIX}_plebdoc_phpmyadmin_1 \
         $NETWORK_FLAG \
+        -p 8089:80 \
         -e PMA_HOST=${CONTAINER_PREFIX}_appointments_mysql_1 \
         -e UPLOAD_LIMIT=102400K \
         -e PMA_USER=user \
         -e PMA_PASSWORD=password \
-        $(if [[ "$OSTYPE" == "darwin"* ]]; then echo "-p 8089:80"; fi) \
         phpmyadmin:5.2.1
 
     echo "⏳ Waiting for PHPMyAdmin to be ready..."
     sleep 5
 
     echo "✅ Appointments Service containers created!"
+    echo "📊 PHPMyAdmin available at:"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "   🍎 macOS: http://localhost:8089"
+    else
+        echo "   🐧 Umbrel: http://$(hostname -I | awk '{print $1}'):8089"
+        echo "   🌐 External: http://your-umbrel-ip:8089"
+    fi
 }
 
 # Wait for MySQL to be ready
