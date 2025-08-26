@@ -228,7 +228,7 @@ create_appointments_service_containers() {
     docker rm -f ${CONTAINER_PREFIX}_plebdoc_api_1 2>/dev/null || true
     docker run -d --name ${CONTAINER_PREFIX}_plebdoc_api_1 \
         $NETWORK_FLAG \
-        -p 3004:3004 \
+        -p 3005:3005 \
         -e NODE_ENV=production \
         -e DB_HOST=${CONTAINER_PREFIX}_appointments_mysql_1 \
         -e DB_USER=user \
@@ -243,7 +243,7 @@ create_appointments_service_containers() {
     else
         echo "   🐧 Umbrel: http://$(hostname -I | awk '{print $1}'):8089"
         echo "   🌐 External: http://your-umbrel-ip:8089"
-        echo "   scheduler-API: http://$(hostname -I | awk '{print $1}'):3004"
+        echo "   scheduler-API: http://$(hostname -I | awk '{print $1}'):3005"
     fi
     ## can access via ssh -L 8089:localhost:8089 imyjimmy@[...].org
 }
