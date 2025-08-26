@@ -60,7 +60,7 @@ else
     fi
 
     # EasyAppointments paths for Umbrel
-    APPOINTMENTS_DATA_PATH="/var/lib/plebdoc-scheduler-service"
+    APPOINTMENTS_DATA_PATH="/opt/plebdoc-scheduler-service"
 fi
 
 echo "📁 Using repos path: $REPOS_PATH"
