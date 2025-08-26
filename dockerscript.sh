@@ -225,6 +225,17 @@ create_appointments_service_containers() {
     echo "⏳ Waiting for PHPMyAdmin to be ready..."
     sleep 5
 
+    docker rm -f ${CONTAINER_PREFIX}_plebdoc_api_1 2>/dev/null || true
+    docker run -d --name ${CONTAINER_PREFIX}_plebdoc_api_1 \
+        $NETWORK_FLAG \
+        -p 3004:3004 \
+        -e NODE_ENV=production \
+        -e DB_HOST=${CONTAINER_PREFIX}_appointments_mysql_1 \
+        -e DB_USER=user \
+        -e DB_PASSWORD=password \
+        -e DB_NAME=easyappointments \
+        plebdoc-scheduler-api
+
     echo "✅ Appointments Service containers created!"
     echo "📊 PHPMyAdmin available at:"
     if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -232,6 +243,7 @@ create_appointments_service_containers() {
     else
         echo "   🐧 Umbrel: http://$(hostname -I | awk '{print $1}'):8089"
         echo "   🌐 External: http://your-umbrel-ip:8089"
+        echo "   scheduler-API: http://$(hostname -I | awk '{print $1}'):3004"
     fi
     ## can access via ssh -L 8089:localhost:8089 imyjimmy@[...].org
 }
