@@ -39,7 +39,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
     # EasyAppointments paths for macOS
     APPOINTMENTS_DATA_PATH="$(pwd)/../app-data"
-    EASYAPPOINTMENTS_SOURCE_PATH="$(pwd)/easyappointments"
 else
     # Umbrel/Linux environment
     echo "🐧 Running on Umbrel/Linux (production)"
@@ -61,17 +60,7 @@ else
     fi
 
     # EasyAppointments paths for Umbrel
-    APPOINTMENTS_DATA_PATH="/home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/appointments"
-    EASYAPPOINTMENTS_SOURCE_PATH="/home/imyjimmy/dev/mgit-repo-server/easyappointments"
-
-fi
-
-if [[ "$OSTYPE" == "darwin"* ]] && [[ "${2:-}" != "no-appt" ]]; then
-    if [[ ! -d "$EASYAPPOINTMENTS_SOURCE_PATH" ]]; then
-        echo "❌ EasyAppointments source not found at: $EASYAPPOINTMENTS_SOURCE_PATH"
-        echo "💡 Please ensure the easyappointments directory exists or adjust EASYAPPOINTMENTS_SOURCE_PATH"
-        exit 1
-    fi
+    APPOINTMENTS_DATA_PATH="/var/lib/plebdoc-scheduler-service"
 fi
 
 echo "📁 Using repos path: $REPOS_PATH"
