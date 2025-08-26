@@ -244,6 +244,7 @@ create_appointments_service_containers() {
         echo "   🐧 Umbrel: http://$(hostname -I | awk '{print $1}'):8089"
         echo "   🌐 External: http://your-umbrel-ip:8089"
     fi
+    ## can access via ssh -L 8089:localhost:8089 imyjimmy@[...].org
 }
 
 # Wait for MySQL to be ready
