@@ -74,6 +74,7 @@ echo "🛑 Stopping containers..."
 docker stop ${CONTAINER_PREFIX}_web_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_web_1 not running"
 docker stop ${CONTAINER_PREFIX}_tor_server_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_tor_server_1 not running"
 docker stop ${CONTAINER_PREFIX}_app_proxy_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_app_proxy_1 not running"
+docker stop ${CONTAINER_PREFIX}_plebdoc_api_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_plebdoc_api_1 not running"
 
 echo "🗑️ Removing old container and image..."
 docker rm ${CONTAINER_PREFIX}_web_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_web_1 already removed"
@@ -81,6 +82,10 @@ docker rmi imyjimmy/mgit-repo-server:latest 2>/dev/null || echo "Image imyjimmy/
 
 echo "🔨 Building new image on platform $PLATFORM"
 docker build --platform ${PLATFORM} --no-cache -t imyjimmy/mgit-repo-server:latest .
+
+docker rm ${CONTAINER_PREFIX}_plebdoc_api_1 2>/dev/null || echo "${CONTAINER_PREFIX}_plebdoc_api_1 already removed"
+echo "🔨 Building new scheduler API on platform $PLATFORM"
+docker build --no-cache -t plebdoc-scheduler-api ../plebdoc-scheduler-service/api
 
 # Exit if build fails (this is critical)
 if [ $? -ne 0 ]; then
