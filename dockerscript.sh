@@ -240,14 +240,29 @@ create_appointments_service_containers() {
         -e DB_PASSWORD=password \
         -e DB_NAME=easyappointments \
         plebdoc-scheduler-api
+    
+    # Create Swagger UI container
+    docker rm -f ${CONTAINER_PREFIX}_plebdoc_swagger_1 2>/dev/null || true
+    docker run -d --name ${CONTAINER_PREFIX}_plebdoc_swagger_1 \
+        $NETWORK_FLAG \
+        -p 8090:8080 \
+        -e SWAGGER_JSON_URL=http://localhost:3005/api-docs.json \
+        -e API_URL=http://localhost:3005/api-docs.json \
+        swaggerapi/swagger-ui:latest
+
+    echo "⏳ Waiting for Swagger UI to be ready..."
+    sleep 3
 
     echo "✅ Appointments Service containers created!"
     echo "📊 PHPMyAdmin available at:"
     if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "   🍎 macOS: http://localhost:8089"
+        echo "   📖 Swagger UI: http://localhost:8090"
+        echo "   🔧 Scheduler API: http://localhost:3005"
     else
         echo "   🐧 Umbrel: http://$(hostname -I | awk '{print $1}'):8089"
         echo "   🌐 External: http://your-umbrel-ip:8089"
+        echo "   📖 Swagger UI: http://$(hostname -I | awk '{print $1}'):8090"
         echo "   scheduler-API: http://$(hostname -I | awk '{print $1}'):3005"
     fi
     ## can access via ssh -L 8089:localhost:8089 imyjimmy@[...].org

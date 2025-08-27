@@ -2,6 +2,7 @@
 admin/dist
 private_repos
 users
+mysql-backups/*
 # dependencies
 **/node_modules
 /.pnp
