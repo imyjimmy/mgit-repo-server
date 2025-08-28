@@ -21,11 +21,11 @@ const getEasyAppointmentsUrl = () => {
 const getMySQLHost = () => {
   // Check if we're in development environment
   if (process.env.NODE_ENV !== 'production') {
-    return 'mgit-repo-server_appointments_mysql_1';  // macOS container name
+    return 'mgit-repo-server_plebdoc_mysql_1';  // macOS container name
   }
   
   // Production hostname
-  return 'mgitreposerver-mgit-repo-server_appointments_mysql_1';  // Umbrel container name
+  return 'mgitreposerver-mgit-repo-server_plebdoc_mysql_1';  // Umbrel container name
 };
 
 function setupProviderEndpoints(app, validateAuthToken) {

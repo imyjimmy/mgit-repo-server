@@ -18,7 +18,7 @@ echo "🔧 Using container prefix: ${CONTAINER_PREFIX}"
 
 # Function to backup MySQL data
 backup_mysql_data() {
-    local mysql_container="${CONTAINER_PREFIX}_appointments_mysql_1"
+    local mysql_container="${CONTAINER_PREFIX}_plebdoc_mysql_1"
     
     echo "🔍 Checking if MySQL container exists..."
     if docker ps -a --format "table {{.Names}}" | grep -q "^${mysql_container}$"; then
@@ -76,19 +76,19 @@ docker rm ${CONTAINER_PREFIX}_web_1 2>/dev/null || true
 # Stop and remove easyappointment containers
 echo "🛑 Stopping easyappointment containers..."
 docker stop ${CONTAINER_PREFIX}_plebdoc_api_1 2>/dev/null || true
-docker stop ${CONTAINER_PREFIX}_appointments_nginx_1 2>/dev/null || true
-docker stop ${CONTAINER_PREFIX}_appointments_swagger_1 2>/dev/null || true
-docker stop ${CONTAINER_PREFIX}_appointments_phpmyadmin_1 2>/dev/null || true
-docker stop ${CONTAINER_PREFIX}_appointments_php_1 2>/dev/null || true
-docker stop ${CONTAINER_PREFIX}_appointments_mysql_1 2>/dev/null || true
+docker stop ${CONTAINER_PREFIX}_plebdoc_phpmyadmin_1 2>/dev/null || true
+docker stop ${CONTAINER_PREFIX}_plebdoc_mysql_1 2>/dev/null || true
+docker stop ${CONTAINER_PREFIX}_plebdoc_swagger_1 2>/dev/null || true
 
 echo "🗑️ Removing easyappointment containers..."
 docker rm ${CONTAINER_PREFIX}_plebdoc_api_1 2>/dev/null || true
-docker rm ${CONTAINER_PREFIX}_appointments_nginx_1 2>/dev/null || true
-docker rm ${CONTAINER_PREFIX}_appointments_swagger_1 2>/dev/null || true
-docker rm ${CONTAINER_PREFIX}_appointments_phpmyadmin_1 2>/dev/null || true
-docker rm ${CONTAINER_PREFIX}_appointments_php_1 2>/dev/null || true
-docker rm ${CONTAINER_PREFIX}_appointments_mysql_1 2>/dev/null || true
+docker rm ${CONTAINER_PREFIX}_plebdoc_phpmyadmin_1 2>/dev/null || true
+docker rm ${CONTAINER_PREFIX}_plebdoc_mysql_1 2>/dev/null || true
+docker rm ${CONTAINER_PREFIX}_plebdoc_swagger_1 2>/dev/null || true
+
+# remove the gateway!
+docker stop ${CONTAINER_PREFIX}_gateway_1 2>/dev/null || true
+docker rm ${CONTAINER_PREFIX}_gateway_1 2>/dev/null || true
 
 # Remove only mgit-related images
 echo "🗑️ Removing mgit-related images..."

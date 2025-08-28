@@ -71,6 +71,7 @@ mkdir -p "$REPOS_PATH"
 mkdir -p "$APPOINTMENTS_DATA_PATH"/{mysql,openldap/{certificates,slapd/{database,config}},mailpit,baikal/{config,data}}
 
 echo "🛑 Stopping containers..."
+docker stop ${CONTAINER_PREFIX}_gateway_1 2>/dev/null || true
 docker stop ${CONTAINER_PREFIX}_web_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_web_1 not running"
 docker stop ${CONTAINER_PREFIX}_tor_server_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_tor_server_1 not running"
 docker stop ${CONTAINER_PREFIX}_app_proxy_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_app_proxy_1 not running"
@@ -80,6 +81,9 @@ echo "🗑️ Removing old container and image..."
 docker rm ${CONTAINER_PREFIX}_web_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_web_1 already removed"
 docker rmi imyjimmy/mgit-repo-server:latest 2>/dev/null || echo "Image imyjimmy/mgit-repo-server:latest not found locally"
 
+# remove gateway
+docker rm ${CONTAINER_PREFIX}_gateway_1 2>/dev/null || echo "Container ${CONTAINER_PREFIX}_gateway_1 already removed"
+
 echo "🔨 Building new image on platform $PLATFORM"
 docker build --platform ${PLATFORM} --no-cache -t imyjimmy/mgit-repo-server:latest .
 
@@ -87,13 +91,23 @@ docker rm ${CONTAINER_PREFIX}_plebdoc_api_1 2>/dev/null || echo "${CONTAINER_PRE
 echo "🔨 Building new scheduler API on platform $PLATFORM"
 docker build --no-cache -t plebdoc-scheduler-api ../plebdoc-scheduler-service/api
 
+echo "🔨 Building gateway image..."
+(cd gateway && docker build --no-cache -t imyjimmy/mgit-gateway:latest .)
+if [ $? -ne 0 ]; then
+    echo "❌ Gateway build failed! Exiting..."
+    exit 1
+fi
+
+echo "📤 Pushing gateway to Docker Hub..."
+docker push imyjimmy/mgit-gateway:latest
+
 # Exit if build fails (this is critical)
 if [ $? -ne 0 ]; then
     echo "❌ Docker build failed! Exiting..."
     exit 1
 fi
 
-echo "📤 Pushing to Docker Hub..."
+echo "📤 Pushing mgit-repo-server to Docker Hub..."
 docker push imyjimmy/mgit-repo-server:latest
 
 # Exit if push fails (this is critical)
@@ -129,7 +143,6 @@ if [ "$NODE_ENV" = 'development' ]; then
     -v "$(pwd)/.env:/app/.env" \
     -e "NODE_ENV=${NODE_ENV}" \
     -e "MGITPATH=/usr/local/bin" \
-    -p 3003:3003 \
     --restart unless-stopped \
     imyjimmy/mgit-repo-server:latest \
     sh -c "npm install nodemon --save-dev 2>/dev/null; npx nodemon server.js"
@@ -142,8 +155,9 @@ else
     $NETWORK_FLAG \
     -v "${REPOS_PATH}:/private_repos" \
     -e "NODE_ENV=${NODE_ENV}" \
+    -e JWT_SECRET=${JWT_SECRET} \
     -e "MGITPATH=/usr/local/bin" \
-    -e "APPOINTMENTS_DB_HOST=${CONTAINER_PREFIX}_appointments_mysql_1" \
+    -e "APPOINTMENTS_DB_HOST=${CONTAINER_PREFIX}_plebdoc_mysql_1" \
     -p 3003:3003 \
     --restart unless-stopped \
     imyjimmy/mgit-repo-server:latest \
@@ -181,7 +195,7 @@ create_appointments_service_containers() {
     local latest_backup="${backup_path}/easyappointments_latest.sql"
     
     # Create appointments MySQL container (remove existing first)
-    docker rm -f ${CONTAINER_PREFIX}_appointments_mysql_1 2>/dev/null || true
+    docker rm -f ${CONTAINER_PREFIX}_plebdoc_mysql_1 2>/dev/null || true
     
     # Check if we have a backup to restore
     if [ -f "$latest_backup" ]; then
@@ -189,7 +203,7 @@ create_appointments_service_containers() {
         echo "🔄 Automatically restoring from backup..."
         
         # Start MySQL container
-        docker run -d --name ${CONTAINER_PREFIX}_appointments_mysql_1 \
+        docker run -d --name ${CONTAINER_PREFIX}_plebdoc_mysql_1 \
           $NETWORK_FLAG \
           -v "${APPOINTMENTS_DATA_PATH}/mysql:/var/lib/mysql" \
           -v "$(pwd)/../plebdoc-scheduler-service/init-scripts:/docker-entrypoint-initdb.d" \
@@ -204,7 +218,7 @@ create_appointments_service_containers() {
         echo "⏳ Waiting for MySQL to initialize..."
         if wait_for_mysql; then
             echo "📥 Restoring database from backup..."
-            if docker exec -i ${CONTAINER_PREFIX}_appointments_mysql_1 mysql \
+            if docker exec -i ${CONTAINER_PREFIX}_plebdoc_mysql_1 mysql \
                 -u user -ppassword easyappointments < "$latest_backup"; then
                 echo "✅ Database restored successfully!"
             else
@@ -221,7 +235,7 @@ create_appointments_service_containers() {
     docker run -d --name ${CONTAINER_PREFIX}_plebdoc_phpmyadmin_1 \
         $NETWORK_FLAG \
         -p 8089:80 \
-        -e PMA_HOST=${CONTAINER_PREFIX}_appointments_mysql_1 \
+        -e PMA_HOST=${CONTAINER_PREFIX}_plebdoc_mysql_1 \
         -e UPLOAD_LIMIT=102400K \
         -e PMA_USER=user \
         -e PMA_PASSWORD=password \
@@ -234,8 +248,9 @@ create_appointments_service_containers() {
     docker run -d --name ${CONTAINER_PREFIX}_plebdoc_api_1 \
         $NETWORK_FLAG \
         -p 3005:3005 \
-        -e NODE_ENV=production \
-        -e DB_HOST=${CONTAINER_PREFIX}_appointments_mysql_1 \
+        -e NODE_ENV=development \
+        -e JWT_SECRET=${JWT_SECRET} \
+        -e DB_HOST=${CONTAINER_PREFIX}_plebdoc_mysql_1 \
         -e DB_USER=user \
         -e DB_PASSWORD=password \
         -e DB_NAME=easyappointments \
@@ -271,7 +286,7 @@ create_appointments_service_containers() {
 # Wait for MySQL to be ready
 wait_for_mysql() {
     for i in {1..60}; do
-        if docker exec ${CONTAINER_PREFIX}_appointments_mysql_1 mysqladmin ping -h"localhost" -u"user" -p"password" --silent 2>/dev/null; then
+        if docker exec ${CONTAINER_PREFIX}_plebdoc_mysql_1 mysqladmin ping -h"localhost" -u"user" -p"password" --silent 2>/dev/null; then
             echo "✅ MySQL is ready!"
             return 0
         fi
@@ -283,7 +298,7 @@ wait_for_mysql() {
 }
 
 start_fresh_mysql() {
-    docker run -d --name ${CONTAINER_PREFIX}_appointments_mysql_1 \
+    docker run -d --name ${CONTAINER_PREFIX}_plebdoc_mysql_1 \
       $NETWORK_FLAG \
       -v "${APPOINTMENTS_DATA_PATH}/mysql:/var/lib/mysql" \
       -v "$(pwd)/../plebdoc-scheduler-service/init-scripts:/docker-entrypoint-initdb.d" \
@@ -306,10 +321,18 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
     docker start ${CONTAINER_PREFIX}_tor_server_1 2>/dev/null || echo "Tor container not found"
 fi
 
-# Add EasyAppointments creation at the end
+# plebdoc-scheduler-service creation at the end
 if [[ "${2:-}" != "no-appt" ]]; then
     create_appointments_service_containers
 fi
+
+# gateway to tie it all together--run it last
+echo "🚀 Starting nginx gateway..."
+docker run -d --name ${CONTAINER_PREFIX}_gateway_1 \
+  ${NETWORK_FLAG} \
+  -v $(pwd)/gateway/nginx.conf:/etc/nginx/nginx.conf:ro \
+  -p 3003:80 \
+  imyjimmy/mgit-gateway:latest
 
 echo "✅ Deployment complete!"
 
