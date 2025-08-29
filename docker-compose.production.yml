@@ -46,23 +46,6 @@ services:
       - umbrel_main_network
     platform: linux/amd64
 
-  # Production-only services
-  tor-server:
-    image: your-tor-image:latest
-    container_name: ${CONTAINER_PREFIX}_tor_server_1
-    networks:
-      - umbrel_main_network
-    restart: unless-stopped
-    platform: linux/amd64
-
-  app-proxy:
-    image: your-proxy-image:latest
-    container_name: ${CONTAINER_PREFIX}_app_proxy_1
-    networks:
-      - umbrel_main_network
-    restart: unless-stopped
-    platform: linux/amd64
-
 networks:
   umbrel_main_network:
     external: true
