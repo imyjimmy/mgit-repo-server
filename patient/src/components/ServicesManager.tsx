@@ -55,7 +55,7 @@ export const ServicesManager: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('patient_token');
-      const response = await fetch('/api/patient/services', {
+      const response = await fetch('/api/admin/services', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -83,7 +83,7 @@ export const ServicesManager: React.FC = () => {
   const loadCategories = async () => {
     try {
       const token = localStorage.getItem('patient_token');
-      const response = await fetch('/api/patient/service-categories', {
+      const response = await fetch('/api/admin/service-categories', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -103,7 +103,7 @@ export const ServicesManager: React.FC = () => {
       const token = localStorage.getItem('patient_token');
       const isEditing = 'id' in service && service.id;
       
-      const response = await fetch(`/api/patient/services${isEditing ? `/${service.id}` : ''}`, {
+      const response = await fetch(`/api/admin/services${isEditing ? `/${service.id}` : ''}`, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export const ServicesManager: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('patient_token');
-      const response = await fetch(`/api/patient/services/${serviceId}`, {
+      const response = await fetch(`/api/admin/services/${serviceId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

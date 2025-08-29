@@ -20,7 +20,7 @@ export const DatabaseTest: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('patient_token');
-      const response = await fetch('/api/patient/database-test', {
+      const response = await fetch('/api/admin/database-test', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -51,7 +51,7 @@ class AuthService {
 
   async registerUser(userData: { firstName: string; lastName: string; email: string; phoneNumber?: string; nostr_pubkey: string }, token: string): Promise<any> {
     try {
-      const response = await fetch('/api/patient/register-user', {
+      const response = await fetch('/api/admin/register-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ class AuthService {
     user?: UserInfo;
   }> {
     try {
-      const response = await fetch(`/api/patient/user-lookup/${pubkey}`, {
+      const response = await fetch(`/api/admin/user-lookup/${pubkey}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

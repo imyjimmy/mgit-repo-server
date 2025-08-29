@@ -96,7 +96,7 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
   useEffect(() => {
     const fetchWorkingPlan = async () => {
       try {
-        const response = await fetch('/api/patient/working-plan', {
+        const response = await fetch('/api/admin/working-plan', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

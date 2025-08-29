@@ -54,8 +54,8 @@ export function Step1ProviderService({ data, onNext, onUpdate }: Step1Props) {
     console.log('🔍 Starting loadProviders function...');
 
     try {
-      console.log('🌐 About to fetch /api/patient/providers');
-      const response = await fetch('/api/patient/providers');
+      console.log('🌐 About to fetch /api/admin/providers');
+      const response = await fetch('/api/admin/providers');
       console.log('📡 Fetch completed, response:', response);
       console.log('📡 Response status:', response.status);
       console.log('📡 Response ok:', response.ok);
@@ -77,7 +77,7 @@ export function Step1ProviderService({ data, onNext, onUpdate }: Step1Props) {
     setLoadingServices(true);
     
     try {
-      const url = `/api/patient/providers/${providerId}/services`;
+      const url = `/api/admin/providers/${providerId}/services`;
       console.log('🌐 About to fetch:', url);
       
       const response = await fetch(url);
