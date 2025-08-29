@@ -1,6 +1,3 @@
 [submodule "mgit"]
 	path = mgit
 	url = https://github.com/imyjimmy/mgit.git
-[submodule "easyappointments"]
-	path = easyappointments
-	url = git@github.com:imyjimmy/easyappointments.git
