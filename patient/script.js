@@ -693,7 +693,7 @@ async function sendInvoice() {
     try {
         showMessage('Generating Lightning invoice...', 'info');
         
-        const response = await fetch('/api/patient/invoice', {
+        const response = await fetch('/api/admin/invoice', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${patientToken}`,
