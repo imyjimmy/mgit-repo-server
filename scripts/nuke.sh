@@ -74,6 +74,9 @@ docker rmi imyjimmy/mgit-repo-server:latest 2>/dev/null || true
 docker rmi imyjimmy/mgit-gateway:latest 2>/dev/null || true
 docker rmi plebdoc-scheduler-api:latest 2>/dev/null || true
 
+docker rmi mgit-repo-server-plebdoc-api:latest 2>/dev/null || true
+docker rmi plebdoc-scheduler-service-api 2>/dev/null || true
+
 # Clean up unused images
 echo "🧹 Cleaning up unused images..."
 docker image prune -f

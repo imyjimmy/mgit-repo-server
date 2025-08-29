@@ -1,4 +1,7 @@
 #!/bin/bash
+cd "$(dirname "$0")/.."
+source .env.development
+
 # Start development environment
 set -e
 
@@ -12,8 +15,8 @@ RESTORE_BACKUP=${2:-Y}  # Default: restore backup if available
 docker network create $NETWORK 2>/dev/null || true
 
 # Create required directories
-mkdir -p "$(pwd)/../private_repos"
-mkdir -p "$(pwd)/../app-data"/{mysql,openldap/{certificates,slapd/{database,config}},mailpit,baikal/{config,data}}
+# mkdir -p "$(pwd)/../private_repos"
+# mkdir -p "$(pwd)/../app-data"/{mysql,openldap/{certificates,slapd/{database,config}},mailpit,baikal/{config,data}}
 
 # Stop any running services first
 echo "🛑 Stopping existing services..."
@@ -45,12 +48,14 @@ fi
 echo "🚀 Starting development services..."
 docker-compose -f docker-compose.yml -f docker-compose.development.yml --env-file .env.development up -d
 
+# local mysql_container="${CONTAINER_PREFIX}_plebdoc_mysql_1"
+
 # Restore backup if available
 if [[ -n "$RESTORE_FLAG" && -f "$BACKUP_PATH" ]]; then
     echo "⏳ Waiting for MySQL to be ready..."
     sleep 10
     
-    echo "📥 Restoring database from backup..."
+    echo "📥 Restoring database from backup. CONTAINER_PREFIX: ${CONTAINER_PREFIX}"
     docker exec -i ${CONTAINER_PREFIX}_plebdoc_mysql_1 mysql \
         -u user -ppassword easyappointments < "$BACKUP_PATH" || \
         echo "⚠️ Backup restore failed (this is OK if starting fresh)"
