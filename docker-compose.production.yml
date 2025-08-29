@@ -1,0 +1,75 @@
+# Production environment overrides
+# Extends docker-compose.yml with prod-specific settings
+#     REPOS_PATH="/home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos"
+
+services:
+  mgit-web:
+    command: node server.js
+    volumes:
+      - ${REPOS_PATH}:/private_repos    # Use named volume instead of host mount
+    networks:
+      - umbrel_main_network
+    platform: linux/amd64
+
+  gateway:
+    ports:
+      - "3003:80"
+    networks:
+      - ${NETWORK}
+    platform: linux/amd64
+
+  mysql:
+    volumes:
+      - /opt/plebdoc-scheduler-service/mysql:/var/lib/mysql
+    networks:
+      - umbrel_main_network
+    platform: linux/amd64
+
+  phpmyadmin:
+    ports:
+      - "8089:80"
+    networks:
+      - umbrel_main_network
+    platform: linux/amd64
+
+  plebdoc-api:
+    ports:
+      - "3005:3005"
+    networks:
+      - umbrel_main_network
+    platform: linux/amd64
+
+  swagger-ui:
+    ports:
+      - "8090:8080"
+    networks:
+      - umbrel_main_network
+    platform: linux/amd64
+
+  # Production-only services
+  tor-server:
+    image: your-tor-image:latest
+    container_name: ${CONTAINER_PREFIX}_tor_server_1
+    networks:
+      - umbrel_main_network
+    restart: unless-stopped
+    platform: linux/amd64
+
+  app-proxy:
+    image: your-proxy-image:latest
+    container_name: ${CONTAINER_PREFIX}_app_proxy_1
+    networks:
+      - umbrel_main_network
+    restart: unless-stopped
+    platform: linux/amd64
+
+networks:
+  umbrel_main_network:
+    external: true
+
+volumes:
+  repos_data:
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos

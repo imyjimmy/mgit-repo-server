@@ -4,6 +4,10 @@
   "description": "Simple static server for mgit repos",
   "main": "server.js",
   "scripts": {
+    "build": "chmod +x scripts/build.sh && scripts/build.sh",
+    "dev": "chmod +x scripts/dev.sh && scripts/dev.sh",
+    "stop": "docker-compose -f docker-compose.yml -f docker-compose.development.yml down",
+    "logs": "docker-compose -f docker-compose.yml -f docker-compose.development.yml logs -f",
     "start": "node server.js"
   },
   "dependencies": {
