@@ -19,7 +19,11 @@ export interface BookingData {
   } | null;
 }
 
-export function BookingWorkflow() {
+interface BookingWorkflowProps {
+  token: string;
+}
+
+export function BookingWorkflow({ token }: BookingWorkflowProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData>({
     provider: null,
@@ -48,7 +52,7 @@ export function BookingWorkflow() {
     <div className="py-6">
       <ProgressBar currentStep={currentStep} />
       
-      <div className="w-3/5 mx-auto bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+      <div className="w-3/5 mx-auto bg-card shadow-lg border rounded-lg p-6">
         {currentStep === 1 && (
           <Step1ProviderService
             data={bookingData}

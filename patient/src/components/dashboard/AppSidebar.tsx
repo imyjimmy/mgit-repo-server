@@ -1,4 +1,4 @@
-import { Calendar, FolderOpen, Video, Settings, Database, Wrench } from "lucide-react"
+import { Calendar, CalendarCheck, FolderOpen, Video, Settings, Database, Wrench } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -18,10 +18,15 @@ const items = [
     title: "Medical Repositories", 
     icon: FolderOpen,
   },
+  // {
+  //   id: "booking",
+  //   title: "Book Appointment",
+  //   icon: CalendarCheck,
+  // },
   {
-    id: "appointment",
+    id: "appointments",
     title: "Appointments",
-    icon: Calendar,
+    icon: CalendarCheck,
   },
   {
     id: "webrtc",
@@ -37,12 +42,7 @@ const items = [
     id: "database",
     title: "Database",
     icon: Database,
-  },
-  {
-    id: "services",
-    title: "Services",
-    icon: Wrench,
-  },
+  }
 ]
 
 interface AppSidebarProps {

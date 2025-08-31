@@ -556,19 +556,19 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   }, []); //isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress
   
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+    <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
       <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-500 pb-2">
+        <h3 className="text-xl font-semibold text-card-foreground mb-4 border-b-2 border-primary pb-2">
           Telehealth (Advanced Interval Management)
         </h3>
       </div>
-      
+  
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
-          <h4 className="font-medium text-gray-700 mb-3">Test Video Calls</h4>
+          <h4 className="font-medium text-card-foreground mb-3">Test Video Calls</h4>
           <div className="space-y-4">
             <div>
-              <label htmlFor="roomId" className="block text-sm font-medium text-gray-600 mb-1">
+              <label htmlFor="roomId" className="block text-sm font-medium text-muted-foreground mb-1">
                 Room ID:
               </label>
               <input
@@ -577,7 +577,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
                 placeholder="Enter room ID"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
               />
             </div>
             <div className="flex gap-2">
@@ -600,40 +600,40 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         </div>
         
         <div>
-          <h4 className="font-medium text-gray-700 mb-3">Connection Status</h4>
+          <h4 className="font-medium text-card-foreground mb-3">Connection Status</h4>
           <div className="space-y-2">
-            <div className="font-medium">Status: {connectionStatus}</div>
-            <div className="font-medium">Participants: {participantCount}</div>
-            <div className="text-sm text-gray-600">
+            <div className="font-medium text-foreground">Status: {connectionStatus}</div>
+            <div className="font-medium text-foreground">Participants: {participantCount}</div>
+            <div className="text-sm text-muted-foreground">
               Active Intervals: {getActiveIntervals().join(', ') || 'None'}
             </div>
             {handshakeInProgress && (
-              <div className="text-sm text-amber-600 font-medium">
+              <div className="text-sm text-orange-600 dark:text-orange-400 font-medium">
                 ⚠️ Handshake in progress - do not navigate away
               </div>
             )}
           </div>
         </div>
       </div>
-      
+  
       <div className="mt-6">
-        <h4 className="font-medium text-gray-700 mb-3">Video Test</h4>
+        <h4 className="font-medium text-card-foreground mb-3">Video Test</h4>
         <div className="flex gap-4 justify-center">
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">Local Video</p>
+            <p className="text-sm text-muted-foreground mb-2">Local Video</p>
             <video
               ref={localVideoRef}
               autoPlay
               muted
-              className="w-48 h-36 border border-gray-300 rounded-lg bg-gray-100"
+              className="w-48 h-36 border border-border rounded-lg bg-muted"
             />
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">Remote Video</p>
+            <p className="text-sm text-muted-foreground mb-2">Remote Video</p>
             <video
               ref={remoteVideoRef}
               autoPlay
-              className="w-48 h-36 border border-gray-300 rounded-lg bg-gray-100"
+              className="w-48 h-36 border border-border rounded-lg bg-muted"
             />
           </div>
         </div>

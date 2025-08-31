@@ -5,13 +5,16 @@ import { AppSidebar } from '@/components/dashboard/AppSidebar';
 import { Card } from '@/components/ui/card';
 import { SiteHeader } from '@/components/SiteHeader';
 
-import { WebRTCTest } from '../components/WebRTCTest';
+import { MedicalRepos } from '@/components/MedicalRepos'
+import { BookingWorkflow } from '@/components/booking/BookingWorkflow';
 import { AppointmentsTab } from '../components/AppointmentsTab';
+
+import { WebRTCTest } from '../components/WebRTCTest';
 import { DatabaseTest } from '../components/DatabaseTest';
 import { RegistrationView } from '../components/RegistrationView';
 import { ServicesManager } from '../components/ServicesManager';
 
-import { MedicalRepos } from '@/components/MedicalRepos'
+
 import { authService } from '../services/auth';
 import { AuthState, UserInfo } from '../types';
 
@@ -181,9 +184,9 @@ const PatientDashboard: React.FC = () => {
           {activeSection === 'webrtc' && authState.token && (
             <WebRTCTest token={authState.token} />
           )}
-          {activeSection === 'appointment' && authState.token && (
+          {/* {activeSection === 'appointment' && authState.token && (
             <AppointmentsTab token={authState.token} />
-          )}
+          )} */}
           {activeSection === 'settings' && (
             <Card className="p-6">
               <h3 className="text-xl font-semibold mb-4">Settings</h3>
@@ -194,9 +197,11 @@ const PatientDashboard: React.FC = () => {
             </Card>
           )}
           {activeSection === 'database' && <DatabaseTest />}
-          {activeSection === 'services' && <ServicesManager />}
           {activeSection === 'repositories' && authState.token && (
             <MedicalRepos token={authState.token} />
+          )}
+          {activeSection === 'appointments' && authState.token && (
+            <BookingWorkflow token={authState.token} />
           )}
         </div>
       </SidebarInset>
