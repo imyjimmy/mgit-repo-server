@@ -11,6 +11,7 @@ import { DatabaseTest } from '../components/DatabaseTest';
 import { RegistrationView } from '../components/RegistrationView';
 import { ServicesManager } from '../components/ServicesManager';
 
+import { MedicalRepos } from '@/components/MedicalRepos'
 import { authService } from '../services/auth';
 import { AuthState, UserInfo } from '../types';
 
@@ -194,6 +195,9 @@ const PatientDashboard: React.FC = () => {
           )}
           {activeSection === 'database' && <DatabaseTest />}
           {activeSection === 'services' && <ServicesManager />}
+          {activeSection === 'repositories' && authState.token && (
+            <MedicalRepos token={authState.token} />
+          )}
         </div>
       </SidebarInset>
     </SidebarProvider>

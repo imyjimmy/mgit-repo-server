@@ -1,4 +1,4 @@
-import { Calendar, Video, Settings, Database, Wrench } from "lucide-react"
+import { Calendar, FolderOpen, Video, Settings, Database, Wrench } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -13,6 +13,11 @@ import {
 } from "@/components/ui/sidebar"
 
 const items = [
+  {
+    id: "repositories",
+    title: "Medical Repositories", 
+    icon: FolderOpen,
+  },
   {
     id: "appointment",
     title: "Appointments",
