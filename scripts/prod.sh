@@ -81,7 +81,7 @@ fi
 echo "✅ Production deployment complete!"
 echo ""
 echo "🌐 Services available at:"
-echo "   📝 Git Server: http://$(hostname -I | awk '{print $1}'):3003"
+echo "   📝 Patient Frontend: http://$(hostname -I | awk '{print $1}'):3003"
 echo "   💾 PHPMyAdmin: http://$(hostname -I | awk '{print $1}'):8089"
 echo "   🔧 Scheduler API: http://$(hostname -I | awk '{print $1}'):3005"
 echo "   📖 Swagger UI: http://$(hostname -I | awk '{print $1}'):8090"

@@ -3,6 +3,12 @@
 #     REPOS_PATH="/home/imyjimmy/umbrel/app-data/mgitreposerver-mgit-repo-server/repos"
 
 services:
+
+  patient-frontend:
+    networks:
+      - umbrel_main_network
+    platform: linux/amd64
+    
   mgit-web:
     command: node server.js
     volumes:

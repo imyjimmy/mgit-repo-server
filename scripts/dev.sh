@@ -64,7 +64,7 @@ fi
 echo "✅ Development environment started!"
 echo ""
 echo "🌐 Services available at:"
-echo "   📝 Git Server: http://localhost:3003"
+echo "   📝 Patient Frontend: http://localhost:3003"
 echo "   💾 PHPMyAdmin: http://localhost:8089"
 echo "   📊 MySQL: localhost:3306"
 echo "   🔧 Scheduler API: http://localhost:3005"

@@ -557,37 +557,6 @@ app.get('/api/auth/nostr/status', (req, res) => {
   });
 });
 
-app.get('/api/nostr/nip05/verify', async (req, res) => {
-  const { domain, name } = req.query;
-
-  if (!domain || !name) {
-    return res.status(400).json({ error: 'Domain and name parameters are required' });
-  }
-
-  const agent = new https.Agent({
-    rejectUnauthorized: false
-  });
-
-  try {
-    const response = await axios.get(
-      `https://nostr-check.com/.well-known/nostr.json?name=${name}`,
-      { 
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0'
-        },
-        httpsAgent: agent
-      }
-    );
-
-    res.json(response.data);
-
-  } catch (error) {
-    console.error('NIP-05 verification error:', error.message);
-    res.status(500).json({ error: error.message || 'Failed to verify NIP-05' });
-  }
-});
-
 // NEW ENDPOINTS FOR MGIT REPOSITORY-SPECIFIC AUTH
 
 // 1. Repository-specific challenge generation
@@ -1552,7 +1521,7 @@ app.get('/api/mgit/repos/:repoId/database', validateMGitToken, async (req, res) 
 });
 
 // show repos of a user
-app.get('/api/user/repositories', validateAuthToken, async (req, res) => {
+app.get('/api/mgit/user/repositories', validateAuthToken, async (req, res) => {
   try {
     console.log('USER REPOSITORIES LIST')
     const userPubkey = req.user.pubkey;
