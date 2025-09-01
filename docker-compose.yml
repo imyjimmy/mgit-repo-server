@@ -6,9 +6,6 @@ services:
     build: ./patient
     container_name: ${CONTAINER_PREFIX}_patient_frontend_1
     restart: unless-stopped
-    # No external port needed - accessed via gateway
-    networks:
-      - plebemr_admin_network
 
   mgit-web:
     image: imyjimmy/mgit-repo-server:latest

@@ -2,6 +2,10 @@
 # Extends docker-compose.yml with dev-specific settings
 
 services:
+  patient-frontend:
+    networks:
+      - plebemr_admin_network
+      
   mgit-web:
     command: sh -c "npm install nodemon --save-dev 2>/dev/null; npx nodemon server.js"
     volumes:
