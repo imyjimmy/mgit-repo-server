@@ -52,8 +52,8 @@ async function loadExistingRepositories() {
   }
 
   try {
-    console.log('📡 Calling /api/user/repositories...');
-    const response = await fetch('/api/user/repositories', {
+    console.log('📡 Calling /api/mgit/user/repositories...');
+    const response = await fetch('/api/mgit/user/repositories', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
