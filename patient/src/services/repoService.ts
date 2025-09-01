@@ -78,7 +78,7 @@ export class RepoService {
   }
 
   static async generateQRCode(repoName: string, token: string) {
-    const response = await fetch(`/api/qr/clone/${repoName}`, {
+    const response = await fetch(`/api/mgit/qr/clone/${repoName}`, {
       method: 'GET',
       headers: {'Authorization': `Bearer ${token}`}
     })

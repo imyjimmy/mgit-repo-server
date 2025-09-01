@@ -924,7 +924,7 @@ app.get('/api/mgit/repos/:repoId/clone', validateMGitToken, (req, res) => {
 });
 
 // QR Code generation endpoint-- used for mobile mgit clone
-app.get('/api/qr/clone/:repoId', validateMGitToken, async (req, res) => {
+app.get('/api/mgit/qr/clone/:repoId', validateMGitToken, async (req, res) => {
   const { repoId } = req.params;
   const { pubkey } = req.user;
   
