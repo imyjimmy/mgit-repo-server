@@ -7,13 +7,10 @@ import { SiteHeader } from '@/components/SiteHeader';
 
 import { MedicalRepos } from '@/components/MedicalRepos'
 import { BookingWorkflow } from '@/components/booking/BookingWorkflow';
-import { AppointmentsTab } from '../components/AppointmentsTab';
 
 import { WebRTCTest } from '../components/WebRTCTest';
 import { DatabaseTest } from '../components/DatabaseTest';
 import { RegistrationView } from '../components/RegistrationView';
-import { ServicesManager } from '../components/ServicesManager';
-
 
 import { authService } from '../services/auth';
 import { AuthState, UserInfo } from '../types';
@@ -29,7 +26,6 @@ const PatientDashboard: React.FC = () => {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [needsRegistration, setNeedsRegistration] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSection, setActiveSection] = useState('webrtc');
   
   useEffect(() => {

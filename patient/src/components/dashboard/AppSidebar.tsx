@@ -1,4 +1,4 @@
-import { Calendar, CalendarCheck, FolderOpen, Video, Settings, Database, Wrench } from "lucide-react"
+import { CalendarCheck, FolderOpen, Video, Settings, Database } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,

@@ -51,7 +51,7 @@ export function BookingWorkflow({ token }: BookingWorkflowProps) {
   return (
     <div className="py-6">
       <ProgressBar currentStep={currentStep} />
-      
+      { token? <>{console.log('token: ', token)}</>: <></>}
       <div className="w-3/5 mx-auto bg-card shadow-lg border rounded-lg p-6">
         {currentStep === 1 && (
           <Step1ProviderService

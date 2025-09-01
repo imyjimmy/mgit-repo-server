@@ -1,3 +1,5 @@
+import { CreateRepositoryData } from '@/types/repository';
+
 export class RepoService {
   private static getHeaders(token: string) {
     return {
@@ -7,7 +9,7 @@ export class RepoService {
   }
 
   static async loadRepositories(token: string) {
-    const response = await fetch('/api/user/repositories', {
+    const response = await fetch('/api/mgit/user/repositories', {
       method: 'GET',
       headers: this.getHeaders(token)
     })
