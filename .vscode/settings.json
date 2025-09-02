@@ -1,0 +1,8 @@
+{ 
+    "workbench.colorCustomizations": {
+        "titleBar.activeBackground": "#553955", // Color for the active window's title bar
+        "titleBar.inactiveBackground": "#332233", // Color for inactive windows' title bars
+        "titleBar.activeForeground": "#FFFFFF", // Text color for the active title bar
+        "titleBar.inactiveForeground": "#BBBBBB" // Text color for inactive title bars
+    }
+}
