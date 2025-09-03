@@ -61,6 +61,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV}
       - JWT_SECRET=${JWT_SECRET}
+      - NWC_CONNECTION_STRING=${NWC_CONNECTION_STRING}
       - DB_HOST=${CONTAINER_PREFIX}_plebdoc_mysql_1
       - DB_USER=user
       - DB_PASSWORD=password

@@ -73,6 +73,7 @@ echo "🗑️ Removing mgit-related images..."
 docker rmi imyjimmy/mgit-repo-server:latest 2>/dev/null || true
 docker rmi imyjimmy/mgit-gateway:latest 2>/dev/null || true
 docker rmi plebdoc-scheduler-api:latest 2>/dev/null || true
+docker rmi mgit-repo-server-plebdoc-api 2>/dev/null || true
 
 docker rmi mgit-repo-server_plebdoc-api:latest 2>/dev/null || true
 docker rmi plebdoc-scheduler-service-api 2>/dev/null || true
