@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
       {isAuthenticated ? (
         <>
           <ProfilePicture />
-          <span className="text-sm text-gray-300 hidden sm:inline">{displayName}</span>
+          <span className="text-sm hidden sm:inline">{displayName}</span>
           <button
             onClick={onLogout}
             className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"

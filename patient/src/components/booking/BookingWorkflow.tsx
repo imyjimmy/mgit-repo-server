@@ -84,6 +84,7 @@ export function BookingWorkflow({ token }: BookingWorkflowProps) {
             data={bookingData}
             onPrev={prevStep}
             onUpdate={updateBookingData}
+            token={token}
           />
         )}
       </div>

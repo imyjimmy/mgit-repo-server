@@ -7,12 +7,14 @@ interface Step4ConfirmationProps {
   onPrev: () => void;
   onUpdate: (updates: Partial<BookingData>) => void;
   onComplete?: (appointmentId: number) => void;
+  token: string;
 }
 
 const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   data,
   onPrev,
-  onComplete
+  onComplete,
+  token
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +96,10 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
       // 4. Submit to verification endpoint
       const response = await fetch('/api/appointments/verify-booking', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           bookingData: bookingPayload,
           signedEvent

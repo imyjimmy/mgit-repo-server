@@ -10,7 +10,7 @@ import { BookingWorkflow } from '@/components/booking/BookingWorkflow';
 
 import { WebRTCTest } from '../components/WebRTCTest';
 import { DatabaseTest } from '../components/DatabaseTest';
-import { RegistrationView } from '../components/RegistrationView';
+// import { RegistrationView } from '../components/RegistrationView';
 
 import { authService } from '../services/auth';
 import { AuthState, UserInfo } from '../types';
@@ -23,8 +23,8 @@ const PatientDashboard: React.FC = () => {
     profile: null
   });
   
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [needsRegistration, setNeedsRegistration] = useState(false);
+  const [userInfo] = useState<UserInfo | null>(null);
+  // const [needsRegistration, setNeedsRegistration] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('webrtc');
   
@@ -42,7 +42,7 @@ const PatientDashboard: React.FC = () => {
       
       if (token && pubkey) {
         // Check if user is registered in database
-        const registrationCheck = await authService.checkUserRegistration(pubkey, token);
+        // const registrationCheck = await authService.checkUserRegistration(pubkey, token);
         
         setAuthState({
           isAuthenticated: true,
@@ -51,12 +51,12 @@ const PatientDashboard: React.FC = () => {
           profile: profile ? JSON.parse(profile) : null
         });
         
-        if (registrationCheck.isRegistered) {
-          setUserInfo(registrationCheck.user || null);
-          setNeedsRegistration(false);
-        } else {
-          setNeedsRegistration(true);
-        }
+        // if (registrationCheck.isRegistered) {
+        //   setUserInfo(registrationCheck.user || null);
+        //   setNeedsRegistration(false);
+        // } else {
+        //   setNeedsRegistration(true);
+        // }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -86,14 +86,14 @@ const PatientDashboard: React.FC = () => {
       });
 
       // Check if user is registered
-      const registrationCheck = await authService.checkUserRegistration(pubkey, token);
+      // const registrationCheck = await authService.checkUserRegistration(pubkey, token);
       
-      if (registrationCheck.isRegistered) {
-        setUserInfo(registrationCheck.user || null);
-        setNeedsRegistration(false);
-      } else {
-        setNeedsRegistration(true);
-      }
+      // if (registrationCheck.isRegistered) {
+      //   setUserInfo(registrationCheck.user || null);
+      //   setNeedsRegistration(false);
+      // } else {
+      //   setNeedsRegistration(true);
+      // }
     } catch (error) {
       console.error('Login failed:', error);
     }
@@ -145,17 +145,17 @@ const PatientDashboard: React.FC = () => {
     );
   }
 
-  if (needsRegistration) {
-    return (
-      <RegistrationView 
-        pubkey={authState.pubkey || ''} 
-        onRegistrationComplete={() => {
-          setNeedsRegistration(false);
-          checkExistingAuth(); // Recheck after registration
-        }}
-      />
-    );
-  }
+  // if (needsRegistration) {
+  //   return (
+  //     <RegistrationView 
+  //       pubkey={authState.pubkey || ''} 
+  //       onRegistrationComplete={() => {
+  //         setNeedsRegistration(false);
+  //         checkExistingAuth(); // Recheck after registration
+  //       }}
+  //     />
+  //   );
+  // }
   
   return (
     <SidebarProvider
