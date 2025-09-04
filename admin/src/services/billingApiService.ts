@@ -1,6 +1,6 @@
 // File: mgit-repo-server/admin/src/services/billingApiService.ts
 
-const BILLING_API_BASE = 'http://localhost:3004'; // plebdoc-scheduler-service URL
+const BILLING_API_BASE = 'http://localhost:3005'; // plebdoc-scheduler-service URL
 
 interface CreateInvoiceResponse {
   success: boolean;
@@ -41,7 +41,7 @@ interface TestNwcResponse {
 class BillingApiService {
 
   async createInvoiceForAppointment(appointmentId: number, token: string): Promise<CreateInvoiceResponse> {
-    const response = await fetch(`${BILLING_API_BASE}/api/billing/appointments/${appointmentId}/invoice`, {
+    const response = await fetch(`/api/admin/billing/appointments/${appointmentId}/invoice`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -58,7 +58,7 @@ class BillingApiService {
   }
 
   async testNwcConnection(nwcString: string, token: string): Promise<TestNwcResponse> {
-    const response = await fetch(`${BILLING_API_BASE}/api/billing/test-nwc`, {
+    const response = await fetch(`/api/admin/billing/test-nwc`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -78,7 +78,7 @@ class BillingApiService {
   }
 
   async getBillingStats(token: string): Promise<BillingStats> {
-    const response = await fetch(`${BILLING_API_BASE}/api/billing/stats`, {
+    const response = await fetch(`/api/admin/billing/stats`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -94,7 +94,7 @@ class BillingApiService {
   }
 
   async getInvoiceStatus(invoiceId: number, token: string): Promise<any> {
-    const response = await fetch(`${BILLING_API_BASE}/api/billing/invoices/${invoiceId}/status`, {
+    const response = await fetch(`/api/admin/billing/invoices/${invoiceId}/status`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -111,7 +111,7 @@ class BillingApiService {
 
   // Existing methods for appointments/services (these call the existing API)
   async fetchCompletedAppointments(token: string) {
-    const response = await fetch(`${BILLING_API_BASE}/api/admin/appointments/completed`, {
+    const response = await fetch(`/api/admin/appointments/completed`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -126,7 +126,7 @@ class BillingApiService {
   }
 
   async fetchServices(token: string) {
-    const response = await fetch(`${BILLING_API_BASE}/api/admin/services`, {
+    const response = await fetch(`/api/admin/services`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

@@ -58,7 +58,7 @@ class SettingsService {
 
   async testNwcConnection(token: string, nwcString: string): Promise<NwcTestResult> {
     // Use the backend billing service for testing instead of frontend
-    const response = await fetch('http://localhost:3004/api/billing/test-nwc', {
+    const response = await fetch('http://localhost:3005/api/admin/billing/test-nwc', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
