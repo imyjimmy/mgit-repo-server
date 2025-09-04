@@ -1,6 +1,5 @@
-// File: mgit-repo-server/admin/src/pages/BillingPage.tsx
-
 import React, { useState, useEffect } from 'react';
+import { Eye, Copy, ExternalLink, Check } from 'lucide-react';
 
 interface BillingPageProps {
   token: string;
@@ -28,6 +27,26 @@ interface PastAppointment {
   has_invoice: boolean;
 }
 
+interface InvoiceDetails {
+  id: number;
+  appointment_id: number;
+  amount_sats: number;
+  payment_request: string;
+  invoice_hash: string;
+  status: string;
+  created_at: string;
+  paid_at?: string;
+  appointment: {
+    start_datetime: string;
+    end_datetime: string;
+    customer_name: string;
+    customer_email: string;
+    service_name: string;
+    service_price: number;
+    service_duration: number;
+  };
+}
+
 export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
   const [stats, setStats] = useState<BillingStats | null>(null);
   const [currentProviderId, setCurrentProviderId] = useState<number | null>(null);
@@ -36,6 +55,12 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
   const [creatingInvoice, setCreatingInvoice] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | null, text: string }>({ type: null, text: '' });
+
+  // viewing invoices
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetails | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<number | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [copiedToClipboard, setCopiedToClipboard] = useState<string | null>(null);
 
   const fetchBillingStats = async () => {
     try {
@@ -163,6 +188,74 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
     }
   };
 
+  const viewInvoiceDetails = async (appointmentId: number) => {
+    setViewingInvoice(appointmentId);
+    try {
+      const response = await fetch(`/api/admin/billing/appointments/${appointmentId}/invoice`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'success') {
+          setSelectedInvoice(data.invoice);
+          setShowInvoiceModal(true);
+        } else {
+          setMessage({
+            type: 'error',
+            text: data.message || 'Failed to fetch invoice details'
+          });
+        }
+      } else {
+        const errorData = await response.json();
+        setMessage({
+          type: 'error',
+          text: errorData.message || 'Failed to fetch invoice details'
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch invoice details:', err);
+      setMessage({
+        type: 'error',
+        text: 'Network error fetching invoice details'
+      });
+    } finally {
+      setViewingInvoice(null);
+    }
+  };
+
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedToClipboard(type);
+      setTimeout(() => setCopiedToClipboard(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
+
+  const closeInvoiceModal = () => {
+    setShowInvoiceModal(false);
+    setSelectedInvoice(null);
+    setCopiedToClipboard(null);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'paid':
+        return 'text-green-400 bg-green-900';
+      case 'pending':
+        return 'text-yellow-400 bg-yellow-900';
+      case 'expired':
+        return 'text-red-400 bg-red-900';
+      default:
+        return 'text-gray-400 bg-gray-700';
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchBillingStats();
@@ -230,7 +323,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
       {currentProviderId && (
         <div className="bg-gray-800 rounded-xl border border-gray-700">
           <div className="p-6 border-b border-gray-700">
-            <h3 className="text-xl font-semibold text-white">Unbilled Past Appointments</h3>
+            <h3 className="text-xl font-semibold text-white">Unbilled Appointments!!</h3>
             <p className="text-gray-400 text-sm mt-1">Your completed appointments ready for billing</p>
           </div>
           
@@ -302,39 +395,130 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
           <div className="p-6 border-b border-gray-700">
             <h3 className="text-xl font-semibold text-white">Recently Billed</h3>
             <p className="text-gray-400 text-sm mt-1">Your appointments that have been invoiced</p>
-          </div>
-          
-          <div className="p-6">
-            {pastAppointments.filter(apt => apt.has_invoice).length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-400">No billed appointments yet</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {pastAppointments
-                  .filter(apt => apt.has_invoice)
-                  .slice(0, 10)
-                  .map((appointment) => (
-                    <div key={appointment.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-white font-medium mb-1">
-                            {appointment.customer_name}
-                          </h4>
-                          <div className="text-sm text-gray-400">
-                            {appointment.service_name} • {new Date(appointment.start_datetime).toLocaleDateString()} • {appointment.service_price} sats
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-1 bg-green-900 text-green-400 text-xs rounded-full">
-                            Invoiced
-                          </span>
+          </div>          
+          <div className="p-6">            
+            <div className="space-y-3">
+              {pastAppointments
+                .map((appointment) => (
+                  <div key={appointment.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-white font-medium mb-1">
+                          {appointment.customer_name}
+                        </h4>
+                        <div className="text-sm text-gray-400">
+                          {appointment.service_name} • {new Date(appointment.start_datetime).toLocaleDateString()} • {appointment.service_price} sats
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 bg-green-900 text-green-400 text-xs rounded-full">
+                          Invoiced
+                        </span>
+                        <button
+                          onClick={() => viewInvoiceDetails(appointment.id)}
+                          disabled={viewingInvoice === appointment.id}
+                          className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {viewingInvoice === appointment.id ? (
+                            <div className="animate-spin rounded-full h-3 w-3 border border-white border-b-transparent"></div>
+                          ) : (
+                            <Eye size={12} />
+                          )}
+                          View Invoice
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Details Modal */}
+      {showInvoiceModal && selectedInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-white">Invoice Details</h3>
+                <button
+                  onClick={closeInvoiceModal}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  ×
+                </button>
               </div>
-            )}
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Invoice Summary */}
+              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-white font-medium">Invoice #{selectedInvoice.id}</h4>
+                  <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(selectedInvoice.status)}`}>
+                    {selectedInvoice.status.charAt(0).toUpperCase() + selectedInvoice.status.slice(1)}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-400">Amount:</span>
+                    <span className="text-white ml-2 font-medium">{selectedInvoice.amount_sats} sats</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Created:</span>
+                    <span className="text-white ml-2">{new Date(selectedInvoice.created_at).toLocaleString()}</span>
+                  </div>
+                  {selectedInvoice.paid_at && (
+                    <div className="col-span-2">
+                      <span className="text-gray-400">Paid:</span>
+                      <span className="text-green-400 ml-2">{new Date(selectedInvoice.paid_at).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment Request */}
+              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-white font-medium">Lightning Invoice</h4>
+                  <button
+                    onClick={() => copyToClipboard(selectedInvoice.payment_request, 'invoice')}
+                    className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                  >
+                    {copiedToClipboard === 'invoice' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedToClipboard === 'invoice' ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <div className="bg-gray-800 rounded p-3 border border-gray-600">
+                  <code className="text-xs text-gray-300 break-all">
+                    {selectedInvoice.payment_request}
+                  </code>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-600">
+                <button
+                  onClick={closeInvoiceModal}
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                {selectedInvoice.status === 'pending' && (
+                  <button
+                    onClick={() => window.open(`lightning:${selectedInvoice.payment_request}`, '_blank')}
+                    className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
+                  >
+                    <ExternalLink size={16} />
+                    Pay with Lightning
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
