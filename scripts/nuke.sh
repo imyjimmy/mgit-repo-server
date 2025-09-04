@@ -18,51 +18,51 @@ fi
 echo "🎯 Targeting mgit and easyappointment containers only..."
 echo "🔧 Using container prefix: ${CONTAINER_PREFIX}"
 
-# Function to backup MySQL data
-backup_mysql_data() {
-    local mysql_container="${CONTAINER_PREFIX}_plebdoc_mysql_1"
+# # Function to backup MySQL data
+# backup_mysql_data() {
+#     local mysql_container="${CONTAINER_PREFIX}_plebdoc_mysql_1"
     
-    echo "🔍 Checking if MySQL container exists..."
-    if docker ps -a --format "table {{.Names}}" | grep -q "^${mysql_container}$"; then
-        echo "📦 Found MySQL container: ${mysql_container}"
+#     echo "🔍 Checking if MySQL container exists: ${mysql_container}"
+#     if docker ps -a --format "table {{.Names}}" | grep -q "^${mysql_container}$"; then
+#         echo "📦 Found MySQL container: ${mysql_container}"
         
-        # Create backup directory
-        mkdir -p "${BACKUP_PATH}"
+#         # Create backup directory
+#         mkdir -p "${BACKUP_PATH}"
         
-        # Generate timestamp for backup file
-        local timestamp=$(date +"%Y%m%d_%H%M%S")
-        local backup_file="${BACKUP_PATH}/easyappointments_backup_${timestamp}.sql"
+#         # Generate timestamp for backup file
+#         local timestamp=$(date +"%Y%m%d_%H%M%S")
+#         local backup_file="${BACKUP_PATH}/easyappointments_backup_${timestamp}.sql"
         
-        echo "💾 Creating MySQL backup..."
-        if docker exec "${mysql_container}" mysqldump \
-            -u user -ppassword \
-            --single-transaction \
-            --routines \
-            --triggers \
-            easyappointments > "${backup_file}" 2>/dev/null; then
+#         echo "💾 Creating MySQL backup..."
+#         if docker exec "${mysql_container}" mysqldump \
+#             -u user -ppassword \
+#             --single-transaction \
+#             --routines \
+#             --triggers \
+#             easyappointments > "${backup_file}" 2>/dev/null; then
             
-            echo "✅ MySQL backup created: ${backup_file}"
+#             echo "✅ MySQL backup created: ${backup_file}"
             
-            # Also create a "latest" backup for easy reference
-            local latest_backup="${BACKUP_PATH}/easyappointments_latest.sql"
-            cp "${backup_file}" "${latest_backup}"
-            echo "📋 Latest backup updated: ${latest_backup}"
+#             # Also create a "latest" backup for easy reference
+#             local latest_backup="${BACKUP_PATH}/easyappointments_latest.sql"
+#             cp "${backup_file}" "${latest_backup}"
+#             echo "📋 Latest backup updated: ${latest_backup}"
             
-            # Compress the timestamped backup to save space
-            gzip "${backup_file}"
-            echo "🗜️ Backup compressed: ${backup_file}.gz"
+#             # Compress the timestamped backup to save space
+#             gzip "${backup_file}"
+#             echo "🗜️ Backup compressed: ${backup_file}.gz"
             
-        else
-            echo "⚠️ MySQL backup failed, but continuing with container removal..."
-            echo "   (Container might be stopped or database inaccessible)"
-        fi
-    else
-        echo "ℹ️ MySQL container not found, skipping backup"
-    fi
-}
+#         else
+#             echo "⚠️ MySQL backup failed, but continuing with container removal..."
+#             echo "   (Container might be stopped or database inaccessible)"
+#         fi
+#     else
+#         echo "ℹ️ MySQL container not found, skipping backup"
+#     fi
+# }
 
-# Backup MySQL data before destroying containers
-backup_mysql_data
+# # Backup MySQL data before destroying containers
+# backup_mysql_data
 
 # Nuclear shutdown: stop and remove everything
 echo "🛑 Nuclear shutdown: stopping all services..."
