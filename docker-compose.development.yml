@@ -5,12 +5,14 @@ services:
   patient-frontend:
     networks:
       - plebemr_admin_network
+    volumes:
+      - ./patient/dist:/usr/share/nginx/html
       
   mgit-web:
     command: sh -c "npm install nodemon --save-dev 2>/dev/null; npx nodemon server.js"
     volumes:
       - ../private_repos:/private_repos
-      - .:/app                    # Mount source code for hot reload
+      - .:/app                     # Mount source code for hot reload
       - /app/node_modules          # Anonymous volume for node_modules
       - ./.env.development:/app/.env
     networks:
