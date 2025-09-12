@@ -35,6 +35,8 @@ http {
     listen 80 default_server;
     server_name _;
 
+    error_log /var/log/nginx/debug.log debug;
+
     # Increase client max body size for file uploads
     client_max_body_size 100M;
 
@@ -59,6 +61,16 @@ http {
       proxy_pass http://plebdoc_backend;
     }
 
+    location /api/patients {
+      proxy_pass http://plebdoc_backend;
+    }
+    
+    location /api/webrtc {
+      access_log /var/log/nginx/webrtc_access.log;
+      error_log /var/log/nginx/webrtc_error.log debug;
+      proxy_pass http://plebdoc_backend;
+    }
+
     # mgit-backend is responsible for these routes:
     # mgit routes
     location /api/mgit {
@@ -69,7 +81,7 @@ http {
     location /api/auth {
       proxy_pass http://mgit_backend;
     }
-
+    
     # hack: admin dashboard still built from mgit-repo-server/admin
     location /admin {
       proxy_pass http://mgit_backend;

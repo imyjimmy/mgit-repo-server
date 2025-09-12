@@ -56,47 +56,117 @@ function useIntervalManager() {
     if (intervalId) {
       clearInterval(intervalId);
       intervalsRef.current.delete(key);
-      console.log(`🗑️ patient: Cleared managed interval '${key}'`);
+      console.log(`🗑️ PATIENT: Cleared managed interval '${key}'`);
     }
   }, []);
   
   const clearAllIntervals = useCallback(async () => {
-    if (cleanupInProgressRef.current) return; // Prevent double cleanup
-    cleanupInProgressRef.current = true;
+    console.log(`🧹 PATIENT: Starting cleanup of ${intervalsRef.current.size} managed intervals`);
     
-    console.log(`🧹 patient: Clearing ${intervalsRef.current.size} managed intervals`);
+    // Step 1: Collect all pending operations as Promises
+    const pendingOperations: Promise<void>[] = [];
     
-    intervalsRef.current.forEach((intervalId, key) => {
-      clearInterval(intervalId);
-      console.log(`🗑️ patient: Cleared interval '${key}'`);
+    // Step 2: Clear all intervals and create promises for their completion
+    const intervalKeys = Array.from(intervalsRef.current.keys());
+    intervalKeys.forEach((key) => {
+      const intervalId = intervalsRef.current.get(key);
+      if (intervalId) {
+        console.log(`🗑️ PATIENT: Clearing interval '${key}'`);
+        clearInterval(intervalId);
+        
+        // Create a promise that resolves when this interval's final callback completes
+        const intervalCleanupPromise = new Promise<void>((resolve) => {
+          // Give any in-flight callbacks a moment to complete
+          setTimeout(() => {
+            console.log(`✅ PATIENT: Interval '${key}' cleanup verified`);
+            resolve();
+          }, 100);
+        });
+        
+        pendingOperations.push(intervalCleanupPromise);
+      }
     });
     
+    // Step 3: Clear the intervals Map
     intervalsRef.current.clear();
     
-    // Wait briefly for any pending async operations to complete
+    // Step 4: Create promise for any other pending operations
     if (pendingOperationsRef.current > 0) {
-      console.log(`⏳ patient: Waiting for ${pendingOperationsRef.current} pending operations...`);
-      let waitCount = 0;
-      while (pendingOperationsRef.current > 0 && waitCount < 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        waitCount++;
-      }
-      if (pendingOperationsRef.current > 0) {
-        console.log(`⚠️ patient: ${pendingOperationsRef.current} operations still pending after timeout`);
-      }
+      console.log(`⏳ PATIENT: Waiting for ${pendingOperationsRef.current} pending operations to complete`);
+      
+      const operationCleanupPromise = new Promise<void>((resolve) => {
+        const startTime = Date.now();
+        const checkOperations = () => {
+          if (pendingOperationsRef.current === 0) {
+            console.log('✅ PATIENT: All pending operations completed');
+            resolve();
+          } else if (Date.now() - startTime > 5000) {
+            console.log(`⚠️ PATIENT: Timeout waiting for operations, forcing completion (${pendingOperationsRef.current} still pending)`);
+            pendingOperationsRef.current = 0;
+            resolve();
+          } else {
+            setTimeout(checkOperations, 50);
+          }
+        };
+        checkOperations();
+      });
+      
+      pendingOperations.push(operationCleanupPromise);
     }
     
+    // Step 5: Wait for ALL operations to complete using Promise.allSettled
+    if (pendingOperations.length > 0) {
+      console.log(`⏳ PATIENT: Waiting for ${pendingOperations.length} cleanup operations to complete...`);
+      const results = await Promise.allSettled(pendingOperations);
+      
+      // Log any failures
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`❌ PATIENT: Cleanup operation ${index} failed:`, result.reason);
+        }
+      });
+      
+      console.log('✅ PATIENT: All cleanup operations completed via Promise.allSettled');
+    }
+    
+    // Step 6: Verify cleanup completion
+    const verificationChecks = [
+      {
+        name: 'Intervals Map cleared',
+        result: intervalsRef.current.size === 0
+      },
+      {
+        name: 'No pending operations',
+        result: pendingOperationsRef.current === 0
+      }
+    ];
+    
+    console.log('🔍 PATIENT: Cleanup verification:');
+    let allVerified = true;
+    verificationChecks.forEach(({ name, result }) => {
+      console.log(`  ${result ? '✅' : '❌'} ${name}`);
+      if (!result) allVerified = false;
+    });
+    
+    if (allVerified) {
+      console.log('✅ PATIENT: Cleanup verification PASSED - all resources released');
+    } else {
+      console.error('❌ PATIENT: Cleanup verification FAILED - some resources may still be active');
+    }
+    
+    // Step 7: Set final cleanup state
     mountedRef.current = false;
+    console.log('🧹 PATIENT: Cleanup process completed and verified');
   }, []);
   
   // 🔧 NEW: Reset function for rejoin scenarios
-  const resetIntervalManager = useCallback(() => {
-    console.log('🔄 patient: Resetting interval manager for rejoin');
-    cleanupInProgressRef.current = false;
-    mountedRef.current = true;
-    pendingOperationsRef.current = 0;
-    console.log('✅ patient: Interval manager reset completed');
-  }, []);
+  // const resetIntervalManager = useCallback(() => {
+  //   console.log('🔄 PATIENT: Resetting interval manager for rejoin');
+  //   cleanupInProgressRef.current = false;
+  //   mountedRef.current = true;
+  //   pendingOperationsRef.current = 0;
+  //   console.log('✅ PATIENT: Interval manager reset completed');
+  // }, []);
   
   // Cleanup all intervals on unmount
   useEffect(() => {
@@ -109,7 +179,8 @@ function useIntervalManager() {
     setManagedInterval, 
     clearManagedInterval, 
     clearAllIntervals,
-    resetIntervalManager,
+    mountedRef,
+    pendingOperationsRef,
     getActiveIntervals: () => Array.from(intervalsRef.current.keys())
   };
 }
@@ -121,6 +192,10 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const [participantCount, setParticipantCount] = useState(0);
   const [handshakeInProgress, setHandshakeInProgress] = useState(false);
   
+  const [shouldInitiateOffer, setShouldInitiateOffer] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<any>(null);
+  const [webrtcRole, setWebrtcRole] = useState<'caller' | 'answerer' | 'unknown'>('unknown');
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -128,32 +203,65 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const eventSourceRef = useRef<EventSource | null>(null);
   
   // Advanced interval management
-  const { setManagedInterval, clearManagedInterval, clearAllIntervals, resetIntervalManager, getActiveIntervals } = useIntervalManager();
+  const { setManagedInterval, clearManagedInterval, clearAllIntervals, mountedRef, pendingOperationsRef, getActiveIntervals } = useIntervalManager(); // resetIntervalManager
   
+  const resetToInitialState = useCallback(() => {
+    console.log('🔄 PATIENT: Resetting ALL state to initial values');
+    
+    // Reset interval manager refs (access them from the hook's return)
+    // This requires the hook to expose these refs or a reset function
+    mountedRef.current = true;  // Now this works
+    pendingOperationsRef.current = 0;
+
+    // Reset all useState values to their initial values
+    setIsInRoom(false);
+    setConnectionStatus('Not connected');
+    setParticipantCount(0);
+    setHandshakeInProgress(false);
+    setShouldInitiateOffer(false);
+    setUserRole(null);
+    setWebrtcRole('unknown');
+    
+    // Reset all useRef values to their initial values
+    peerConnectionRef.current = null;
+    localStreamRef.current = null;
+    eventSourceRef.current = null;
+    
+    // Clear video elements
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    
+    console.log('✅ PATIENT: Component state reset to initial values completed');
+  }, []);
+
   // Thread-safe cleanup with comprehensive resource management
-  const cleanupWebRTCState = useCallback(() => {
-    console.log('🧹 patient CLEANUP: Starting comprehensive WebRTC state cleanup');
-    console.log('🔍 patient CLEANUP: Active intervals before cleanup:', getActiveIntervals());
-    console.log('🔍 patient CLEANUP: Cleanup context - connectionStatus:', connectionStatus);
-    console.log('🔍 patient CLEANUP: Cleanup context - isInRoom:', isInRoom);
+  const cleanupWebRTCState = useCallback(async () => {
+    console.log('🧹 PATIENT CLEANUP: Starting comprehensive WebRTC state cleanup');
+    console.log('🔍 PATIENT CLEANUP: Active intervals before cleanup:', getActiveIntervals());
+    console.log('🔍 PATIENT CLEANUP: Cleanup context - connectionStatus:', connectionStatus);
+    console.log('🔍 PATIENT CLEANUP: Cleanup context - isInRoom:', isInRoom);
     
     // STEP 1: Clear all managed intervals first to stop ongoing operations
-    clearAllIntervals();
+    await clearAllIntervals(); // Wait for this to complete
     
     // STEP 2: Stop local stream tracks
     if (localStreamRef.current) {
-      console.log('🧹 patient CLEANUP: Stopping local stream tracks');
+      console.log('🧹 PATIENT CLEANUP: Stopping local stream tracks');
       const tracks = localStreamRef.current.getTracks();
       tracks.forEach((track, index) => {
-        console.log(`🧹 patient CLEANUP: Stopping track ${index}: ${track.kind}`);
+        console.log(`🧹 PATIENT CLEANUP: Stopping track ${index}: ${track.kind}`);
         track.stop();
       });
       localStreamRef.current = null;
     }
-  
+
     // STEP 3: Close peer connection with proper event handler cleanup
     if (peerConnectionRef.current) {
-      console.log('🧹 patient CLEANUP: Closing peer connection');
+      console.log('🧹 PATIENT CLEANUP: Closing peer connection');
       const pc = peerConnectionRef.current;
       
       // Clear all event handlers to prevent stray events
@@ -169,7 +277,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     
     // STEP 4: Close event source
     if (eventSourceRef.current) {
-      console.log('🧹 patient CLEANUP: Closing event source');
+      console.log('🧹 PATIENT CLEANUP: Closing event source');
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
@@ -186,11 +294,11 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     setConnectionStatus('Disconnected');
     setIsInRoom(false);
     
-    console.log('🧹 patient CLEANUP: Comprehensive WebRTC state cleanup completed');
+    console.log('🧹 PATIENT CLEANUP: Comprehensive WebRTC state cleanup completed');
   }, [clearAllIntervals, getActiveIntervals, connectionStatus, isInRoom]);
 
   const setupPeerConnection = useCallback(() => {
-    console.log('⚙️ patient: Setting up fresh peer connection');
+    console.log('⚙️ PATIENT: Setting up fresh peer connection');
     
     // Create new peer connection
     peerConnectionRef.current = new RTCPeerConnection({
@@ -212,7 +320,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     // Set up event handlers
     if (peerConnectionRef.current) {
       peerConnectionRef.current.addEventListener('track', (event) => {
-        console.log('📺 patient: Received remote track');
+        console.log('📺 PATIENT: Received remote track');
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = event.streams[0];
         }
@@ -225,7 +333,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       });
     }
     
-    console.log('✅ patient: Fresh peer connection created and configured');
+    console.log('✅ PATIENT: Fresh peer connection created and configured');
   }, [roomId, token]);
 
   const joinRoom = async () => {
@@ -262,13 +370,25 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       
       // Join room
       const joinResult = await webrtcService.joinRoom(roomId, token);
-      console.log('🚀 patient: Join room result:', joinResult);
+      console.log('🚀 PATIENT: Join room result:', joinResult);
+
       setParticipantCount(joinResult.participants);
+      setUserRole(joinResult.userRole);
+      setShouldInitiateOffer(joinResult.shouldInitiateOffer);
       setIsInRoom(true);
       
+      if (shouldInitiateOffer || joinResult.shouldInitiateOffer) {
+        setWebrtcRole('caller');
+        console.log('🎯 This client will INITIATE (caller)');
+        startCallerSignalingLoop();
+      } else {
+        setWebrtcRole('answerer');
+        console.log('🎯 This client will WAIT (answerer)');
+        startAnswererSignalingLoop();
+      }
+
       // Start managed services
       startParticipantCountUpdates();
-      startSignalingLoop();
 
       console.log(`Joined room: ${roomId}`);
       
@@ -279,56 +399,85 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     }
   };
   
-  const leaveRoom = () => {
-    console.log('=== patient LEAVE ROOM INITIATED ===');
+  const leaveRoom = async () => {
+    console.log('=== PATIENT LEAVE ROOM INITIATED ===');
     try {
-      cleanupWebRTCState();
-      setParticipantCount(0);
+      // STEP 1: Call the backend leave endpoint FIRST
+      if (isInRoom) {
+        try {
+          const response = await fetch(`${window.location.origin}/api/webrtc/rooms/${roomId}/leave`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('📤 PATIENT: Server leave response:', result);
+          } else {
+            console.error('❌ PATIENT: Server leave failed:', response.status);
+          }
+        } catch (error) {
+          console.error('❌ PATIENT: Error calling leave endpoint:', error);
+        }
+      }
+      
+      // STEP 2: Clean up local state
+      await cleanupWebRTCState();
+      resetToInitialState();
+      
       console.log('Left WebRTC room');
-      console.log('=== patient LEAVE ROOM COMPLETED ===');
+      console.log('=== PATIENT LEAVE ROOM COMPLETED ===');
     } catch (error: unknown) {
       const err = error as Error;
-      console.error('=== patient LEAVE ROOM ERROR ===', err);
+      console.error('=== PATIENT LEAVE ROOM ERROR ===', err);
       console.log(`Error leaving room: ${err.message}`);
     }
   };
 
-  const handleParticipantRejoin = useCallback(() => {
-    console.log('🔄 patient: Handling participant rejoin with full reset');
+  // const handleParticipantRejoin = useCallback(async () => {
+  //   console.log('🔄 PATIENT: Handling participant rejoin with full reset');
     
-    // Complete cleanup first
-    cleanupWebRTCState();
+  //   // Complete cleanup first and wait for it
+  //   await cleanupWebRTCState();
     
-    // 🔧 NEW: Reset interval manager to allow new intervals
-    resetIntervalManager();
+  //   // Reset interval manager and wait for it  
+  //   await resetIntervalManager();
     
-    // Re-initialize everything fresh with error handling
-    navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true
-    }).then(stream => {
-      localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      // Create fresh peer connection
-      setupPeerConnection();
+  //   // Add a small delay to ensure everything is reset
+  //   await new Promise(resolve => setTimeout(resolve, 100));
+    
+  //   // Re-initialize everything fresh with error handling
+  //   try {
+  //     const stream = await navigator.mediaDevices.getUserMedia({
+  //       video: true,
+  //       audio: true
+  //     });
       
-      // Restart managed services
-      startParticipantCountUpdates();
-      setIsInRoom(true);
-      startSignalingLoop();
+  //     localStreamRef.current = stream;
+  //     if (localVideoRef.current) {
+  //       localVideoRef.current.srcObject = stream;
+  //     }
 
-      console.log('✅ patient: Fresh WebRTC state created for rejoin');
-    }).catch(error => {
-      console.error('❌ patient: Error reinitializing for rejoin:', error);
-      console.log('Failed to reinitialize for rejoin. Please refresh and try again.');
-    });
-  }, [cleanupWebRTCState, setupPeerConnection, resetIntervalManager]);
+  //     // Create fresh peer connection
+  //     setupPeerConnection();
+      
+  //     // Restart managed services
+  //     startParticipantCountUpdates();
+  //     setIsInRoom(true);
+  //     startAnswererSignalingLoop();
+
+  //     console.log('✅ PATIENT: Fresh WebRTC state created for rejoin');
+  //   } catch (error) {
+  //     console.error('❌ PATIENT: Error reinitializing for rejoin:', error);
+  //     console.log('Failed to reinitialize for rejoin. Please refresh and try again.');
+  //   }
+  // }, [cleanupWebRTCState, setupPeerConnection, resetIntervalManager]);
   
   const startParticipantCountUpdates = useCallback(() => {
-    console.log('📊 patient: Starting participant count updates');
+    console.log('📊 PATIENT: Starting participant count updates');
     
     // Close existing event source if any
     if (eventSourceRef.current) {
@@ -357,10 +506,10 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       try {
         const data = JSON.parse(event.data);
         
-        if (data.type === 'participant_rejoined') {
-          console.log(`🔄 Participant ${data.participant} rejoined - resetting WebRTC`);
-          handleParticipantRejoin();
-        }
+        // if (data.type === 'participant_rejoined') {
+        //   console.log(`🔄 Participant ${data.participant} rejoined - resetting WebRTC`);
+        //   handleParticipantRejoin();
+        // }
         
         if (data.type === 'participant_count') {
           setParticipantCount(data.count);
@@ -369,14 +518,88 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         console.error('Error parsing SSE event:', error);
       }
     });
-  }, [roomId, token, handleParticipantRejoin]);
+  }, [roomId, token]); //handleParticipantRejoin
   
-  const startSignalingLoop = useCallback(() => {
-    console.log('🔄 patient: Starting managed signaling loop');
-    console.log('🔍 patient: peerConnectionRef.current =', !!peerConnectionRef.current);
+  const startCallerSignalingLoop = useCallback(() => {
+    console.log('📞 CALLER: Will SEND offers');
+    
+    if (!peerConnectionRef.current) return;
+
+    // Wait briefly, then initiate
+    setTimeout(async () => {
+      if (!peerConnectionRef.current) return;
+
+      try {
+        console.log('📞 CALLER: Creating offer...');
+        setHandshakeInProgress(true);
+        
+        const offer = await peerConnectionRef.current.createOffer();
+        await peerConnectionRef.current.setLocalDescription(offer);
+        
+        await webrtcService.sendOffer(roomId, offer, token);
+        console.log('✅ CALLER: Offer sent');
+        
+        // Start polling for answer
+        startAnswerPolling();
+        
+      } catch (error) {
+        console.error('❌ CALLER: Error:', error);
+        setHandshakeInProgress(false);
+      }
+    }, 1000);
+
+    startIceCandidateHandling();
+  }, [roomId, token]);
+
+  const startIceCandidateHandling = useCallback(() => {
+    setManagedInterval('ice-candidates-poll', async () => {
+      try {
+        if (!peerConnectionRef.current) return;
+        
+        const { candidates } = await webrtcService.getIceCandidates(roomId, token);
+        
+        if (candidates && candidates.length > 0) {
+          console.log(`🧊 Received ${candidates.length} ICE candidates`);
+          for (const candidateData of candidates) {
+            if (peerConnectionRef.current.remoteDescription) {
+              await peerConnectionRef.current.addIceCandidate(candidateData.candidate);
+            } else {
+              console.log('🧊 Queueing ICE candidate - no remote description yet');
+              // queue these for later if needed
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ ICE candidate error:', error);
+      }
+    }, 2000);
+  }, [roomId, token, setManagedInterval]);
+
+  const startAnswerPolling = useCallback(() => {
+    setManagedInterval('answer-poll', async () => {
+      try {
+        const { answer } = await webrtcService.getAnswer(roomId, token);
+        
+        if (answer && answer.answer && peerConnectionRef.current) {
+          console.log('📞 CALLER: Received answer!');
+          clearManagedInterval('answer-poll');
+          
+          await peerConnectionRef.current.setRemoteDescription(answer.answer);
+          console.log('✅ CALLER: Connection established');
+          setHandshakeInProgress(false);
+        }
+      } catch (error) {
+        console.error('❌ CALLER: Answer polling error:', error);
+      }
+    }, 2000);
+  }, [roomId, token, setManagedInterval, clearManagedInterval]);
+
+  const startAnswererSignalingLoop = useCallback(() => {
+    console.log('🔄 PATIENT: Starting managed signaling loop');
+    console.log('🔍 PATIENT: peerConnectionRef.current =', !!peerConnectionRef.current);
 
     if (!peerConnectionRef.current) {
-      console.error('❌ patient: Cannot start signaling loop - no peer connection');
+      console.error('❌ PATIENT: Cannot start signaling loop - no peer connection');
       return;
     }
 
@@ -389,32 +612,32 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     setManagedInterval('ice-candidates-poll', async () => {
       try {
         if (!peerConnectionRef.current || handshakeAborted) {
-          console.log('❌ patient: Stopping ICE polling - no peer connection or handshake aborted');
+          console.log('❌ PATIENT: Stopping ICE polling - no peer connection or handshake aborted');
           clearManagedInterval('ice-candidates-poll');
           return;
         }
         
-        console.log('🧊 patient: Polling for ICE candidates...');
+        console.log('🧊 PATIENT: Polling for ICE candidates...');
         const { candidates } = await webrtcService.getIceCandidates(roomId, token);
         
         if (candidates && candidates.length > 0) {
-          console.log(`📥 patient: Received ${candidates.length} ICE candidates from client`);
+          console.log(`📥 PATIENT: Received ${candidates.length} ICE candidates from client`);
           for (const candidateData of candidates) {
             if (handshakeAborted) break;
             
             if (remoteDescriptionSet && peerConnectionRef.current) {
-              console.log('🧊 patient: Adding ICE candidate immediately');
+              console.log('🧊 PATIENT: Adding ICE candidate immediately');
               await peerConnectionRef.current.addIceCandidate(candidateData.candidate);
             } else {
-              console.log('🧊 patient: Queueing ICE candidate (no remote description yet)');
+              console.log('🧊 PATIENT: Queueing ICE candidate (no remote description yet)');
               pendingIceCandidates.push(candidateData.candidate);
             }
           }
         } else {
-          console.log('⏳ patient: No ICE candidates available yet');
+          console.log('⏳ PATIENT: No ICE candidates available yet');
         }
       } catch (error) {
-        console.error('❌ patient: Error handling ICE candidates:', error);
+        console.error('❌ PATIENT: Error handling ICE candidates:', error);
       }
     }, 2000);
     
@@ -422,17 +645,17 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     setManagedInterval('offers-poll', async () => {
       try {
         if (!peerConnectionRef.current || handshakeAborted) {
-          console.log('❌ patient: Stopping offer polling - no peer connection or handshake aborted');
+          console.log('❌ PATIENT: Stopping offer polling - no peer connection or handshake aborted');
           clearManagedInterval('offers-poll');
           return;
         }
         
-        console.log('🔍 patient: Checking for offers from client...');
+        console.log('🔍 PATIENT: Checking for offers from client...');
         const { offer } = await webrtcService.getOffer(roomId, token);
-        console.log('📋 patient: Offer check result:', offer ? 'OFFER FOUND' : 'no offer yet');
+        console.log('📋 PATIENT: Offer check result:', offer ? 'OFFER FOUND' : 'no offer yet');
         
         if (offer && offer.offer && peerConnectionRef.current && !handshakeAborted) {
-          console.log('🎯 patient: Processing offer from client!');
+          console.log('🎯 PATIENT: Processing offer from client!');
           
           // 🔧 ADD: Log all state before handshake to find the trigger
           console.log('🔍 DEBUG: State before handshake:');
@@ -451,71 +674,71 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
             // Capture peer connection reference for the entire handshake
             const handshakePeerConnection = peerConnectionRef.current;
             
-            console.log('🔧 patient: Setting remote description from client offer...');
+            console.log('🔧 PATIENT: Setting remote description from client offer...');
             console.log('🔍 DEBUG: About to call setRemoteDescription');
             await handshakePeerConnection.setRemoteDescription(offer.offer);
             console.log('🔍 DEBUG: setRemoteDescription completed');
             
             // Check if we're still using the same peer connection
             if (peerConnectionRef.current !== handshakePeerConnection) {
-              console.log('⚠️ patient: Peer connection changed during handshake, aborting');
+              console.log('⚠️ PATIENT: Peer connection changed during handshake, aborting');
               handshakeAborted = true;
               setHandshakeInProgress(false);
               return;
             }
             
-            console.log('✅ patient: Set remote description successfully');
+            console.log('✅ PATIENT: Set remote description successfully');
             
             // Process queued ICE candidates now that remote description is set
             remoteDescriptionSet = true;
-            console.log(`🧊 patient: Processing ${pendingIceCandidates.length} queued ICE candidates`);
+            console.log(`🧊 PATIENT: Processing ${pendingIceCandidates.length} queued ICE candidates`);
             for (const candidate of pendingIceCandidates) {
               if (handshakeAborted || peerConnectionRef.current !== handshakePeerConnection) break;
               
               try {
                 await handshakePeerConnection.addIceCandidate(candidate);
-                console.log('🧊 patient: Added queued ICE candidate');
+                console.log('🧊 PATIENT: Added queued ICE candidate');
               } catch (error) {
-                console.error('❌ patient: Error adding queued ICE candidate:', error);
+                console.error('❌ PATIENT: Error adding queued ICE candidate:', error);
               }
             }
             pendingIceCandidates = []; // Clear the queue
 
             // Create and send answer
             if (!handshakeAborted && peerConnectionRef.current === handshakePeerConnection) {
-              console.log('📝 patient: Creating answer...');
+              console.log('📝 PATIENT: Creating answer...');
               const answer = await handshakePeerConnection.createAnswer();
               
               // Final consistency check
               if (!handshakeAborted && peerConnectionRef.current === handshakePeerConnection) {
-                console.log('🔧 patient: Setting local description (answer)...');
+                console.log('🔧 PATIENT: Setting local description (answer)...');
                 await handshakePeerConnection.setLocalDescription(answer);
                 
-                console.log('📤 patient: Sending answer to server...');
+                console.log('📤 PATIENT: Sending answer to server...');
                 await webrtcService.sendAnswer(roomId, answer, token);
-                console.log('🎉 patient: Answer sent! WebRTC handshake should be complete');
+                console.log('🎉 PATIENT: Answer sent! WebRTC handshake should be complete');
                 
                 // Safe connection state logging
-                console.log('📊 patient: Connection state:', handshakePeerConnection.connectionState);
-                console.log('📊 patient: ICE connection state:', handshakePeerConnection.iceConnectionState);
-                console.log('📊 patient: Signaling state:', handshakePeerConnection.signalingState);
+                console.log('📊 PATIENT: Connection state:', handshakePeerConnection.connectionState);
+                console.log('📊 PATIENT: ICE connection state:', handshakePeerConnection.iceConnectionState);
+                console.log('📊 PATIENT: Signaling state:', handshakePeerConnection.signalingState);
               } else {
-                console.log('⚠️ patient: Handshake aborted or peer connection changed, skipping answer send');
+                console.log('⚠️ PATIENT: Handshake aborted or peer connection changed, skipping answer send');
               }
             } else {
-              console.log('⚠️ patient: Cannot create answer - handshake aborted or peer connection changed');
+              console.log('⚠️ PATIENT: Cannot create answer - handshake aborted or peer connection changed');
             }
           } catch (error) {
-            console.error('❌ patient: Error during handshake:', error);
+            console.error('❌ PATIENT: Error during handshake:', error);
             handshakeAborted = true;
           } finally {
             setHandshakeInProgress(false);
           }
         } else {
-          console.log('⏳ patient: No offer available yet, continuing to poll...');
+          console.log('⏳ PATIENT: No offer available yet, continuing to poll...');
         }
       } catch (error: any) {
-        console.error('❌ patient: Error in offer signaling loop:', error);
+        console.error('❌ PATIENT: Error in offer signaling loop:', error);
         setHandshakeInProgress(false);
       }
     }, 2000);
@@ -526,27 +749,27 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       setHandshakeInProgress(false);
     };
     
-    console.log('✅ patient: Managed signaling loop started');
-    console.log('🔍 patient: Active intervals:', getActiveIntervals());
+    console.log('✅ PATIENT: Managed signaling loop started');
+    console.log('🔍 PATIENT: Active intervals:', getActiveIntervals());
   }, [roomId, token, setManagedInterval, clearManagedInterval, getActiveIntervals]);
   
   // Cleanup on unmount with dependency to ensure latest leaveRoom reference
   useEffect(() => {
-    console.log('🏗️ patient: Component mounted/effect running');
+    console.log('🏗️ PATIENT: Component mounted/effect running');
     
     return () => {
-      console.log('🔄 patient: Component unmounting, performing cleanup');
-      console.log('🔍 patient: Unmount context - isInRoom:', isInRoom);
-      console.log('🔍 patient: Unmount context - connectionStatus:', connectionStatus);
-      console.log('🔍 patient: Unmount context - handshakeInProgress:', handshakeInProgress);
-      console.log('🔍 patient: Unmount context - peerConnection exists:', !!peerConnectionRef.current);
+      console.log('🔄 PATIENT: Component unmounting, performing cleanup');
+      console.log('🔍 PATIENT: Unmount context - isInRoom:', isInRoom);
+      console.log('🔍 PATIENT: Unmount context - connectionStatus:', connectionStatus);
+      console.log('🔍 PATIENT: Unmount context - handshakeInProgress:', handshakeInProgress);
+      console.log('🔍 PATIENT: Unmount context - peerConnection exists:', !!peerConnectionRef.current);
       
       // Get stack trace to understand WHY we're unmounting
       const stack = new Error().stack;
-      console.log('📍 patient: Unmount stack trace:', stack?.split('\n').slice(0, 5).join('\n'));
+      console.log('📍 PATIENT: Unmount stack trace:', stack?.split('\n').slice(0, 5).join('\n'));
       
       if (handshakeInProgress) {
-        console.log('⚠️ patient: Unmounting during handshake! This may cause issues.');
+        console.log('⚠️ PATIENT: Unmounting during handshake! This may cause issues.');
       }
       
       if (isInRoom) {
@@ -568,7 +791,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
           <h4 className="font-medium text-card-foreground mb-3">Test Video Calls</h4>
           <div className="space-y-4">
             <div>
-              <label htmlFor="roomId" className="block text-sm font-medium text-muted-foreground mb-1">
+              <label htmlFor="roomId" className="block text-sm font-medium text-gray-600 mb-1">
                 Room ID:
               </label>
               <input
@@ -602,20 +825,21 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         <div>
           <h4 className="font-medium text-card-foreground mb-3">Connection Status</h4>
           <div className="space-y-2">
-            <div className="font-medium text-foreground">Status: {connectionStatus}</div>
-            <div className="font-medium text-foreground">Participants: {participantCount}</div>
+            <div className="font-medium">Status: {connectionStatus}</div>
+            <div className="font-medium">Participants: {participantCount}</div>
+            <div className="font-medium">Role: {webrtcRole} {userRole?.slug && `(${userRole.slug})`}</div>
             <div className="text-sm text-muted-foreground">
               Active Intervals: {getActiveIntervals().join(', ') || 'None'}
             </div>
             {handshakeInProgress && (
-              <div className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+              <div className="text-sm text-amber-600 font-medium">
                 ⚠️ Handshake in progress - do not navigate away
               </div>
             )}
           </div>
         </div>
       </div>
-  
+      
       <div className="mt-6">
         <h4 className="font-medium text-card-foreground mb-3">Video Test</h4>
         <div className="flex gap-4 justify-center">

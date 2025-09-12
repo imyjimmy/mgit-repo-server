@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Copy, ExternalLink, Check } from 'lucide-react';
+import { Eye, Copy, ExternalLink, Check, Send } from 'lucide-react';
 
 interface BillingPageProps {
   token: string;
@@ -56,11 +56,12 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | null, text: string }>({ type: null, text: '' });
 
-  // viewing invoices
+  // viewing / sending invoices
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetails | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<number | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState<string | null>(null);
+  const [sendingDM, setSendingDM] = useState<number | null>(null);
 
   const fetchBillingStats = async () => {
     try {
@@ -224,6 +225,40 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
       });
     } finally {
       setViewingInvoice(null);
+    }
+  };
+
+  const sendInvoiceDM = async (appointmentId: number) => {
+    setSendingDM(appointmentId);
+    try {
+      const response = await fetch(`/api/admin/billing/appointments/${appointmentId}/send-dm`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status === 'success') {
+        setMessage({
+          type: 'success',
+          text: data.message || 'Invoice DM sent successfully'
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: data.message || 'Failed to send invoice DM'
+        });
+      }
+    } catch (err) {
+      console.error('Failed to send invoice DM:', err);
+      setMessage({
+        type: 'error',
+        text: 'Network error sending invoice DM'
+      });
+    } finally {
+      setSendingDM(null);
     }
   };
 
@@ -425,6 +460,18 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
                             <Eye size={12} />
                           )}
                           View Invoice
+                        </button>
+                        <button
+                          onClick={() => sendInvoiceDM(appointment.id)}
+                          disabled={sendingDM === appointment.id}
+                          className="flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          {sendingDM === appointment.id ? (
+                            <div className="animate-spin rounded-full h-3 w-3 border border-white border-b-transparent"></div>
+                          ) : (
+                            <Send size={12} />
+                          )}
+                          Send DM
                         </button>
                       </div>
                     </div>

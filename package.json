@@ -5,7 +5,7 @@
   "scripts": {
     "build": "scripts/build.sh",
     "dev": "scripts/dev.sh",
-    "dev:rebuild": "scripts/dev.sh Y",
+    "dev:cache": "scripts/dev.sh N",
     "prod": "scripts/prod.sh",
     "prod:rebuild": "scripts/prod.sh Y '' Y",
     "nuke": "scripts/nuke.sh",

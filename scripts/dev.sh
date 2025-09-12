@@ -8,7 +8,7 @@ set -e
 echo "🍎 Starting development environment..."
 
 # Parse arguments
-REBUILD=${1:-N}  # Default: don't rebuild
+REBUILD=${1:-Y}  # Default: rebuild (development should be fresh)
 RESTORE_BACKUP=${2:-Y}  # Default: restore backup if available
 
 # Create network if it doesn't exist

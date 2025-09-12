@@ -23,7 +23,7 @@ const configureSecurity = require('./security');
 const mgitUtils = require('./mgitUtils');
 const utils = require('./utils');
 
-const setupWebRTCRoutes = require('./webrtc-signaling');
+// const setupWebRTCRoutes = require('./webrtc-signaling');
 
 const app = express();
 app.use(express.json());
@@ -251,7 +251,7 @@ const validateMGitToken = (req, res, next) => {
   next();
 };
 
-setupWebRTCRoutes(app, validateAuthToken);
+// setupWebRTCRoutes(app, validateAuthToken);
 
 // Ensure repositories directory exists
 if (!fs.existsSync(REPOS_PATH)) {

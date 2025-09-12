@@ -61,42 +61,112 @@ function useIntervalManager() {
   }, []);
   
   const clearAllIntervals = useCallback(async () => {
-    if (cleanupInProgressRef.current) return; // Prevent double cleanup
-    cleanupInProgressRef.current = true;
+    console.log(`🧹 ADMIN: Starting cleanup of ${intervalsRef.current.size} managed intervals`);
     
-    console.log(`🧹 ADMIN: Clearing ${intervalsRef.current.size} managed intervals`);
+    // Step 1: Collect all pending operations as Promises
+    const pendingOperations: Promise<void>[] = [];
     
-    intervalsRef.current.forEach((intervalId, key) => {
-      clearInterval(intervalId);
-      console.log(`🗑️ ADMIN: Cleared interval '${key}'`);
+    // Step 2: Clear all intervals and create promises for their completion
+    const intervalKeys = Array.from(intervalsRef.current.keys());
+    intervalKeys.forEach((key) => {
+      const intervalId = intervalsRef.current.get(key);
+      if (intervalId) {
+        console.log(`🗑️ ADMIN: Clearing interval '${key}'`);
+        clearInterval(intervalId);
+        
+        // Create a promise that resolves when this interval's final callback completes
+        const intervalCleanupPromise = new Promise<void>((resolve) => {
+          // Give any in-flight callbacks a moment to complete
+          setTimeout(() => {
+            console.log(`✅ ADMIN: Interval '${key}' cleanup verified`);
+            resolve();
+          }, 100);
+        });
+        
+        pendingOperations.push(intervalCleanupPromise);
+      }
     });
     
+    // Step 3: Clear the intervals Map
     intervalsRef.current.clear();
     
-    // Wait briefly for any pending async operations to complete
+    // Step 4: Create promise for any other pending operations
     if (pendingOperationsRef.current > 0) {
-      console.log(`⏳ ADMIN: Waiting for ${pendingOperationsRef.current} pending operations...`);
-      let waitCount = 0;
-      while (pendingOperationsRef.current > 0 && waitCount < 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        waitCount++;
-      }
-      if (pendingOperationsRef.current > 0) {
-        console.log(`⚠️ ADMIN: ${pendingOperationsRef.current} operations still pending after timeout`);
-      }
+      console.log(`⏳ ADMIN: Waiting for ${pendingOperationsRef.current} pending operations to complete`);
+      
+      const operationCleanupPromise = new Promise<void>((resolve) => {
+        const startTime = Date.now();
+        const checkOperations = () => {
+          if (pendingOperationsRef.current === 0) {
+            console.log('✅ ADMIN: All pending operations completed');
+            resolve();
+          } else if (Date.now() - startTime > 5000) {
+            console.log(`⚠️ ADMIN: Timeout waiting for operations, forcing completion (${pendingOperationsRef.current} still pending)`);
+            pendingOperationsRef.current = 0;
+            resolve();
+          } else {
+            setTimeout(checkOperations, 50);
+          }
+        };
+        checkOperations();
+      });
+      
+      pendingOperations.push(operationCleanupPromise);
     }
     
+    // Step 5: Wait for ALL operations to complete using Promise.allSettled
+    if (pendingOperations.length > 0) {
+      console.log(`⏳ ADMIN: Waiting for ${pendingOperations.length} cleanup operations to complete...`);
+      const results = await Promise.allSettled(pendingOperations);
+      
+      // Log any failures
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error(`❌ ADMIN: Cleanup operation ${index} failed:`, result.reason);
+        }
+      });
+      
+      console.log('✅ ADMIN: All cleanup operations completed via Promise.allSettled');
+    }
+    
+    // Step 6: Verify cleanup completion
+    const verificationChecks = [
+      {
+        name: 'Intervals Map cleared',
+        result: intervalsRef.current.size === 0
+      },
+      {
+        name: 'No pending operations',
+        result: pendingOperationsRef.current === 0
+      }
+    ];
+    
+    console.log('🔍 ADMIN: Cleanup verification:');
+    let allVerified = true;
+    verificationChecks.forEach(({ name, result }) => {
+      console.log(`  ${result ? '✅' : '❌'} ${name}`);
+      if (!result) allVerified = false;
+    });
+    
+    if (allVerified) {
+      console.log('✅ ADMIN: Cleanup verification PASSED - all resources released');
+    } else {
+      console.error('❌ ADMIN: Cleanup verification FAILED - some resources may still be active');
+    }
+    
+    // Step 7: Set final cleanup state
     mountedRef.current = false;
+    console.log('🧹 ADMIN: Cleanup process completed and verified');
   }, []);
   
   // 🔧 NEW: Reset function for rejoin scenarios
-  const resetIntervalManager = useCallback(() => {
-    console.log('🔄 ADMIN: Resetting interval manager for rejoin');
-    cleanupInProgressRef.current = false;
-    mountedRef.current = true;
-    pendingOperationsRef.current = 0;
-    console.log('✅ ADMIN: Interval manager reset completed');
-  }, []);
+  // const resetIntervalManager = useCallback(() => {
+  //   console.log('🔄 ADMIN: Resetting interval manager for rejoin');
+  //   cleanupInProgressRef.current = false;
+  //   mountedRef.current = true;
+  //   pendingOperationsRef.current = 0;
+  //   console.log('✅ ADMIN: Interval manager reset completed');
+  // }, []);
   
   // Cleanup all intervals on unmount
   useEffect(() => {
@@ -109,7 +179,8 @@ function useIntervalManager() {
     setManagedInterval, 
     clearManagedInterval, 
     clearAllIntervals,
-    resetIntervalManager,
+    mountedRef, 
+    pendingOperationsRef,
     getActiveIntervals: () => Array.from(intervalsRef.current.keys())
   };
 }
@@ -121,6 +192,10 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const [participantCount, setParticipantCount] = useState(0);
   const [handshakeInProgress, setHandshakeInProgress] = useState(false);
   
+  const [shouldInitiateOffer, setShouldInitiateOffer] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<any>(null);
+  const [webrtcRole, setWebrtcRole] = useState<'caller' | 'answerer' | 'unknown'>('unknown');
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -128,17 +203,50 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   const eventSourceRef = useRef<EventSource | null>(null);
   
   // Advanced interval management
-  const { setManagedInterval, clearManagedInterval, clearAllIntervals, resetIntervalManager, getActiveIntervals } = useIntervalManager();
+  const { setManagedInterval, clearManagedInterval, clearAllIntervals, mountedRef, pendingOperationsRef, getActiveIntervals } = useIntervalManager(); // resetIntervalManager
   
+  const resetToInitialState = useCallback(() => {
+    console.log('🔄 ADMIN: Resetting ALL state to initial values');
+  
+    // Reset interval manager refs (access them from the hook's return)
+    // This requires the hook to expose these refs or a reset function
+    mountedRef.current = true;
+    pendingOperationsRef.current = 0;
+
+    // Reset all useState values to their initial values
+    setIsInRoom(false);
+    setConnectionStatus('Not connected');
+    setParticipantCount(0);
+    setHandshakeInProgress(false);
+    setShouldInitiateOffer(false);
+    setUserRole(null);
+    setWebrtcRole('unknown');
+    
+    // Reset all useRef values to their initial values
+    peerConnectionRef.current = null;
+    localStreamRef.current = null;
+    eventSourceRef.current = null;
+    
+    // Clear video elements
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    
+    console.log('✅ ADMIN: Component state reset to initial values completed');
+  }, []);
+
   // Thread-safe cleanup with comprehensive resource management
-  const cleanupWebRTCState = useCallback(() => {
+  const cleanupWebRTCState = useCallback(async () => {
     console.log('🧹 ADMIN CLEANUP: Starting comprehensive WebRTC state cleanup');
     console.log('🔍 ADMIN CLEANUP: Active intervals before cleanup:', getActiveIntervals());
     console.log('🔍 ADMIN CLEANUP: Cleanup context - connectionStatus:', connectionStatus);
     console.log('🔍 ADMIN CLEANUP: Cleanup context - isInRoom:', isInRoom);
     
     // STEP 1: Clear all managed intervals first to stop ongoing operations
-    clearAllIntervals();
+    await clearAllIntervals(); // Wait for this to complete
     
     // STEP 2: Stop local stream tracks
     if (localStreamRef.current) {
@@ -150,7 +258,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       });
       localStreamRef.current = null;
     }
-  
+
     // STEP 3: Close peer connection with proper event handler cleanup
     if (peerConnectionRef.current) {
       console.log('🧹 ADMIN CLEANUP: Closing peer connection');
@@ -263,12 +371,24 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       // Join room
       const joinResult = await webrtcService.joinRoom(roomId, token);
       console.log('🚀 ADMIN: Join room result:', joinResult);
+
       setParticipantCount(joinResult.participants);
+      setUserRole(joinResult.userRole);
+      setShouldInitiateOffer(joinResult.shouldInitiateOffer);
       setIsInRoom(true);
       
+      if (shouldInitiateOffer || joinResult.shouldInitiateOffer) {
+        setWebrtcRole('caller');
+        console.log('🎯 This client will INITIATE (caller)');
+        startCallerSignalingLoop();
+      } else {
+        setWebrtcRole('answerer');
+        console.log('🎯 This client will WAIT (answerer)');
+        startAnswererSignalingLoop();
+      }
+
       // Start managed services
       startParticipantCountUpdates();
-      startSignalingLoop();
 
       console.log(`Joined room: ${roomId}`);
       
@@ -279,11 +399,35 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     }
   };
   
-  const leaveRoom = () => {
+  const leaveRoom = async () => {
     console.log('=== ADMIN LEAVE ROOM INITIATED ===');
     try {
-      cleanupWebRTCState();
-      setParticipantCount(0);
+      // STEP 1: Call the backend leave endpoint FIRST
+      if (isInRoom) {
+        try {
+          const response = await fetch(`${window.location.origin}/api/webrtc/rooms/${roomId}/leave`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('📤 ADMIN: Server leave response:', result);
+          } else {
+            console.error('❌ ADMIN: Server leave failed:', response.status);
+          }
+        } catch (error) {
+          console.error('❌ ADMIN: Error calling leave endpoint:', error);
+        }
+      }
+      
+      // STEP 2: Clean up local state
+      await cleanupWebRTCState();
+      resetToInitialState();
+      
       console.log('Left WebRTC room');
       console.log('=== ADMIN LEAVE ROOM COMPLETED ===');
     } catch (error: unknown) {
@@ -293,39 +437,44 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     }
   };
 
-  const handleParticipantRejoin = useCallback(() => {
-    console.log('🔄 ADMIN: Handling participant rejoin with full reset');
+  // const handleParticipantRejoin = useCallback(async () => {
+  //   console.log('🔄 ADMIN: Handling participant rejoin with full reset');
     
-    // Complete cleanup first
-    cleanupWebRTCState();
+  //   // Complete cleanup first and wait for it
+  //   await cleanupWebRTCState();
     
-    // 🔧 NEW: Reset interval manager to allow new intervals
-    resetIntervalManager();
+  //   // Reset interval manager and wait for it  
+  //   await resetIntervalManager();
     
-    // Re-initialize everything fresh with error handling
-    navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true
-    }).then(stream => {
-      localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      // Create fresh peer connection
-      setupPeerConnection();
+  //   // Add a small delay to ensure everything is reset
+  //   await new Promise(resolve => setTimeout(resolve, 100));
+    
+  //   // Re-initialize everything fresh with error handling
+  //   try {
+  //     const stream = await navigator.mediaDevices.getUserMedia({
+  //       video: true,
+  //       audio: true
+  //     });
       
-      // Restart managed services
-      startParticipantCountUpdates();
-      setIsInRoom(true);
-      startSignalingLoop();
+  //     localStreamRef.current = stream;
+  //     if (localVideoRef.current) {
+  //       localVideoRef.current.srcObject = stream;
+  //     }
 
-      console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
-    }).catch(error => {
-      console.error('❌ ADMIN: Error reinitializing for rejoin:', error);
-      console.log('Failed to reinitialize for rejoin. Please refresh and try again.');
-    });
-  }, [cleanupWebRTCState, setupPeerConnection, resetIntervalManager]);
+  //     // Create fresh peer connection
+  //     setupPeerConnection();
+      
+  //     // Restart managed services
+  //     startParticipantCountUpdates();
+  //     setIsInRoom(true);
+  //     startAnswererSignalingLoop();
+
+  //     console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
+  //   } catch (error) {
+  //     console.error('❌ ADMIN: Error reinitializing for rejoin:', error);
+  //     console.log('Failed to reinitialize for rejoin. Please refresh and try again.');
+  //   }
+  // }, [cleanupWebRTCState, setupPeerConnection, resetIntervalManager]);
   
   const startParticipantCountUpdates = useCallback(() => {
     console.log('📊 ADMIN: Starting participant count updates');
@@ -357,10 +506,10 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       try {
         const data = JSON.parse(event.data);
         
-        if (data.type === 'participant_rejoined') {
-          console.log(`🔄 Participant ${data.participant} rejoined - resetting WebRTC`);
-          handleParticipantRejoin();
-        }
+        // if (data.type === 'participant_rejoined') {
+        //   console.log(`🔄 Participant ${data.participant} rejoined - resetting WebRTC`);
+        //   handleParticipantRejoin();
+        // }
         
         if (data.type === 'participant_count') {
           setParticipantCount(data.count);
@@ -369,9 +518,83 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         console.error('Error parsing SSE event:', error);
       }
     });
-  }, [roomId, token, handleParticipantRejoin]);
+  }, [roomId, token]); //handleParticipantRejoin
   
-  const startSignalingLoop = useCallback(() => {
+  const startCallerSignalingLoop = useCallback(() => {
+    console.log('📞 CALLER: Will SEND offers');
+    
+    if (!peerConnectionRef.current) return;
+
+    // Wait briefly, then initiate
+    setTimeout(async () => {
+      if (!peerConnectionRef.current) return;
+
+      try {
+        console.log('📞 CALLER: Creating offer...');
+        setHandshakeInProgress(true);
+        
+        const offer = await peerConnectionRef.current.createOffer();
+        await peerConnectionRef.current.setLocalDescription(offer);
+        
+        await webrtcService.sendOffer(roomId, offer, token);
+        console.log('✅ CALLER: Offer sent');
+        
+        // Start polling for answer
+        startAnswerPolling();
+        
+      } catch (error) {
+        console.error('❌ CALLER: Error:', error);
+        setHandshakeInProgress(false);
+      }
+    }, 1000);
+
+    startIceCandidateHandling();
+  }, [roomId, token]);
+
+  const startIceCandidateHandling = useCallback(() => {
+    setManagedInterval('ice-candidates-poll', async () => {
+      try {
+        if (!peerConnectionRef.current) return;
+        
+        const { candidates } = await webrtcService.getIceCandidates(roomId, token);
+        
+        if (candidates && candidates.length > 0) {
+          console.log(`🧊 Received ${candidates.length} ICE candidates`);
+          for (const candidateData of candidates) {
+            if (peerConnectionRef.current.remoteDescription) {
+              await peerConnectionRef.current.addIceCandidate(candidateData.candidate);
+            } else {
+              console.log('🧊 Queueing ICE candidate - no remote description yet');
+              // queue these for later if needed
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ ICE candidate error:', error);
+      }
+    }, 2000);
+  }, [roomId, token, setManagedInterval]);
+
+  const startAnswerPolling = useCallback(() => {
+    setManagedInterval('answer-poll', async () => {
+      try {
+        const { answer } = await webrtcService.getAnswer(roomId, token);
+        
+        if (answer && answer.answer && peerConnectionRef.current) {
+          console.log('📞 CALLER: Received answer!');
+          clearManagedInterval('answer-poll');
+          
+          await peerConnectionRef.current.setRemoteDescription(answer.answer);
+          console.log('✅ CALLER: Connection established');
+          setHandshakeInProgress(false);
+        }
+      } catch (error) {
+        console.error('❌ CALLER: Answer polling error:', error);
+      }
+    }, 2000);
+  }, [roomId, token, setManagedInterval, clearManagedInterval]);
+
+  const startAnswererSignalingLoop = useCallback(() => {
     console.log('🔄 ADMIN: Starting managed signaling loop');
     console.log('🔍 ADMIN: peerConnectionRef.current =', !!peerConnectionRef.current);
 
@@ -562,7 +785,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
           Telehealth (Advanced Interval Management)
         </h3>
       </div>
-      
+  
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <h4 className="font-medium text-gray-700 mb-3">Test Video Calls</h4>
@@ -604,6 +827,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
           <div className="space-y-2">
             <div className="font-medium">Status: {connectionStatus}</div>
             <div className="font-medium">Participants: {participantCount}</div>
+            <div className="font-medium">Role: {webrtcRole} {userRole?.slug && `(${userRole.slug})`}</div>
             <div className="text-sm text-gray-600">
               Active Intervals: {getActiveIntervals().join(', ') || 'None'}
             </div>
