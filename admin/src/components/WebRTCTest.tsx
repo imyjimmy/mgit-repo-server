@@ -436,45 +436,6 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       console.log(`Error leaving room: ${err.message}`);
     }
   };
-
-  // const handleParticipantRejoin = useCallback(async () => {
-  //   console.log('🔄 ADMIN: Handling participant rejoin with full reset');
-    
-  //   // Complete cleanup first and wait for it
-  //   await cleanupWebRTCState();
-    
-  //   // Reset interval manager and wait for it  
-  //   await resetIntervalManager();
-    
-  //   // Add a small delay to ensure everything is reset
-  //   await new Promise(resolve => setTimeout(resolve, 100));
-    
-  //   // Re-initialize everything fresh with error handling
-  //   try {
-  //     const stream = await navigator.mediaDevices.getUserMedia({
-  //       video: true,
-  //       audio: true
-  //     });
-      
-  //     localStreamRef.current = stream;
-  //     if (localVideoRef.current) {
-  //       localVideoRef.current.srcObject = stream;
-  //     }
-
-  //     // Create fresh peer connection
-  //     setupPeerConnection();
-      
-  //     // Restart managed services
-  //     startParticipantCountUpdates();
-  //     setIsInRoom(true);
-  //     startAnswererSignalingLoop();
-
-  //     console.log('✅ ADMIN: Fresh WebRTC state created for rejoin');
-  //   } catch (error) {
-  //     console.error('❌ ADMIN: Error reinitializing for rejoin:', error);
-  //     console.log('Failed to reinitialize for rejoin. Please refresh and try again.');
-  //   }
-  // }, [cleanupWebRTCState, setupPeerConnection, resetIntervalManager]);
   
   const startParticipantCountUpdates = useCallback(() => {
     console.log('📊 ADMIN: Starting participant count updates');

@@ -210,7 +210,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     
     // Reset interval manager refs (access them from the hook's return)
     // This requires the hook to expose these refs or a reset function
-    mountedRef.current = true;  // Now this works
+    mountedRef.current = true;
     pendingOperationsRef.current = 0;
 
     // Reset all useState values to their initial values
@@ -336,6 +336,78 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     console.log('✅ PATIENT: Fresh peer connection created and configured');
   }, [roomId, token]);
 
+  const silentlyResetWebRTCConnection = useCallback(() => {
+    console.log('🔄 PATIENT: Silently resetting WebRTC connection (peer disconnected)');
+    
+    // 1. Close current peer connection
+    if (peerConnectionRef.current) {
+      console.log('🔌 PATIENT: Closing existing peer connection');
+      const pc = peerConnectionRef.current;
+      
+      // Clear event handlers to prevent stray events
+      pc.ontrack = null;
+      pc.onicecandidate = null;
+      pc.onconnectionstatechange = null;
+      pc.onsignalingstatechange = null;
+      pc.onicegatheringstatechange = null;
+      
+      pc.close();
+      peerConnectionRef.current = null;
+    }
+      
+    // 2. Clear remote video (keep local video running)
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    
+    // 3. Clear any active intervals for signaling
+    clearManagedInterval('ice-candidates-poll');
+    clearManagedInterval('offers-poll');
+    clearManagedInterval('answer-poll');
+    
+    // 4. Reset WebRTC-specific state (keep UI state intact)
+    setConnectionStatus('Waiting for peer...');
+    setHandshakeInProgress(false);
+    setWebrtcRole('unknown');
+    setShouldInitiateOffer(false);
+    
+    // 5. Set up fresh peer connection
+    setupPeerConnection();
+    
+    // 6. Be ready for new signaling when peer rejoins
+    // The answerer signaling loop will restart when participant count goes back to 2
+    startAnswererSignalingLoop();
+
+    console.log('✅ PATIENT: Silent WebRTC reset completed, ready for peer reconnection');
+  }, [clearManagedInterval, setupPeerConnection]);
+
+  /* 
+    ## Summary of Achievements
+
+    **Fixed Major Issues:**
+    1. **Participant count updates** - The leave room function now properly calls the backend `/leave` endpoint, so participant counts update correctly for all clients
+    2. **Interval management cleanup** - Implemented proper `clearAllIntervals()` with Promise.allSettled that waits for actual completion instead of using timeouts
+    3. **Component state reset** - Created `resetToInitialState()` that resets all component state back to mount values
+    4. **Server-side state pollution** - Added clearing of all WebRTC signaling data (offers, answers, ICE candidates) when participants leave, eliminating stale data issues
+    5. **Silent peer disconnection detection** - Successfully implemented detection when participant count drops from 2→1, with automatic WebRTC connection reset
+
+    **Improved Architecture:**
+    - Separated concerns between interval management and component state
+    - Made cleanup truly synchronous and verifiable
+    - Removed problematic rejoin-specific client logic in favor of treating rejoins as normal joins
+
+    ## Remaining Problem
+
+    **Role Assignment Deadlock:** When one person stays connected and another rejoins, both clients end up in "answerer" mode (polling for offers) instead of having one caller and one answerer. This creates a deadlock where both wait for offers that neither sends.
+
+    **Root Cause:** The server's `shouldInitiateOffer` logic is based on join order, but when someone rejoins a room with existing participants, the role assignment doesn't account for the fact that someone is already connected and waiting.
+
+    **Fix Needed:** Server-side logic to ensure that anyone joining a room with existing connected participants automatically gets assigned as caller (`shouldInitiateOffer: true`), regardless of historical join order.
+
+    The WebRTC connection flow is now much more robust, but this final role coordination issue prevents rejoins from working when one party stays connected.
+    https://claude.ai/chat/2f6c7947-11ad-4d86-82f0-453084588a87
+  */
+  
   const joinRoom = async () => {
     try {
       if (!roomId.trim()) {
@@ -437,45 +509,13 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     }
   };
 
-  // const handleParticipantRejoin = useCallback(async () => {
-  //   console.log('🔄 PATIENT: Handling participant rejoin with full reset');
-    
-  //   // Complete cleanup first and wait for it
-  //   await cleanupWebRTCState();
-    
-  //   // Reset interval manager and wait for it  
-  //   await resetIntervalManager();
-    
-  //   // Add a small delay to ensure everything is reset
-  //   await new Promise(resolve => setTimeout(resolve, 100));
-    
-  //   // Re-initialize everything fresh with error handling
-  //   try {
-  //     const stream = await navigator.mediaDevices.getUserMedia({
-  //       video: true,
-  //       audio: true
-  //     });
-      
-  //     localStreamRef.current = stream;
-  //     if (localVideoRef.current) {
-  //       localVideoRef.current.srcObject = stream;
-  //     }
+  const detectParticipantCountDrop = useCallback((newCount: number, previousCount: number) => {
+    if (previousCount === 2 && newCount === 1) {
+      console.log('🔍 PATIENT: Detected participant count drop from 2 to 1 - peer disconnected');
+      silentlyResetWebRTCConnection();
+    }
+  }, [silentlyResetWebRTCConnection]);
 
-  //     // Create fresh peer connection
-  //     setupPeerConnection();
-      
-  //     // Restart managed services
-  //     startParticipantCountUpdates();
-  //     setIsInRoom(true);
-  //     startAnswererSignalingLoop();
-
-  //     console.log('✅ PATIENT: Fresh WebRTC state created for rejoin');
-  //   } catch (error) {
-  //     console.error('❌ PATIENT: Error reinitializing for rejoin:', error);
-  //     console.log('Failed to reinitialize for rejoin. Please refresh and try again.');
-  //   }
-  // }, [cleanupWebRTCState, setupPeerConnection, resetIntervalManager]);
-  
   const startParticipantCountUpdates = useCallback(() => {
     console.log('📊 PATIENT: Starting participant count updates');
     
@@ -487,11 +527,20 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     const eventSource = webrtcService.createEventSource(roomId, token);
     eventSourceRef.current = eventSource;
     
+    // Track previous count for detection
+    let previousCount = participantCount;
+
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'participant_count') {
+          const newCount = data.count;
+          
+          detectParticipantCountDrop(newCount, previousCount);
           setParticipantCount(data.count);
+
+          setParticipantCount(newCount);
+          previousCount = newCount;
         }
       } catch (error) {
         console.error('Error parsing SSE message:', error);
