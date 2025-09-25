@@ -9,7 +9,7 @@ export interface BookingData {
   provider: { id: string; name: string; email?: string } | null;
   service: { id: string; name: string; duration: number; price?: string } | null;
   appointment: { date: string; time: string; datetime: string } | null;
-  patient: {
+  admin: {
     firstName: string;
     lastName: string;
     email?: string;
@@ -19,13 +19,17 @@ export interface BookingData {
   } | null;
 }
 
-export function BookingWorkflow() {
+interface BookingWorkflowProps {
+  token: string;
+}
+
+export function BookingWorkflow({ token }: BookingWorkflowProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData>({
     provider: null,
     service: null,
     appointment: null,
-    patient: null,
+    admin: null,
   });
 
   const nextStep = () => {
@@ -47,8 +51,8 @@ export function BookingWorkflow() {
   return (
     <div className="py-6">
       <ProgressBar currentStep={currentStep} />
-      
-      <div className="w-3/5 mx-auto bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+      { token? <>{console.log('token: ', token)}</>: <></>}
+      <div className="w-3/5 mx-auto bg-card shadow-lg border rounded-lg p-6">
         {currentStep === 1 && (
           <Step1ProviderService
             data={bookingData}
@@ -67,7 +71,7 @@ export function BookingWorkflow() {
         )}
         
         {currentStep === 3 && (
-          <Step3PatientInfo
+          <Step3AdminInfo
             data={bookingData}
             onNext={nextStep}
             onPrev={prevStep}
@@ -80,6 +84,7 @@ export function BookingWorkflow() {
             data={bookingData}
             onPrev={prevStep}
             onUpdate={updateBookingData}
+            token={token}
           />
         )}
       </div>

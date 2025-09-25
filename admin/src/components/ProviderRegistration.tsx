@@ -108,7 +108,7 @@ export const ProviderRegistrationForm: React.FC<ProviderRegistrationFormProps> =
       </form>
 
       <p className="text-gray-400 text-sm mt-4">
-        After registration, you'll be able to access the full EasyAppointments provider dashboard to manage your schedule and patients.
+        After registration, you'll be able to access the full EasyAppointments provider dashboard to manage your schedule and admins.
       </p>
     </div>
   );

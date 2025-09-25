@@ -9,17 +9,17 @@ interface Step3Props {
 }
 
 const Step3PatientInfo: React.FC<Step3Props> = ({ data, onNext, onPrev, onUpdate }) => {
-  const [firstName, setFirstName] = useState(data.patient?.firstName || '');
-  const [lastName, setLastName] = useState(data.patient?.lastName || '');
-  const [email, setEmail] = useState(data.patient?.email || '');
-  const [phone, setPhone] = useState(data.patient?.phone || '');
-  const [notes, setNotes] = useState(data.patient?.notes || '');
+  const [firstName, setFirstName] = useState(data.admin?.firstName || '');
+  const [lastName, setLastName] = useState(data.admin?.lastName || '');
+  const [email, setEmail] = useState(data.admin?.email || '');
+  const [phone, setPhone] = useState(data.admin?.phone || '');
+  const [notes, setNotes] = useState(data.admin?.notes || '');
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Update booking data whenever form fields change
   useEffect(() => {
-    const patientData = {
+    const adminData = {
       firstName,
       lastName,
       email: email || undefined,
@@ -27,7 +27,7 @@ const Step3PatientInfo: React.FC<Step3Props> = ({ data, onNext, onPrev, onUpdate
       notes: notes || undefined,
     };
 
-    onUpdate({ patient: patientData });
+    onUpdate({ admin: adminData });
   }, [firstName, lastName, email, phone, notes]);
 
   const validateForm = () => {

@@ -1,4 +1,4 @@
-/* Admin Dashboard Styles */
+/* admin Dashboard Styles */
 * {
     margin: 0;
     padding: 0;
@@ -34,7 +34,7 @@ body {
     font-weight: 500;
 }
 
-/* Admin profile picture styles */
+/* admin profile picture styles */
 .admin-info {
     display: flex;
     align-items: center;

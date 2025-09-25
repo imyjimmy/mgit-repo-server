@@ -7,12 +7,14 @@ interface Step4ConfirmationProps {
   onPrev: () => void;
   onUpdate: (updates: Partial<BookingData>) => void;
   onComplete?: (appointmentId: number) => void;
+  token: string;
 }
 
 const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   data,
   onPrev,
-  onComplete
+  onComplete,
+  token
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   console.log('provider:', data.provider);
   console.log('service:', data.service);
   console.log('appointment:', data.appointment);
-  console.log('patient:', data.patient);
+  console.log('admin:', data.admin);
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -46,7 +48,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   };
 
   // Validation - ensure we have all required data
-  if (!data.provider || !data.service || !data.appointment || !data.patient) {
+  if (!data.provider || !data.service || !data.appointment || !data.admin) {
     return (
       <div className="max-w-2xl mx-auto p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -74,12 +76,12 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         providerId: data.provider?.id,
         serviceId: data.service?.id,
         startTime: data.appointment?.datetime,
-        patientInfo: {
-          firstName: data.patient?.firstName,
-          lastName: data.patient?.lastName,
-          email: data.patient?.email,
-          phone: data.patient?.phone,
-          notes: data.patient?.notes
+        adminInfo: {
+          firstName: data.admin?.firstName,
+          lastName: data.admin?.lastName,
+          email: data.admin?.email,
+          phone: data.admin?.phone,
+          notes: data.admin?.notes
         }
       };
 
@@ -94,7 +96,10 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
       // 4. Submit to verification endpoint
       const response = await fetch('/api/appointments/verify-booking', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           bookingData: bookingPayload,
           signedEvent
@@ -178,49 +183,49 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         </div>
       </div>
 
-      {/* Patient Information */}
+      {/* Admin Information */}
       <div className="bg-gray-50 rounded-lg p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4">Patient Information</h3>
+        <h3 className="text-lg font-semibold mb-4">Admin Information</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">
               First Name
             </label>
-            <p className="text-gray-900">{data.patient.firstName}</p>
+            <p className="text-gray-900">{data.admin.firstName}</p>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">
               Last Name
             </label>
-            <p className="text-gray-900">{data.patient.lastName}</p>
+            <p className="text-gray-900">{data.admin.lastName}</p>
           </div>
           
-          {data.patient.email && (
+          {data.admin.email && (
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">
                 Email
               </label>
-              <p className="text-gray-900">{data.patient.email}</p>
+              <p className="text-gray-900">{data.admin.email}</p>
             </div>
           )}
           
-          {data.patient.phone && (
+          {data.admin.phone && (
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">
                 Phone
               </label>
-              <p className="text-gray-900">{data.patient.phone}</p>
+              <p className="text-gray-900">{data.admin.phone}</p>
             </div>
           )}
           
-          {data.patient.notes && (
+          {data.admin.notes && (
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-600 mb-1">
                 Notes
               </label>
-              <p className="text-gray-900">{data.patient.notes}</p>
+              <p className="text-gray-900">{data.admin.notes}</p>
             </div>
           )}
         </div>
@@ -263,7 +268,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
           disabled={isSubmitting}
           className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
         >
-          Back to Patient Info
+          Back to Admin Info
         </button>
         
         <button

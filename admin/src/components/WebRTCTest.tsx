@@ -179,7 +179,7 @@ function useIntervalManager() {
     setManagedInterval, 
     clearManagedInterval, 
     clearAllIntervals,
-    mountedRef, 
+    mountedRef,
     pendingOperationsRef,
     getActiveIntervals: () => Array.from(intervalsRef.current.keys())
   };
@@ -207,7 +207,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   
   const resetToInitialState = useCallback(() => {
     console.log('🔄 ADMIN: Resetting ALL state to initial values');
-  
+    
     // Reset interval manager refs (access them from the hook's return)
     // This requires the hook to expose these refs or a reset function
     mountedRef.current = true;
@@ -336,6 +336,78 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     console.log('✅ ADMIN: Fresh peer connection created and configured');
   }, [roomId, token]);
 
+  const silentlyResetWebRTCConnection = useCallback(() => {
+    console.log('🔄 ADMIN: Silently resetting WebRTC connection (peer disconnected)');
+    
+    // 1. Close current peer connection
+    if (peerConnectionRef.current) {
+      console.log('🔌 ADMIN: Closing existing peer connection');
+      const pc = peerConnectionRef.current;
+      
+      // Clear event handlers to prevent stray events
+      pc.ontrack = null;
+      pc.onicecandidate = null;
+      pc.onconnectionstatechange = null;
+      pc.onsignalingstatechange = null;
+      pc.onicegatheringstatechange = null;
+      
+      pc.close();
+      peerConnectionRef.current = null;
+    }
+      
+    // 2. Clear remote video (keep local video running)
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    
+    // 3. Clear any active intervals for signaling
+    clearManagedInterval('ice-candidates-poll');
+    clearManagedInterval('offers-poll');
+    clearManagedInterval('answer-poll');
+    
+    // 4. Reset WebRTC-specific state (keep UI state intact)
+    setConnectionStatus('Waiting for peer...');
+    setHandshakeInProgress(false);
+    setWebrtcRole('unknown');
+    setShouldInitiateOffer(false);
+    
+    // 5. Set up fresh peer connection
+    setupPeerConnection();
+    
+    // 6. Be ready for new signaling when peer rejoins
+    // The answerer signaling loop will restart when participant count goes back to 2
+    startAnswererSignalingLoop();
+
+    console.log('✅ ADMIN: Silent WebRTC reset completed, ready for peer reconnection');
+  }, [clearManagedInterval, setupPeerConnection]);
+
+  /* 
+    ## Summary of Achievements
+
+    **Fixed Major Issues:**
+    1. **Participant count updates** - The leave room function now properly calls the backend `/leave` endpoint, so participant counts update correctly for all clients
+    2. **Interval management cleanup** - Implemented proper `clearAllIntervals()` with Promise.allSettled that waits for actual completion instead of using timeouts
+    3. **Component state reset** - Created `resetToInitialState()` that resets all component state back to mount values
+    4. **Server-side state pollution** - Added clearing of all WebRTC signaling data (offers, answers, ICE candidates) when participants leave, eliminating stale data issues
+    5. **Silent peer disconnection detection** - Successfully implemented detection when participant count drops from 2→1, with automatic WebRTC connection reset
+
+    **Improved Architecture:**
+    - Separated concerns between interval management and component state
+    - Made cleanup truly synchronous and verifiable
+    - Removed problematic rejoin-specific client logic in favor of treating rejoins as normal joins
+
+    ## Remaining Problem
+
+    **Role Assignment Deadlock:** When one person stays connected and another rejoins, both clients end up in "answerer" mode (polling for offers) instead of having one caller and one answerer. This creates a deadlock where both wait for offers that neither sends.
+
+    **Root Cause:** The server's `shouldInitiateOffer` logic is based on join order, but when someone rejoins a room with existing participants, the role assignment doesn't account for the fact that someone is already connected and waiting.
+
+    **Fix Needed:** Server-side logic to ensure that anyone joining a room with existing connected participants automatically gets assigned as caller (`shouldInitiateOffer: true`), regardless of historical join order.
+
+    The WebRTC connection flow is now much more robust, but this final role coordination issue prevents rejoins from working when one party stays connected.
+    https://claude.ai/chat/2f6c7947-11ad-4d86-82f0-453084588a87
+  */
+  
   const joinRoom = async () => {
     try {
       if (!roomId.trim()) {
@@ -436,7 +508,14 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       console.log(`Error leaving room: ${err.message}`);
     }
   };
-  
+
+  const detectParticipantCountDrop = useCallback((newCount: number, previousCount: number) => {
+    if (previousCount === 2 && newCount === 1) {
+      console.log('🔍 ADMIN: Detected participant count drop from 2 to 1 - peer disconnected');
+      silentlyResetWebRTCConnection();
+    }
+  }, [silentlyResetWebRTCConnection]);
+
   const startParticipantCountUpdates = useCallback(() => {
     console.log('📊 ADMIN: Starting participant count updates');
     
@@ -448,11 +527,20 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
     const eventSource = webrtcService.createEventSource(roomId, token);
     eventSourceRef.current = eventSource;
     
+    // Track previous count for detection
+    let previousCount = participantCount;
+
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'participant_count') {
+          const newCount = data.count;
+          
+          detectParticipantCountDrop(newCount, previousCount);
           setParticipantCount(data.count);
+
+          setParticipantCount(newCount);
+          previousCount = newCount;
         }
       } catch (error) {
         console.error('Error parsing SSE message:', error);
@@ -740,16 +828,16 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   }, []); //isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress
   
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+    <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
       <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4 border-b-2 border-blue-500 pb-2">
+        <h3 className="text-xl font-semibold text-card-foreground mb-4 border-b-2 border-primary pb-2">
           Telehealth (Advanced Interval Management)
         </h3>
       </div>
   
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
-          <h4 className="font-medium text-gray-700 mb-3">Test Video Calls</h4>
+          <h4 className="font-medium text-card-foreground mb-3">Test Video Calls</h4>
           <div className="space-y-4">
             <div>
               <label htmlFor="roomId" className="block text-sm font-medium text-gray-600 mb-1">
@@ -761,7 +849,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
                 placeholder="Enter room ID"
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
               />
             </div>
             <div className="flex gap-2">
@@ -784,12 +872,12 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
         </div>
         
         <div>
-          <h4 className="font-medium text-gray-700 mb-3">Connection Status</h4>
+          <h4 className="font-medium text-card-foreground mb-3">Connection Status</h4>
           <div className="space-y-2">
             <div className="font-medium">Status: {connectionStatus}</div>
             <div className="font-medium">Participants: {participantCount}</div>
             <div className="font-medium">Role: {webrtcRole} {userRole?.slug && `(${userRole.slug})`}</div>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted-foreground">
               Active Intervals: {getActiveIntervals().join(', ') || 'None'}
             </div>
             {handshakeInProgress && (
@@ -802,23 +890,23 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
       </div>
       
       <div className="mt-6">
-        <h4 className="font-medium text-gray-700 mb-3">Video Test</h4>
+        <h4 className="font-medium text-card-foreground mb-3">Video Test</h4>
         <div className="flex gap-4 justify-center">
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">Local Video</p>
+            <p className="text-sm text-muted-foreground mb-2">Local Video</p>
             <video
               ref={localVideoRef}
               autoPlay
               muted
-              className="w-48 h-36 border border-gray-300 rounded-lg bg-gray-100"
+              className="w-48 h-36 border border-border rounded-lg bg-muted"
             />
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-2">Remote Video</p>
+            <p className="text-sm text-muted-foreground mb-2">Remote Video</p>
             <video
               ref={remoteVideoRef}
               autoPlay
-              className="w-48 h-36 border border-gray-300 rounded-lg bg-gray-100"
+              className="w-48 h-36 border border-border rounded-lg bg-muted"
             />
           </div>
         </div>

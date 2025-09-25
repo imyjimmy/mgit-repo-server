@@ -12,7 +12,7 @@ export function ProgressBar({ currentStep }: ProgressBarProps) {
   const steps: Step[] = [
     { id: 'Step 1', name: 'Provider & Service', status: currentStep > 1 ? 'complete' : currentStep === 1 ? 'current' : 'upcoming' },
     { id: 'Step 2', name: 'Select Time', status: currentStep > 2 ? 'complete' : currentStep === 2 ? 'current' : 'upcoming' },
-    { id: 'Step 3', name: 'Patient Information', status: currentStep > 3 ? 'complete' : currentStep === 3 ? 'current' : 'upcoming' },
+    { id: 'Step 3', name: 'Admin Information', status: currentStep > 3 ? 'complete' : currentStep === 3 ? 'current' : 'upcoming' },
     { id: 'Step 4', name: 'Confirmation', status: currentStep === 4 ? 'current' : 'upcoming' },
   ];
 

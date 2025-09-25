@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
   
-  const displayName = profile?.display_name || profile?.name || 'Administrator';
+  const displayName = profile?.display_name || profile?.name || 'administrator';
   
   const getInitials = (name: string) => {
     if (!name) return 'A';
@@ -48,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
         <img
           className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-full object-cover`}
           src={profile.picture}
-          alt="Admin Profile"
+          alt="admin Profile"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
       {isAuthenticated ? (
         <>
           <ProfilePicture />
-          <span className="text-sm text-gray-300 hidden sm:inline">{displayName}</span>
+          <span className="text-sm hidden sm:inline">{displayName}</span>
           <button
             onClick={onLogout}
             className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded transition-colors"
