@@ -31,13 +31,13 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-2xl shadow-xl max-w-md w-full mx-4 border border-gray-700">
+      <div className="bg-card rounded-2xl shadow-xl max-w-md w-full mx-4 border border-border">
         {/* Header */}
-        <div className="bg-gray-700 text-white px-6 py-4 rounded-t-2xl flex justify-between items-center border-b border-gray-600">
+        <div className="bg-muted text-foreground px-6 py-4 rounded-t-2xl flex justify-between items-center border-b border-border">
           <h2 className="text-lg font-semibold tracking-wide">ADD NEW EVENT</h2>
           <button 
             onClick={onClose}
-            className="text-gray-300 hover:text-white transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <XMarkIcon className="w-6 h-8" />
           </button>
@@ -45,14 +45,14 @@ const AddEventModal: React.FC<AddEventModalProps> = ({ isOpen, onClose }) => {
         
         {/* Content */}
         <div className="p-6">
-          <h3 className="text-gray-200 text-lg mb-6">What kind of event would you like to add?</h3>
+          <h3 className="text-foreground text-lg mb-6">What kind of event would you like to add?</h3>
           
           <div className="space-y-3">
-            <button className="w-full py-3 px-4 border-2 border-blue-600 text-blue-400 rounded-lg hover:bg-blue-900 hover:bg-opacity-20 transition-colors font-medium">
+            <button className="w-full py-3 px-4 border-2 border-primary text-primary rounded-lg hover:bg-primary/10 transition-colors font-medium">
               UNAVAILABILITY
             </button>
             
-            <button className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+            <button className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium">
               APPOINTMENT
             </button>
           </div>
@@ -218,15 +218,15 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
   };
 
   return (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 h-full flex flex-col">
+    <div className="bg-card rounded-xl border border-gray-200 h-[calc(100vh-100px)] flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
           {/* Provider Dropdown */}
           <div className="relative">
             <select 
               value={nostrUsername}
-              className="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-background border border-input rounded-lg px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
             >
               <option value={nostrUsername}>{nostrUsername}</option>
             </select>
@@ -234,13 +234,13 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
 
           {/* View Options */}
           <div className="flex items-center space-x-2">
-            <button className="p-2 text-gray-400 hover:text-white bg-gray-700 rounded">
+            <button className="p-2 text-muted-foreground hover:text-foreground bg-muted rounded">
               <CalendarIcon className="w-4 h-8" />
             </button>
-            <button className="p-2 text-gray-400 hover:text-white bg-gray-700 rounded">
+            <button className="p-2 text-muted-foreground hover:text-foreground bg-muted rounded">
               <ArrowPathIcon className="w-4 h-8" />
             </button>
-            <button className="p-2 text-gray-400 hover:text-white bg-gray-700 rounded">
+            <button className="p-2 text-muted-foreground hover:text-foreground bg-muted rounded">
               <Squares2X2Icon className="w-4 h-8" />
             </button>
           </div>
@@ -251,25 +251,25 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
           <div className="flex items-center space-x-2">
             <button 
               onClick={goToPreviousWeek}
-              className="p-2 text-gray-400 hover:text-white"
+              className="p-2 text-muted-foreground hover:text-foreground"
             >
               <ChevronLeftIcon className="w-5 h-5" />
             </button>
             <button 
               onClick={goToNextWeek}
-              className="p-2 text-gray-400 hover:text-white"
+              className="p-2 text-muted-foreground hover:text-foreground"
             >
               <ChevronRightIcon className="w-5 h-5" />
             </button>
             <button 
               onClick={goToToday}
-              className="px-3 py-1 text-sm text-gray-400 hover:text-white border border-gray-600 rounded"
+              className="px-3 py-1 text-sm text-muted-foreground hover:text-foreground border border-border rounded"
             >
               Today
             </button>
           </div>
 
-          <div className="text-gray-300 font-medium">
+          <div className="text-foreground font-medium">
             {formatWeekRange()}
           </div>
 
@@ -280,8 +280,8 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
                 onClick={() => setViewType(view)}
                 className={`px-3 py-1 text-sm rounded ${
                   viewType === view 
-                    ? 'bg-gray-600 text-white' 
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-accent text-accent-foreground' 
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {view}
@@ -294,15 +294,15 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
       {/* Calendar Grid */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Day Headers */}
-        <div className="flex border-b border-gray-700 bg-gray-800">
-          <div className="w-20 p-3 text-sm text-gray-400 border-r border-gray-700">
+        <div className="flex border-b border-border bg-card">
+          <div className="w-20 p-3 text-sm text-muted-foreground border-r border-border">
             All Day
           </div>
           {weekDates.map((date, index) => {
             const isToday = date.toDateString() === new Date().toDateString();
             return (
-              <div key={index} className="flex-1 p-3 text-center border-r border-gray-700 last:border-r-0">
-                <div className={`text-sm ${isToday ? 'text-blue-400 font-semibold' : 'text-gray-400'}`}>
+              <div key={index} className="flex-1 p-3 text-center border-r border-border last:border-r-0">
+                <div className={`text-sm ${isToday ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
                   {dayNames[index]} {date.getMonth() + 1}/{date.getDate()}
                 </div>
               </div>
@@ -317,11 +317,11 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
         >
           <div className="flex">
             {/* Time Column */}
-            <div className="w-20 bg-gray-800">
+            <div className="w-20 bg-card">
               {timeSlots.map((slot) => (
                 <div 
                   key={slot.hour}
-                  className="h-8 flex items-start justify-end pr-2 pt-1 text-xs text-gray-400 border-b border-r border-gray-700"
+                  className="h-8 flex items-start justify-end pr-2 pt-1 text-xs text-muted-foreground border-b border-r border-border"
                 >
                   {slot.time}
                 </div>
@@ -332,7 +332,7 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
             {weekDates.map((date, dayIndex) => {
               const isToday = date.toDateString() === new Date().toDateString();
               return (
-                <div key={dayIndex} className={`flex-1 border-r border-gray-700 last:border-r-0 ${isToday ? 'bg-blue-900 bg-opacity-20' : ''}`}>
+                <div key={dayIndex} className={`flex-1 border-r border-border last:border-r-0 ${isToday ? 'bg-primary/10' : ''}`}>
                   {timeSlots.map((slot) => {
                     const unavailable = isUnavailable(date, slot.hour, slot.minute);
                     
@@ -340,10 +340,10 @@ export const AppointmentsTab: React.FC<ApptProps> = ({ token }) => {
                       <div
                         key={`${dayIndex}-${slot.hour}`}
                         onClick={() => !unavailable && handleTimeSlotClick(date, slot.time)}
-                        className={`h-8 border-b border-gray-700 relative ${
+                        className={`h-8 border-b border-border relative ${
                           unavailable 
-                            ? 'bg-gray-600 bg-opacity-50 cursor-not-allowed' 
-                            : 'hover:bg-gray-700 cursor-pointer'
+                            ? 'bg-gray-200 cursor-not-allowed' 
+                            : 'hover:bg-muted cursor-pointer'
                         }`}
                       />
                     );

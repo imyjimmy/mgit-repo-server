@@ -306,20 +306,20 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
 
   const unbilledAppointments = pastAppointments.filter(apt => !apt.has_invoice);
 
-  return (
+return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <h2 className="text-2xl font-bold text-white mb-2">My Billing Dashboard</h2>
-        <p className="text-gray-400">Create Lightning invoices for your completed appointments</p>
+      <div className="bg-card rounded-xl p-6 border border-border">
+        <h2 className="text-2xl font-bold text-foreground mb-2">My Billing Dashboard</h2>
+        <p className="text-muted-foreground">Create Lightning invoices for your completed appointments</p>
       </div>
 
       {/* Message Display */}
       {message.type && (
         <div className={`p-4 rounded-lg ${
           message.type === 'success' 
-            ? 'bg-green-900 border border-green-700 text-green-400' 
-            : 'bg-red-900 border border-red-700 text-red-400'
+            ? 'bg-green-950 border border-green-800 text-green-400' 
+            : 'bg-red-950 border border-red-800 text-red-400'
         }`}>
           {message.text}
         </div>
@@ -327,7 +327,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
 
       {/* Error Display */}
       {error && (
-        <div className="p-4 rounded-lg bg-red-900 border border-red-700">
+        <div className="p-4 rounded-lg bg-red-950 border border-red-800">
           <p className="text-red-400">Error: {error}</p>
         </div>
       )}
@@ -335,20 +335,20 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
       {/* Statistics */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-            <h3 className="text-gray-400 text-sm">Total Appointments</h3>
-            <p className="text-white text-2xl font-bold">{stats.total_appointments}</p>
+          <div className="bg-card rounded-xl p-4 border border-border">
+            <h3 className="text-muted-foreground text-sm">Total Appointments</h3>
+            <p className="text-foreground text-2xl font-bold">{stats.total_appointments}</p>
           </div>
-          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-            <h3 className="text-gray-400 text-sm">Pending Invoices</h3>
+          <div className="bg-card rounded-xl p-4 border border-border">
+            <h3 className="text-muted-foreground text-sm">Pending Invoices</h3>
             <p className="text-yellow-400 text-2xl font-bold">{stats.pending_invoices}</p>
           </div>
-          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-            <h3 className="text-gray-400 text-sm">Paid Invoices</h3>
+          <div className="bg-card rounded-xl p-4 border border-border">
+            <h3 className="text-muted-foreground text-sm">Paid Invoices</h3>
             <p className="text-green-400 text-2xl font-bold">{stats.paid_invoices}</p>
           </div>
-          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-            <h3 className="text-gray-400 text-sm">Revenue (Sats)</h3>
+          <div className="bg-card rounded-xl p-4 border border-border">
+            <h3 className="text-muted-foreground text-sm">Revenue (Sats)</h3>
             <p className="text-purple-400 text-2xl font-bold">{stats.total_revenue_sats}</p>
           </div>
         </div>
@@ -356,38 +356,38 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
 
       {/* Past Appointments - Unbilled */}
       {currentProviderId && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700">
-          <div className="p-6 border-b border-gray-700">
-            <h3 className="text-xl font-semibold text-white">Unbilled Appointments!!</h3>
-            <p className="text-gray-400 text-sm mt-1">Your completed appointments ready for billing</p>
+        <div className="bg-card rounded-xl border border-border">
+          <div className="p-6 border-b border-border">
+            <h3 className="text-xl font-semibold text-foreground">Unbilled Appointments!!</h3>
+            <p className="text-muted-foreground text-sm mt-1">Your completed appointments ready for billing</p>
           </div>
           
           <div className="p-6">
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-                <span className="ml-3 text-gray-400">Loading appointments...</span>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <span className="ml-3 text-muted-foreground">Loading appointments...</span>
               </div>
             ) : unbilledAppointments.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-400">No unbilled appointments found</p>
+                <p className="text-muted-foreground">No unbilled appointments found</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {unbilledAppointments.map((appointment) => (
-                  <div key={appointment.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                  <div key={appointment.id} className="bg-muted/50 rounded-lg p-4 border border-border">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h4 className="text-white font-medium">
+                          <h4 className="text-foreground font-medium">
                             {appointment.customer_name}
                           </h4>
-                          <span className="px-2 py-1 bg-blue-600 text-blue-100 text-xs rounded-full">
+                          <span className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-full">
                             {appointment.service_name}
                           </span>
                         </div>
                         
-                        <div className="text-sm text-gray-400 space-y-1">
+                        <div className="text-sm text-muted-foreground space-y-1">
                           <div>Date: {new Date(appointment.start_datetime).toLocaleString()}</div>
                           <div>Duration: {appointment.service_duration} minutes</div>
                           <div>Amount: {appointment.service_price} sats</div>
@@ -402,12 +402,12 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
                           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                             creatingInvoice !== appointment.id
                               ? 'bg-green-600 hover:bg-green-700 text-white'
-                              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                              : 'bg-muted text-muted-foreground cursor-not-allowed'
                           }`}
                         >
                           {creatingInvoice === appointment.id ? (
                             <div className="flex items-center gap-2">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-foreground"></div>
                               Creating...
                             </div>
                           ) : (
@@ -426,36 +426,36 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
 
       {/* Recently Billed Appointments */}
       {currentProviderId && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700">
-          <div className="p-6 border-b border-gray-700">
-            <h3 className="text-xl font-semibold text-white">Recently Billed</h3>
-            <p className="text-gray-400 text-sm mt-1">Your appointments that have been invoiced</p>
+        <div className="bg-card rounded-xl border border-border">
+          <div className="p-6 border-b border-border">
+            <h3 className="text-xl font-semibold text-foreground">Recently Billed</h3>
+            <p className="text-muted-foreground text-sm mt-1">Your appointments that have been invoiced</p>
           </div>          
           <div className="p-6">            
             <div className="space-y-3">
               {pastAppointments
                 .map((appointment) => (
-                  <div key={appointment.id} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                  <div key={appointment.id} className="bg-muted/50 rounded-lg p-4 border border-border">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-white font-medium mb-1">
+                        <h4 className="text-foreground font-medium mb-1">
                           {appointment.customer_name}
                         </h4>
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-muted-foreground">
                           {appointment.service_name} • {new Date(appointment.start_datetime).toLocaleDateString()} • {appointment.service_price} sats
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-1 bg-green-900 text-green-400 text-xs rounded-full">
+                        <span className="px-2 py-1 bg-green-950 text-green-400 text-xs rounded-full">
                           Invoiced
                         </span>
                         <button
                           onClick={() => viewInvoiceDetails(appointment.id)}
                           disabled={viewingInvoice === appointment.id}
-                          className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+                          className="flex items-center gap-1 px-3 py-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs rounded-lg transition-colors disabled:opacity-50"
                         >
                           {viewingInvoice === appointment.id ? (
-                            <div className="animate-spin rounded-full h-3 w-3 border border-white border-b-transparent"></div>
+                            <div className="animate-spin rounded-full h-3 w-3 border border-primary-foreground border-b-transparent"></div>
                           ) : (
                             <Eye size={12} />
                           )}
@@ -485,14 +485,14 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
       {/* Invoice Details Modal */}
       {showInvoiceModal && selectedInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl border border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-card rounded-xl border border-border max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="p-6 border-b border-gray-700">
+            <div className="p-6 border-b border-border">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-white">Invoice Details</h3>
+                <h3 className="text-xl font-semibold text-foreground">Invoice Details</h3>
                 <button
                   onClick={closeInvoiceModal}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ×
                 </button>
@@ -502,9 +502,9 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
             {/* Modal Body */}
             <div className="p-6 space-y-6">
               {/* Invoice Summary */}
-              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+              <div className="bg-muted/50 rounded-lg p-4 border border-border">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-white font-medium">Invoice #{selectedInvoice.id}</h4>
+                  <h4 className="text-foreground font-medium">Invoice #{selectedInvoice.id}</h4>
                   <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(selectedInvoice.status)}`}>
                     {selectedInvoice.status.charAt(0).toUpperCase() + selectedInvoice.status.slice(1)}
                   </span>
@@ -512,16 +512,16 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-400">Amount:</span>
-                    <span className="text-white ml-2 font-medium">{selectedInvoice.amount_sats} sats</span>
+                    <span className="text-muted-foreground">Amount:</span>
+                    <span className="text-foreground ml-2 font-medium">{selectedInvoice.amount_sats} sats</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Created:</span>
-                    <span className="text-white ml-2">{new Date(selectedInvoice.created_at).toLocaleString()}</span>
+                    <span className="text-muted-foreground">Created:</span>
+                    <span className="text-foreground ml-2">{new Date(selectedInvoice.created_at).toLocaleString()}</span>
                   </div>
                   {selectedInvoice.paid_at && (
                     <div className="col-span-2">
-                      <span className="text-gray-400">Paid:</span>
+                      <span className="text-muted-foreground">Paid:</span>
                       <span className="text-green-400 ml-2">{new Date(selectedInvoice.paid_at).toLocaleString()}</span>
                     </div>
                   )}
@@ -529,29 +529,29 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
               </div>
 
               {/* Payment Request */}
-              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+              <div className="bg-muted/50 rounded-lg p-4 border border-border">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-white font-medium">Lightning Invoice</h4>
+                  <h4 className="text-foreground font-medium">Lightning Invoice</h4>
                   <button
                     onClick={() => copyToClipboard(selectedInvoice.payment_request, 'invoice')}
-                    className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 bg-primary hover:bg-primary/90 text-primary-foreground text-xs rounded transition-colors"
                   >
                     {copiedToClipboard === 'invoice' ? <Check size={12} /> : <Copy size={12} />}
                     {copiedToClipboard === 'invoice' ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
-                <div className="bg-gray-800 rounded p-3 border border-gray-600">
-                  <code className="text-xs text-gray-300 break-all">
+                <div className="bg-muted rounded p-3 border border-border">
+                  <code className="text-xs text-muted-foreground break-all">
                     {selectedInvoice.payment_request}
                   </code>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-gray-600">
+              <div className="flex gap-3 pt-4 border-t border-border">
                 <button
                   onClick={closeInvoiceModal}
-                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+                  className="flex-1 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors"
                 >
                   Close
                 </button>
