@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import AdminDashboard from './pages/AdminDashboard';
-import { LandingPage } from './pages/LandingPage';
+import AdminDashboard from '@/pages/AdminDashboard';
+import { LandingPage } from '@/pages/LandingPage';
+import { LoginPage } from '@/pages/LoginPage';
+import { AuthState } from '@/types';
 
 function AppRoutes() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
+  const [,setAuthState] = useState<AuthState>({
+        isAuthenticated: false,
+        token: null,
+        pubkey: null,
+        profile: null
+      });
+
   useEffect(() => {
-    // Check existing auth
     const token = localStorage.getItem('admin_token');
     const pubkey = localStorage.getItem('admin_pubkey');
     setIsAuthenticated(!!(token && pubkey));
@@ -18,25 +25,37 @@ function AppRoutes() {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_pubkey');
     localStorage.removeItem('admin_profile');
-    setIsAuthenticated(false);
+    
+    setAuthState({
+      isAuthenticated: false,
+      token: null,
+      pubkey: null,
+      profile: null
+    });
+    setIsAuthenticated(false)
   };
 
   return (
     <Router basename="/admin">
       <Routes>
-        <Route 
+        <Route
           path="/" 
           element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage onLogin={() => setIsAuthenticated(true)}/>} 
         />
-        <Route 
+        <Route
+          path="/login" 
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={() => setIsAuthenticated(true)} />} 
+        />
+        <Route
           path="/dashboard" 
-          element={isAuthenticated ? <AdminDashboard onLogout={handleLogout} /> : <Navigate to="/" replace />} 
+          element={isAuthenticated ? <AdminDashboard onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
 }
+
 function App() {
   return (
     <AuthProvider>

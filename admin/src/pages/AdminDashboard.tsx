@@ -13,7 +13,7 @@ import { WebRTCTest } from '../components/WebRTCTest';
 import { DatabaseTest } from '../components/DatabaseTest';
 // import { RegistrationView } from '../components/RegistrationView';
 
-import { authService } from '../services/auth';
+import { NostrAuthService } from '../services/auth';
 import { AuthState, UserInfo } from '../types';
 
 interface AdminDashboardProps {
@@ -76,7 +76,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
   
   const handleLogin = async () => {
     try {
-      const { token, pubkey, metadata } = await authService.login();
+      const { token, pubkey, metadata } = await NostrAuthService.login();
       
       // Store credentials
       localStorage.setItem('admin_token', token);
@@ -163,7 +163,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
       <SidebarInset>
         <SiteHeader 
           authState={authState}
-          onLogin={handleLogin}
           onLogout={onLogout}
           activeSection={activeSection}
         />

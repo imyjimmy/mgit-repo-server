@@ -5,12 +5,11 @@ import { AuthState } from '../types'
 
 interface SiteHeaderProps {
   authState: AuthState
-  onLogin: () => Promise<void>
   onLogout: () => void
   activeSection: string
 }
 
-export function SiteHeader({ authState, onLogin, onLogout, activeSection }: SiteHeaderProps) {
+export function SiteHeader({ authState, onLogout, activeSection }: SiteHeaderProps) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b px-4">
       <div className="flex items-center gap-4">
@@ -24,7 +23,6 @@ export function SiteHeader({ authState, onLogin, onLogout, activeSection }: Site
         <Header
           isAuthenticated={authState.isAuthenticated}
           profile={authState.profile}
-          onLogin={onLogin}
           onLogout={onLogout}
           compact={true}
         />

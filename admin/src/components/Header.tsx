@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { NostrProfile } from '../types';
 
 interface HeaderProps {
   isAuthenticated: boolean;
   profile: NostrProfile | null;
-  onLogin: () => Promise<void>;
   onLogout: () => void;
   compact?: boolean;
 }
@@ -12,24 +13,17 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ 
   isAuthenticated, 
   profile, 
-  onLogin, 
   onLogout, 
   compact = true 
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const handleLogin = async () => {
-    setIsLoading(true);
-    try {
-      await onLogin();
-    } catch (error) {
-      console.error('Login failed:', error);
-      alert(`Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsLoading(false);
-    }
+  const navigate = useNavigate();
+
+  const handleNavigateToLogin = () => {
+    console.log('handleGetStarted');
+    navigate('/login');
   };
-  
+
+
   const displayName = profile?.display_name || profile?.name || 'administrator';
   
   const getInitials = (name: string) => {
@@ -80,11 +74,10 @@ export const Header: React.FC<HeaderProps> = ({
         </>
       ) : (
         <button
-          onClick={handleLogin}
-          disabled={isLoading}
-          className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
+          onClick={handleNavigateToLogin}
+          className="text-xs bg-[#37322F] hover:bg-[#262320] text-white px-3 py-1 rounded transition-colors"
         >
-          {isLoading ? 'Connecting...' : 'Login'}
+          Login
         </button>
       )}
     </div>
