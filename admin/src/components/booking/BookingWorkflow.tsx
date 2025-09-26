@@ -71,7 +71,7 @@ export function BookingWorkflow({ token }: BookingWorkflowProps) {
         )}
         
         {currentStep === 3 && (
-          <Step3AdminInfo
+          <Step3PatientInfo
             data={bookingData}
             onNext={nextStep}
             onPrev={prevStep}

@@ -1,8 +1,4 @@
-"use client"
-
-import type React from "react"
-
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 
 import { Header } from '@/components/Header';
 import { FeatureSection } from '@/components/landingpage/FeatureSection';
@@ -15,9 +11,6 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onLogin }: LandingPageProps) {
-  const [activeCard, setActiveCard] = useState(0)
-  const [progress, setProgress] = useState(0)
-  const mountedRef = useRef(true)
   const [authState, setAuthState] = useState<AuthState>({
       isAuthenticated: false,
       token: null,
@@ -40,7 +33,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         pubkey,
         profile: metadata
       });
-      
+
       onLogin();
       // Check if user is registered
       // const registrationCheck = await authService.checkUserRegistration(pubkey, token);
@@ -68,52 +61,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       profile: null
     });
   };
-
-  useEffect(() => {
-    const progressInterval = setInterval(() => {
-      if (!mountedRef.current) return
-
-      setProgress((prev) => {
-        if (prev >= 100) {
-          if (mountedRef.current) {
-            setActiveCard((current) => (current + 1) % 3)
-          }
-          return 0
-        }
-        return prev + 2 // 2% every 100ms = 5 seconds total
-      })
-    }, 100)
-
-    return () => {
-      clearInterval(progressInterval)
-      mountedRef.current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
-
-  const handleCardClick = (index: number) => {
-    if (!mountedRef.current) return
-    setActiveCard(index)
-    setProgress(0)
-  }
-
-  const getDashboardContent = () => {
-    switch (activeCard) {
-      case 0:
-        return <div className="text-[#828387] text-sm">Customer Subscription Status and Details</div>
-      case 1:
-        return <div className="text-[#828387] text-sm">Analytics Dashboard - Real-time Insights</div>
-      case 2:
-        return <div className="text-[#828387] text-sm">Data Visualization - Charts and Metrics</div>
-      default:
-        return <div className="text-[#828387] text-sm">Customer Subscription Status and Details</div>
-    }
-  }
 
   return (
     <div className="w-full min-h-screen relative bg-[#F7F5F3] overflow-x-hidden flex flex-col justify-start">
@@ -198,48 +145,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-// FeatureCard component definition inline to fix import error
-function FeatureCard({
-  title,
-  description,
-  isActive,
-  progress,
-  onClick,
-}: {
-  title: string
-  description: string
-  isActive: boolean
-  progress: number
-  onClick: () => void
-}) {
-  return (
-    <div
-      className={`w-full md:flex-1 self-stretch px-6 py-5 overflow-hidden flex flex-col justify-start items-start gap-2 cursor-pointer relative border-b md:border-b-0 last:border-b-0 ${
-        isActive
-          ? "bg-white shadow-[0px_0px_0px_0.75px_#E0DEDB_inset]"
-          : "border-l-0 border-r-0 md:border border-[#E0DEDB]/80"
-      }`}
-      onClick={onClick}
-    >
-      {isActive && (
-        <div className="absolute top-0 left-0 w-full h-0.5 bg-[rgba(50,45,43,0.08)]">
-          <div
-            className="h-full bg-[#322D2B] transition-all duration-100 ease-linear"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-
-      <div className="self-stretch flex justify-center flex-col text-[#49423D] text-sm md:text-sm font-semibold leading-6 md:leading-6 font-sans">
-        {title}
-      </div>
-      <div className="self-stretch text-[#605A57] text-[13px] md:text-[13px] font-normal leading-[22px] md:leading-[22px] font-sans">
-        {description}
       </div>
     </div>
   )
