@@ -63,7 +63,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       //   setNeedsRegistration(true);
       // }
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Nostr login failed:', error);
+      alert('Please install a Nostr browser extension like nos2x');
     }
   };
 
@@ -82,36 +83,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#37322F] mb-2">Welcome to Plebdoc</h1>
-          <p className="text-[rgba(55,50,47,0.80)]">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-[#37322F] mb-2">Welcome to PlebDoc</h1>
+          <p className="text-[rgba(55,50,47,0.80)]">Sign in to your doctor dashboard</p>
         </div>
 
         {/* Login Form Card */}
         <div className="bg-white rounded-xl shadow-lg border border-[rgba(55,50,47,0.06)] overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-[rgba(55,50,47,0.06)]">
-            <button
-              onClick={() => setActiveTab('patient')}
-              className={`flex-1 py-4 px-6 text-sm font-medium transition-colors ${
-                activeTab === 'patient'
-                  ? 'text-[#37322F] border-b-2 border-[#37322F] bg-white'
-                  : 'text-[rgba(55,50,47,0.60)] hover:text-[rgba(55,50,47,0.80)] bg-[rgba(55,50,47,0.02)]'
-              }`}
-            >
-              Patient Login
-            </button>
-            <button
-              onClick={() => setActiveTab('doctor')}
-              className={`flex-1 py-4 px-6 text-sm font-medium transition-colors ${
-                activeTab === 'doctor'
-                  ? 'text-[#37322F] border-b-2 border-[#37322F] bg-white'
-                  : 'text-[rgba(55,50,47,0.60)] hover:text-[rgba(55,50,47,0.80)] bg-[rgba(55,50,47,0.02)]'
-              }`}
-            >
-              Doctor Login
-            </button>
-          </div>
-
           {/* Form Content */}
           <div className="p-6">
             <form onSubmit={handleEmailLogin} className="space-y-4">
@@ -252,6 +229,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 </span>
                 <span className="text-sm font-medium text-gray-700">Sign in with LinkedIn</span>
               </button>
+            </div>
+
+            {/* Patient Portal Link */}
+            <div className="mt-4 text-center">
+              <p className="text-sm text-[rgba(55,50,47,0.60)]">
+                Are you a patient?{' '}
+                <a href="/patient" className="text-[#37322F] font-medium hover:underline">
+                  Sign in here
+                </a>
+              </p>
             </div>
           </div>
         </div>

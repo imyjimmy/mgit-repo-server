@@ -77,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={handleNavigateToLogin}
           className="text-xs bg-[#37322F] hover:bg-[#262320] text-white px-3 py-1 rounded transition-colors"
         >
-          Login
+          Doctor Portal
         </button>
       )}
     </div>
