@@ -68,6 +68,7 @@ export default {
   		},
   		fontFamily: {
   			sans: [
+					'Roboto',
   				'var(--font-sans)'
   			],
   			serif: [
@@ -75,7 +76,10 @@ export default {
   			],
   			mono: [
   				'var(--font-mono)'
-  			]
+  			],
+				'anka': ["AnkaCoderRegular"],
+				'berkeley': ["berkeleymonotrial-regular-webfont"],
+				'cursive': ["libre-baskerville", 'mono'],
   		}
   	}
   },

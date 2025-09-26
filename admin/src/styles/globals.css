@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+    font-family: 'berkeleymonotrial-regular-webfont';
+    src: url('/fonts/berkeleymonotrial-regular-webfont.woff2') format('woff2'),
+         url('/fonts/berkeleymonotrial-regular-webfont.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+  font-family: 'AnkaCoderRegular';
+  src:  url('/fonts/ankacoder-r-webfont.woff2') format('woff2'),
+        url('/fontsankacoder-r-webfont.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'libre-baskerville';
+  src: url('/fonts/LibreBaskerville-Italic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

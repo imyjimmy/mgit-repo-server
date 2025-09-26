@@ -7,7 +7,6 @@ import { SiteHeader } from '@/components/SiteHeader';
 
 import { MedicalRepos } from '@/components/MedicalRepos'
 import { AppointmentsTab } from '@/components/AppointmentsTab';
-import { BookingWorkflow } from '@/components/booking/BookingWorkflow';
 import { BillingPage } from '@/pages/BillingPage';
 
 import { WebRTCTest } from '../components/WebRTCTest';
@@ -17,7 +16,11 @@ import { DatabaseTest } from '../components/DatabaseTest';
 import { authService } from '../services/auth';
 import { AuthState, UserInfo } from '../types';
 
-const AdminDashboard: React.FC = () => {
+interface AdminDashboardProps {
+  onLogout: () => void;
+}
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     token: null,
@@ -101,19 +104,6 @@ const AdminDashboard: React.FC = () => {
     }
   };
   
-  const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_pubkey');
-    localStorage.removeItem('admin_profile');
-    
-    setAuthState({
-      isAuthenticated: false,
-      token: null,
-      pubkey: null,
-      profile: null
-    });
-  };
-  
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -123,7 +113,7 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
-  if (!authState.isAuthenticated) {
+  if (!authState.isAuthenticated) { {/* will still need this as a de-facto log in screen */}
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700 max-w-md w-full mx-4">
@@ -174,7 +164,7 @@ const AdminDashboard: React.FC = () => {
         <SiteHeader 
           authState={authState}
           onLogin={handleLogin}
-          onLogout={handleLogout}
+          onLogout={onLogout}
           activeSection={activeSection}
         />
         
