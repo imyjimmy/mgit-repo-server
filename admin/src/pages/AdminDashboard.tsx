@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { SiteHeader } from '@/components/SiteHeader';
 
 import { MedicalRepos } from '@/components/MedicalRepos'
-import { AppointmentsTab } from '@/components/AppointmentsTab';
+import { AppointmentsPage } from '@/pages/AppointmentsPage';
 import { BillingPage } from '@/pages/BillingPage';
 
 import { WebRTCTest } from '../components/WebRTCTest';
@@ -172,7 +172,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
             <WebRTCTest token={authState.token} />
           )}
           {activeSection === 'appointments' && authState.token && (
-            <AppointmentsTab token={authState.token} />
+            <AppointmentsPage token={authState.token} />
           )}
           {activeSection === 'settings' && (
             <Card className="p-6">

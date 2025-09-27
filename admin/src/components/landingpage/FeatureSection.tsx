@@ -4,7 +4,7 @@ const features = [
   {
     name: 'Doctors: Reach Patients Worldwide',
     description:
-      'Connect with a global community of health-conscious patients and receive instant, borderless payments for your services.',
+      'Connect with a global community of health-conscious patients and receive instant, borderless payments for your expertise.',
     icon: CloudArrowUpIcon,
   },
   {

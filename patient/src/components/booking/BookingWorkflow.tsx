@@ -8,7 +8,7 @@ import { Step4Confirmation } from './Step4Confirmation';
 export interface BookingData {
   provider: { id: string; name: string; email?: string } | null;
   service: { id: string; name: string; duration: number; price?: string } | null;
-  appointment: { date: string; time: string; datetime: string } | null;
+  appointment: { date: string; time: string; timezone: string; isDST: boolean; datetime: string } | null;
   patient: {
     firstName: string;
     lastName: string;

@@ -188,7 +188,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
               <button
                 onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border-2 border-gray-400 rounded-lg hover:border-gray-600 hover:bg-[#f2f2f2] transition-colors"
+                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border-2 border-gray-500 rounded-lg hover:border-gray-600 hover:bg-[#f2f2f2] transition-colors"
               >
                 <span className="text-lg">
                   <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24">
@@ -204,24 +204,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
               <button
                 onClick={handleLinkedInLogin}
-                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border-2 border-[#0072b1] rounded-lg hover:bg-[#f2f2f2] transition-colors"
-                // style={{ width: '292px', height: '40px' }}
+                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border-2 border-[#0072b1] rounded-lg hover:bg-[#f2f2f2] transition-colors" 
               >
-                {/* <img 
-                  src="/admin/linkedin-button/Retina/Sign-In-Small---Default.png"
-                  alt="Sign in with LinkedIn"
-                  className="w-full h-full object-contain group-hover:opacity-0 transition-opacity duration-200"
-                />
-                <img 
-                  src="/admin/linkedin-button/Retina/Sign-In-Small---Hover.png"
-                  alt="Sign in with LinkedIn"
-                  className="w-full h-full object-contain absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                />
-                <img 
-                  src="/admin/linkedin-button/Retina/Sign-In-Small---Active.png"
-                  alt="Sign in with LinkedIn"
-                  className="w-full h-full object-contain absolute inset-0 opacity-0 group-active:opacity-100 transition-opacity duration-200"
-                /> */}
                 <span>
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-supported-dps="24x24" fill="#0072b1" className="mercado-match" width="24" height="24" focusable="false">
                     <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"></path>

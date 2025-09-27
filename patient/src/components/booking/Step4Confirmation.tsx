@@ -76,6 +76,8 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         providerId: data.provider?.id,
         serviceId: data.service?.id,
         startTime: data.appointment?.datetime,
+        timezone: data.appointment?.timezone,
+        isDST: data.appointment?.isDST,
         patientInfo: {
           firstName: data.patient?.firstName,
           lastName: data.patient?.lastName,
