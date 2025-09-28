@@ -81,7 +81,7 @@ export const isDST = () => {
   return Math.max(janOffset, julOffset) !== currentOffset;
 }
 
-export const AppointmentsPage: React.FC<ApptProps> = ({ token }) => {
+export const CalendarPage: React.FC<ApptProps> = ({ token }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [viewType, setViewType] = useState<'Day' | 'Week' | 'Month'>('Week');
   const [nostrUsername] = useState(() => {

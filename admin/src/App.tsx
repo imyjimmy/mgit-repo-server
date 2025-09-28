@@ -4,11 +4,12 @@ import { AuthProvider } from './contexts/AuthContext';
 import AdminDashboard from '@/pages/AdminDashboard';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { MeetingPage } from '@/pages/MeetingPage';
 import { AuthState } from '@/types';
 
 function AppRoutes() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [,setAuthState] = useState<AuthState>({
+  const [authState ,setAuthState] = useState<AuthState>({
         isAuthenticated: false,
         token: null,
         pubkey: null,
@@ -50,6 +51,7 @@ function AppRoutes() {
           path="/dashboard" 
           element={isAuthenticated ? <AdminDashboard onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
         />
+        <Route path="/meeting/:roomId" element={<MeetingPage token={authState.token || ''}/>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

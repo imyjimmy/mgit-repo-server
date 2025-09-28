@@ -6,8 +6,9 @@ import { Card } from '@/components/ui/card';
 import { SiteHeader } from '@/components/SiteHeader';
 
 import { MedicalRepos } from '@/components/MedicalRepos'
-import { AppointmentsPage } from '@/pages/AppointmentsPage';
+import { CalendarPage } from '@/pages/CalendarPage';
 import { BillingPage } from '@/pages/BillingPage';
+import { ServicesManager } from '@/components/ServicesManager';
 
 import { WebRTCTest } from '../components/WebRTCTest';
 import { DatabaseTest } from '../components/DatabaseTest';
@@ -171,8 +172,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
           {activeSection === 'webrtc' && authState.token && (
             <WebRTCTest token={authState.token} />
           )}
-          {activeSection === 'appointments' && authState.token && (
-            <AppointmentsPage token={authState.token} />
+          {activeSection === 'calendar' && authState.token && (
+            <CalendarPage token={authState.token} />
           )}
           {activeSection === 'settings' && (
             <Card className="p-6">
@@ -189,6 +190,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
           )}
           {activeSection === 'billing' && authState.token && (
             <BillingPage token={authState.token} />
+          )}
+          {activeSection === 'services' && authState.token && (
+            <ServicesManager />
           )}
           {/* {activeSection === 'appointments' && authState.token && (
             <BookingWorkflow token={authState.token} />

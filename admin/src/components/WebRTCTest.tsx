@@ -3,6 +3,7 @@ import { webrtcService } from '../services/webrtc';
 
 interface WebRTCTestProps {
   token: string;
+  initialRoomId?: string;
 }
 
 // Advanced interval management hook with comprehensive cleanup
@@ -185,15 +186,60 @@ function useIntervalManager() {
   };
 }
 
-export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
-  const [roomId, setRoomId] = useState('bright-dolphin-swimming');
+export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) => {
+  const [roomId, setRoomId] = useState(initialRoomId || 'bright-dolphin-swimming');
+  
+  /** Appointments */
+  const [, setAppointments] = useState<any[]>([]);
+  const [currentAppointment, setCurrentAppointment] = useState<any>(null);
+  const [, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTodaysAppointments = async () => {
+      try {
+        const response = await fetch('/api/admin/appointments', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const data = await response.json();
+        if (data.status === 'success') {
+          const today = new Date().toDateString();
+          const todaysAppointments = data.appointments.filter((apt: { start_datetime: string | number | Date; }) => {
+            const aptDate = new Date(apt.start_datetime).toDateString();
+            return aptDate === today;
+          });
+          
+          setAppointments(todaysAppointments);
+          
+          // Find the first appointment that isn't in the past
+          const now = new Date();
+          const nextAppointment = todaysAppointments.find((apt: { start_datetime: string | number | Date; }) => {
+            return new Date(apt.start_datetime) > now;
+          });
+          
+          // If no future appointments, use the most recent one
+          const spotlightAppointment = nextAppointment || todaysAppointments[todaysAppointments.length - 1];
+          setCurrentAppointment(spotlightAppointment);
+        }
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTodaysAppointments();
+  }, [token]);
+
   const [isInRoom, setIsInRoom] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('Not connected');
   const [participantCount, setParticipantCount] = useState(0);
   const [handshakeInProgress, setHandshakeInProgress] = useState(false);
   
   const [shouldInitiateOffer, setShouldInitiateOffer] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<any>(null);
+  const [, setUserRole] = useState<any>(null);
   const [webrtcRole, setWebrtcRole] = useState<'caller' | 'answerer' | 'unknown'>('unknown');
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -828,88 +874,130 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token }) => {
   }, []); //isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress
   
   return (
-    <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold text-card-foreground mb-4 border-b-2 border-primary pb-2">
-          Telehealth (Advanced Interval Management)
-        </h3>
+    <div className="grid grid-cols-12 gap-4 h-full">
+      {/* Left navigation - Previous appointments */}
+      <div className="col-span-1 flex items-center justify-center">
+        <button 
+          onClick={() => {}}
+          className="p-3 rounded-full hover:bg-muted transition-colors"
+          title="Previous appointments"
+        >
+          <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
       </div>
-  
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <h4 className="font-medium text-card-foreground mb-3">Test Video Calls</h4>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="roomId" className="block text-sm font-medium text-gray-600 mb-1">
-                Room ID:
-              </label>
-              <input
-                id="roomId"
-                type="text"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
-                placeholder="Enter room ID"
-                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={joinRoom}
-                disabled={isInRoom}
-                className="btn btn-primary"
-              >
-                Join Room
-              </button>
-              <button
-                onClick={leaveRoom}
-                disabled={!isInRoom}
-                className="btn btn-secondary"
-              >
-                Leave Room
-              </button>
+      <div className="col-span-10">
+        <div className="bg-background flex flex-col border bg-card shadow rounded-xl h-full">
+          {/* Header with appointment info */}
+          <div className="border-b border-border p-4 mx-8 mt-4">
+            <div className="max-w-4xl mx-auto flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-semibold text-foreground">
+                  {currentAppointment ? `Session with ${currentAppointment.customer_name}` : 'Telehealth Session'}
+                </h1>
+                <p className="text-muted-foreground">
+                  {currentAppointment ? currentAppointment.service_name : 'Video Consultation'}
+                </p>
+                {currentAppointment && (
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(currentAppointment.start_datetime).toLocaleString()}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        
-        <div>
-          <h4 className="font-medium text-card-foreground mb-3">Connection Status</h4>
-          <div className="space-y-2">
-            <div className="font-medium">Status: {connectionStatus}</div>
-            <div className="font-medium">Participants: {participantCount}</div>
-            <div className="font-medium">Role: {webrtcRole} {userRole?.slug && `(${userRole.slug})`}</div>
-            <div className="text-sm text-muted-foreground">
-              Active Intervals: {getActiveIntervals().join(', ') || 'None'}
+
+          {/* Main video area */}
+          <div className="flex-1 flex flex-col items-center justify-start p-8">
+            <div className="relative max-w-4xl w-full">
+              {/* Remote video - main focus */}
+              <div className="aspect-video bg-muted rounded-xl overflow-hidden border border-border shadow-lg">
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  className="w-full h-full object-cover"
+                  style={{ display: remoteVideoRef.current?.srcObject ? 'block' : 'none' }}
+                />
+                {!remoteVideoRef.current?.srcObject && (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-20 h-20 bg-muted-foreground/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-10 h-10 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-muted-foreground">
+                        {participantCount < 2 ? 'Waiting for participant to join...' : 'Connecting video...'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Local video - picture-in-picture */}
+              <div className="absolute bottom-4 right-4 w-48 h-36">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  className="w-full h-full object-cover rounded-lg border-2 border-background shadow-lg"
+                />
+              </div>
             </div>
+
+            {/* Controls below video */}
+            <div className="mt-8 flex gap-4">
+              {!isInRoom ? (
+                <button
+                  onClick={joinRoom}
+                  className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                >
+                  Join Session
+                </button>
+              ) : (
+                <button
+                  onClick={leaveRoom}
+                  className="px-8 py-3 bg-destructive text-destructive-foreground rounded-lg font-medium hover:bg-destructive/90 transition-colors"
+                >
+                  Leave Session
+                </button>
+              )}
+            </div>
+
+            {/* Connection status indicator */}
             {handshakeInProgress && (
-              <div className="text-sm text-amber-600 font-medium">
-                ⚠️ Handshake in progress - do not navigate away
+              <div className="mt-4 flex items-center gap-2 text-amber-600">
+                <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Establishing connection...</span>
               </div>
             )}
           </div>
+
+          {/* Collapsed diagnostics */}
+          <div className="m-4">
+            <details className="text-sm text-muted-foreground">
+              <summary className="cursor-pointer">Connection Info</summary>
+              <div className="mt-2 space-y-1">
+                <div>Status: {connectionStatus}</div>
+                <div>Participants: {participantCount}</div>
+                <div>Role: {webrtcRole}</div>
+                <div>Intervals: {getActiveIntervals().join(', ') || 'None'}</div>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
-      
-      <div className="mt-6">
-        <h4 className="font-medium text-card-foreground mb-3">Video Test</h4>
-        <div className="flex gap-4 justify-center">
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground mb-2">Local Video</p>
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              className="w-48 h-36 border border-border rounded-lg bg-muted"
-            />
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground mb-2">Remote Video</p>
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              className="w-48 h-36 border border-border rounded-lg bg-muted"
-            />
-          </div>
-        </div>
+      <div className="col-span-1 flex items-center justify-center">
+        <button 
+          onClick={() => {}}
+          className="p-3 rounded-full hover:bg-muted transition-colors"
+          title="Future appointments"
+        >
+          <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
     </div>
   );

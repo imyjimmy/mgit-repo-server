@@ -15,7 +15,7 @@ import {
 const items = [
   {
     id: "repositories",
-    title: "Medical Repositories", 
+    title: "Patients", 
     icon: FolderOpen,
   },
   // {
@@ -24,8 +24,8 @@ const items = [
   //   icon: CalendarCheck,
   // },
   {
-    id: "appointments",
-    title: "Appointments",
+    id: "calendar",
+    title: "Calendar",
     icon: CalendarCheck,
   },
   {
@@ -36,6 +36,11 @@ const items = [
   {
     id: "billing",
     title: "Billing",
+    icon: Settings,
+  },
+  {
+    id: "services",
+    title: "Services",
     icon: Settings,
   },
   {
