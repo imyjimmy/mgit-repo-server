@@ -9,20 +9,18 @@ import { BillingPage } from '@/pages/BillingPage';
 import { AuthState } from '@/types';
 
 function AppRoutes() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const token = localStorage.getItem('admin_token');
+  const pubkey = localStorage.getItem('admin_pubkey');
+  const profile = localStorage.getItem('admin_profile');
+  
   const [authState ,setAuthState] = useState<AuthState>({
-        isAuthenticated: false,
-        token: null,
-        pubkey: null,
-        profile: null
-      });
+    isAuthenticated: !!(token && pubkey),
+    token: token,
+    pubkey: pubkey,
+    profile: profile ? JSON.parse(profile) : null
+  });
 
   useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    const pubkey = localStorage.getItem('admin_pubkey');
-    const profile = localStorage.getItem('admin_profile');
-
-    setIsAuthenticated(!!(token && pubkey));
 
     if (token && pubkey && profile) {
       // Check if user is registered in database
@@ -48,7 +46,6 @@ function AppRoutes() {
       pubkey: null,
       profile: null
     });
-    setIsAuthenticated(false)
   };
 
   return (
@@ -56,19 +53,19 @@ function AppRoutes() {
       <Routes>
         <Route
           path="/" 
-          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />} 
+          element={authState.isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />} 
         />
         <Route
           path="/login" 
-          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={() => setIsAuthenticated(true)} />} 
+          element={authState.isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={() => setAuthState({ ...authState, isAuthenticated: true }) } />} 
         />
         <Route
           path="/dashboard" 
-          element={isAuthenticated ? <AdminDashboard onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+          element={authState.isAuthenticated ? <AdminDashboard onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
         />
         <Route
           path="/billing"
-          element={isAuthenticated ? <BillingPage token={authState.token || ''} /> : <Navigate to="/login" replace />}
+          element={authState.isAuthenticated ? <BillingPage token={authState.token || ''} /> : <Navigate to="/login" replace />}
         />
         <Route path="/meeting/:roomId" element={<MeetingPage token={authState.token || ''}/>} />
         <Route path="*" element={<Navigate to="/" replace />} />
