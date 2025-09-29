@@ -4,13 +4,8 @@ import { Header } from '@/components/Header';
 import { FeatureSection } from '@/components/landingpage/FeatureSection';
 import FooterSection from "@/components/landingpage/FooterSection";
 import { AuthState } from '@/types';
-import { NostrAuthService } from '@/services/auth';
 
-interface LandingPageProps {
-  onLogin: () => void;
-}
-
-export function LandingPage({ onLogin }: LandingPageProps) {
+export function LandingPage() {
   const navigate = useNavigate();
   const [authState, setAuthState] = useState<AuthState>({
       isAuthenticated: false,
@@ -22,37 +17,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   const handleNavigateToLogin = () => {
     console.log('handleGetStarted');
     navigate('/login');
-  };
-
-  const handleLogin = async () => {
-    try {
-      const { token, pubkey, metadata } = await NostrAuthService.login();
-      
-      // Store credentials
-      localStorage.setItem('admin_token', token);
-      localStorage.setItem('admin_pubkey', pubkey);
-      localStorage.setItem('admin_profile', JSON.stringify(metadata));
-      
-      setAuthState({
-        isAuthenticated: true,
-        token,
-        pubkey,
-        profile: metadata
-      });
-
-      onLogin();
-      // Check if user is registered
-      // const registrationCheck = await authService.checkUserRegistration(pubkey, token);
-      
-      // if (registrationCheck.isRegistered) {
-      //   setUserInfo(registrationCheck.user || null);
-      //   setNeedsRegistration(false);
-      // } else {
-      //   setNeedsRegistration(true);
-      // }
-    } catch (error) {
-      console.error('Login failed:', error);
-    }
   };
   
   const handleLogout = () => {

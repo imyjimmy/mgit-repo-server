@@ -187,7 +187,7 @@ function useIntervalManager() {
 }
 
 export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) => {
-  const [roomId, setRoomId] = useState(initialRoomId || 'bright-dolphin-swimming');
+  const [roomId, ] = useState(initialRoomId || 'bright-dolphin-swimming');
   
   /** Appointments */
   const [, setAppointments] = useState<any[]>([]);

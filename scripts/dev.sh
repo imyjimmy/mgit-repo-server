@@ -23,7 +23,7 @@ echo "🛑 Stopping existing services..."
 docker-compose -f docker-compose.yml -f docker-compose.development.yml --env-file .env.development down
 
 # Rebuild images if requested
-if [[ $REBUILD =~ ^[Yy]$ ]]; then
+if [[ $REBUILD =~ ^[Yy]$ ]] || [[ $REBUILD == "rebuild" ]]; then
     echo "🔨 Rebuilding images..."
     
     # Remove existing images to force rebuild

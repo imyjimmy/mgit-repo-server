@@ -2,6 +2,12 @@
 # Extends docker-compose.yml with dev-specific settings
 
 services:
+  admin-frontend:
+    networks:
+      - plebemr_admin_network
+    volumes:
+      - ./admin/dist:/usr/share/nginx/html
+
   patient-frontend:
     networks:
       - plebemr_admin_network

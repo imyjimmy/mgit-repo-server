@@ -7,7 +7,7 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [activeTab, setActiveTab] = useState<'patient' | 'doctor'>('patient');
+  const [activeTab, ] = useState<'patient' | 'doctor'>('patient');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

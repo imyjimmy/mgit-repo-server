@@ -37,11 +37,11 @@ function AppRoutes() {
   };
 
   return (
-    <Router basename="/admin">
+    <Router basename="/">
       <Routes>
         <Route
           path="/" 
-          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage onLogin={() => setIsAuthenticated(true)}/>} 
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />} 
         />
         <Route
           path="/login" 

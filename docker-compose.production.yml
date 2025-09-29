@@ -4,6 +4,11 @@
 
 services:
 
+  admin-frontend:
+    networks:
+      - umbrel_main_network
+    platform: linux/amd64
+    
   patient-frontend:
     networks:
       - umbrel_main_network

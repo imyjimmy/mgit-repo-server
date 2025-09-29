@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { authService } from '../services/auth';
+import { NostrAuthService } from '../services/auth';
 
 interface RegistrationViewProps {
   pubkey: string;
@@ -58,7 +58,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
       }
 
       // Use the auth service method instead of raw fetch
-      const user = await authService.registerUser({
+      const user = await NostrAuthService.registerUser({
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email: form.email.trim(),

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BookingData } from './BookingWorkflow';
-import { authService } from '../../services/auth';
+import { NostrAuthService } from '../../services/auth';
 
 interface Step4ConfirmationProps {
   data: BookingData;
@@ -89,7 +89,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 
       // Use authService's existing signChallenge method
       const bookingContent = JSON.stringify(bookingPayload);
-      const signedEvent = await authService.signChallenge(bookingContent);
+      const signedEvent = await NostrAuthService.signChallenge(bookingContent);
 
       console.log('Signed event:', signedEvent);
 

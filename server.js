@@ -264,8 +264,6 @@ if (!fs.existsSync(REPOS_PATH)) {
 // create admin routes
 const createAdminRoutes = require('./admin-routes');
 const adminRoutes = createAdminRoutes(REPOS_PATH, authPersistence, validateAuthToken);
-// // UI for accessing admin dashboard
-app.use('/admin', express.static(path.join(__dirname, 'admin/dist')));
 
 // // admin-related API endpoints 
 app.use('/api/admin', adminRoutes);

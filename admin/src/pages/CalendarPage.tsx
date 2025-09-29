@@ -120,7 +120,7 @@ export const CalendarPage: React.FC<ApptProps> = ({ token }) => {
 
   /** Appointments */
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   useEffect(() => {
     const fetchAppointments = async () => {
       if (!token) return;

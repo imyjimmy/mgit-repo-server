@@ -31,6 +31,10 @@ http {
     server ${CONTAINER_PREFIX}_patient_frontend_1:80;
   }
 
+  upstream admin_frontend {
+    server ${CONTAINER_PREFIX}_admin_frontend_1:80;
+  }
+
   server {
     listen 80 default_server;
     server_name _;
@@ -81,15 +85,19 @@ http {
     location /api/auth {
       proxy_pass http://mgit_backend;
     }
-    
-    # hack: admin dashboard still built from mgit-repo-server/admin
-    location /admin {
-      proxy_pass http://mgit_backend;
+
+    # Patient frontend (for development, you can access at /patient)
+    location /patient/ {
+      proxy_pass http://patient_frontend/;
     }
 
-    # Route patient app (main frontend)
+    location = /patient {
+      return 301 /patient/;
+    }
+
+    # Serve admin frontend as default
     location / {
-      proxy_pass http://patient_frontend;
+      proxy_pass http://admin_frontend;
     }
   }
 }
