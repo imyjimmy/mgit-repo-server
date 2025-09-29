@@ -97,7 +97,7 @@ export function NavUser({ authState, onLogout }: NavUserProps) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={onLogout}>
               <IconLogout />
               Log out
             </DropdownMenuItem>

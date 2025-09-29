@@ -6,11 +6,15 @@ services:
     build: ./admin
     container_name: ${CONTAINER_PREFIX}_admin_frontend_1
     restart: unless-stopped
+    environment:
+      - NODE_ENV=${NODE_ENV}
 
   patient-frontend:
     build: ./patient
     container_name: ${CONTAINER_PREFIX}_patient_frontend_1
     restart: unless-stopped
+    environment:
+      - NODE_ENV=${NODE_ENV}
 
   mgit-web:
     image: imyjimmy/mgit-repo-server:latest

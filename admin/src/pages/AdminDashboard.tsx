@@ -168,6 +168,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
           authState={authState}
           onLogout={onLogout}
           activeSection={activeSection}
+          toggleHeader={false}
         />
         
         <div className="flex-1 overflow-auto p-6">
