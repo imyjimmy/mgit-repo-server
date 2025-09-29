@@ -125,26 +125,6 @@ export default function FooterSection() {
           </div>
         </div>
       </div>
-
-      {/* Bottom Section with Pattern */}
-      <div className="self-stretch h-12 relative overflow-hidden border-t border-b border-[rgba(55,50,47,0.12)]">
-        <div className="absolute inset-0 w-full h-full overflow-hidden">
-          <div className="w-full h-full relative">
-            {Array.from({ length: 400 }).map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-[300px] h-16 border border-[rgba(3,7,18,0.08)]"
-                style={{
-                  left: `${i * 300 - 600}px`,
-                  top: "-120px",
-                  transform: "rotate(-45deg)",
-                  transformOrigin: "top left",
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
