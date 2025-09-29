@@ -158,7 +158,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
       } as React.CSSProperties}
     >
       <AppSidebar 
+        authState={authState}
         activeSection={activeSection}
+        onLogout={onLogout}
         onSectionChange={setActiveSection}
       />
       <SidebarInset>

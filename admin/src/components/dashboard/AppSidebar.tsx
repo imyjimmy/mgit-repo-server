@@ -1,3 +1,6 @@
+import { AuthState } from '@/types'
+import { NavUser } from '@/components/dashboard/nav-user'
+
 import { CalendarCheck, FolderOpen, Video, Settings, Database } from "lucide-react"
 import {
   Sidebar,
@@ -56,11 +59,13 @@ const items = [
 ]
 
 interface AppSidebarProps {
+  authState: AuthState
   activeSection: string
   onSectionChange: (section: string) => void
+  onLogout: () => void
 }
 
-export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) {
+export function AppSidebar({ authState, activeSection, onSectionChange, onLogout }: AppSidebarProps) {
   return (
     <Sidebar variant="inset">
       <SidebarHeader>
@@ -92,6 +97,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
       </SidebarContent>
       
       <SidebarFooter>
+        <NavUser authState={authState} onLogout={onLogout} />
         <div className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="h-2 w-2 bg-green-500 rounded-full" />
@@ -100,6 +106,7 @@ export function AppSidebar({ activeSection, onSectionChange }: AppSidebarProps) 
           <div className="text-xs text-muted-foreground space-y-1">
             <div>Status: Running</div>
             <div>Port: 3003</div>
+            <div>{ process.env.NODE_ENV }</div>
           </div>
         </div>
       </SidebarFooter>

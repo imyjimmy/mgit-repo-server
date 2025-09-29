@@ -7,9 +7,10 @@ interface SiteHeaderProps {
   authState: AuthState
   onLogout: () => void
   activeSection: string
+  toggleHeader?: boolean
 }
 
-export function SiteHeader({ authState, onLogout, activeSection }: SiteHeaderProps) {
+export function SiteHeader({ authState, onLogout, activeSection, toggleHeader = true }: SiteHeaderProps) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b px-4">
       <div className="flex items-center gap-4">
@@ -20,12 +21,14 @@ export function SiteHeader({ authState, onLogout, activeSection }: SiteHeaderPro
       </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Header
-          isAuthenticated={authState.isAuthenticated}
-          profile={authState.profile}
-          onLogout={onLogout}
-          compact={true}
-        />
+        { toggleHeader && (
+          <Header
+            isAuthenticated={authState.isAuthenticated}
+            profile={authState.profile}
+            onLogout={onLogout}
+            compact={true}
+          />
+        )}
       </div>
     </header>
   )
