@@ -1,7 +1,7 @@
 import { AuthState } from '@/types'
 import { NavUser } from '@/components/dashboard/nav-user'
 
-import { CalendarCheck, FolderOpen, Video, Settings, Database } from "lucide-react"
+import { BriefcaseMedical, CalendarCheck, CreditCard ,FolderOpen, Video, Settings, Database } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -39,12 +39,12 @@ const items = [
   {
     id: "billing",
     title: "Billing",
-    icon: Settings,
+    icon: CreditCard,
   },
   {
     id: "services",
     title: "Services",
-    icon: Settings,
+    icon: BriefcaseMedical,
   },
   {
     id: "settings",
