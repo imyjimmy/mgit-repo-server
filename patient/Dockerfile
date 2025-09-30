@@ -22,6 +22,11 @@ RUN bun install
 # Copy source code
 COPY . .
 
+# Clear esbuild cache and reinstall esbuild to fix version mismatch
+RUN rm -rf node_modules/.vite && \
+    rm -rf node_modules/esbuild && \
+    bun install --force
+    
 # Build the app
 RUN bun run build
 

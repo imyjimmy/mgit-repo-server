@@ -36,6 +36,7 @@ if [[ $REBUILD =~ ^[Yy]$ ]] || [[ $REBUILD == "rebuild" ]]; then
 fi
 
 # Check for backup and restore if available
+# easyappointments_backup_20250929_181442
 BACKUP_PATH="./mysql-backups/easyappointments_latest.sql"
 RESTORE_FLAG=""
 if [[ -f "$BACKUP_PATH" && $RESTORE_BACKUP =~ ^[Yy]$ ]]; then
