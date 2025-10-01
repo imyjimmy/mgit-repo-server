@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { profileService } from '../services/profile';
 import { ProviderProfile } from '../types/profile';
+import { ArrowLeft, UserCircle } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface EditProfileProps {
   token: string;
@@ -8,10 +11,11 @@ interface EditProfileProps {
 }
 
 export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<Partial<ProviderProfile>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'basic' | 'location' | 'education' | 'business'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'credentials' | 'additional'>('basic');
 
   useEffect(() => {
     loadProfile();
@@ -42,22 +46,6 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const url = await profileService.uploadCertificate(token, file);
-      setProfile({
-        ...profile,
-        certificates: [...(profile.certificates || []), url]
-      });
-    } catch (error) {
-      console.error('Failed to upload certificate:', error);
-      alert('Failed to upload certificate');
-    }
-  };
-
   const updateField = (field: keyof ProviderProfile, value: any) => {
     setProfile({ ...profile, [field]: value });
   };
@@ -65,420 +53,419 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-white">Loading profile...</div>
+        <div className="text-gray-900 dark:text-white">Loading profile...</div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-gray-700 p-6">
-          <h1 className="text-2xl font-bold text-white mb-2">Edit Profile</h1>
-          <p className="text-gray-400">Create your professional profile page</p>
-        </div>
-
-        {/* Tabs */}
-        <div className="border-b border-gray-700 flex gap-1 px-6 bg-gray-750">
-          {[
-            { id: 'basic', label: 'Basic Info' },
-            { id: 'location', label: 'Location & Contact' },
-            { id: 'education', label: 'Education & Certificates' },
-            { id: 'business', label: 'Business Details' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-3 text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'text-blue-400 border-b-2 border-blue-400'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {/* Basic Info Tab */}
-          {activeTab === 'basic' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.username || ''}
-                    onChange={(e) => updateField('username', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="doctorsmith"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Your profile will be at: plebdoc.com/{profile.username || 'username'}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Medical License Number
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.medicalLicense || ''}
-                    onChange={(e) => updateField('medicalLicense', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="4254197"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Years of Experience
-                  </label>
-                  <input
-                    type="number"
-                    value={profile.yearsOfExperience || ''}
-                    onChange={(e) => updateField('yearsOfExperience', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    value={profile.phoneNumber || ''}
-                    onChange={(e) => updateField('phoneNumber', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="+52 (55) 4890 2728"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Bio
-                </label>
-                <textarea
-                  value={profile.bio || ''}
-                  onChange={(e) => updateField('bio', e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  placeholder="Tell patients about yourself..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Languages
-                </label>
-                <input
-                  type="text"
-                  value={profile.languages?.join(', ') || ''}
-                  onChange={(e) => updateField('languages', e.target.value.split(',').map(s => s.trim()))}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  placeholder="Spanish, English, French"
-                />
-                <p className="text-xs text-gray-400 mt-1">Separate with commas</p>
-              </div>
-            </div>
-          )}
-
-          {/* Location & Contact Tab */}
-          {activeTab === 'location' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Address Line 1
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.addressLine1 || ''}
-                    onChange={(e) => updateField('addressLine1', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="Bosque de Duraznos 75, Suit 604-A, Floor 6"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Address Line 2
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.addressLine2 || ''}
-                    onChange={(e) => updateField('addressLine2', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="Bosques de las Lomas"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.city || ''}
-                    onChange={(e) => updateField('city', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="Ciudad de Mexico"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    State/Region
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.state || ''}
-                    onChange={(e) => updateField('state', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="CDMX"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Postal Code
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.postalCode || ''}
-                    onChange={(e) => updateField('postalCode', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="11700"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Country
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.country || ''}
-                    onChange={(e) => updateField('country', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="Mexico"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">Business Hours</h3>
-                <div className="space-y-3">
-                  {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                    <div key={day} className="flex items-center gap-4">
-                      <div className="w-32 text-gray-300">{day}</div>
-                      <input
-                        type="time"
-                        value={profile.businessHours?.[day]?.start || ''}
-                        onChange={(e) => updateField('businessHours', {
-                          ...profile.businessHours,
-                          [day]: { ...profile.businessHours?.[day], start: e.target.value }
-                        })}
-                        className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                      />
-                      <span className="text-gray-400">to</span>
-                      <input
-                        type="time"
-                        value={profile.businessHours?.[day]?.end || ''}
-                        onChange={(e) => updateField('businessHours', {
-                          ...profile.businessHours,
-                          [day]: { ...profile.businessHours?.[day], end: e.target.value }
-                        })}
-                        className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                      />
-                      <label className="flex items-center gap-2 text-gray-300">
-                        <input
-                          type="checkbox"
-                          checked={profile.businessHours?.[day]?.closed || false}
-                          onChange={(e) => updateField('businessHours', {
-                            ...profile.businessHours,
-                            [day]: { ...profile.businessHours?.[day], closed: e.target.checked }
-                          })}
-                          className="rounded"
-                        />
-                        Closed
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Education & Certificates Tab */}
-          {activeTab === 'education' && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Postgraduate Education
-                </label>
-                <textarea
-                  value={profile.postgraduateEducation?.join('\n') || ''}
-                  onChange={(e) => updateField('postgraduateEducation', e.target.value.split('\n').filter(s => s.trim()))}
-                  rows={4}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 font-mono text-sm"
-                  placeholder="TIRR, The Institute of Research and Rehabilitation&#10;Muscular and Joint Chains Method G.D.S."
-                />
-                <p className="text-xs text-gray-400 mt-1">One per line</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Specialty Courses
-                </label>
-                <textarea
-                  value={profile.specialtyCourses?.join('\n') || ''}
-                  onChange={(e) => updateField('specialtyCourses', e.target.value.split('\n').filter(s => s.trim()))}
-                  rows={6}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 font-mono text-sm"
-                  placeholder="Clinical Management of the Cervical/Thoracic/Shoulder Complex TIRR, Houston, TX. 2004&#10;Cupping, CDMX, 2017"
-                />
-                <p className="text-xs text-gray-400 mt-1">One per line</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Certificates
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  {profile.certificates?.map((url, index) => (
-                    <div key={index} className="relative group">
-                      <img src={url} alt={`Certificate ${index + 1}`} className="w-full h-32 object-cover rounded-lg border border-gray-600" />
-                      <button
-                        onClick={() => {
-                          const newCerts = [...(profile.certificates || [])];
-                          newCerts.splice(index, 1);
-                          updateField('certificates', newCerts);
-                        }}
-                        className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Business Details Tab */}
-          {activeTab === 'business' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Online Consultation Cost
-                  </label>
-                  <input
-                    type="number"
-                    value={profile.onlineConsultationCost || ''}
-                    onChange={(e) => updateField('onlineConsultationCost', parseFloat(e.target.value))}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                    placeholder="70"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Currency
-                  </label>
-                  <select
-                    value={profile.onlineConsultationCurrency || 'USD'}
-                    onChange={(e) => updateField('onlineConsultationCurrency', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="MXN">MXN</option>
-                    <option value="BTC">BTC</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Consultation Platforms
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {['Zoom', 'Facetime', 'WhatsApp', 'Google Meet', 'Skype'].map(platform => (
-                    <label key={platform} className="flex items-center gap-2 px-3 py-2 bg-gray-700 rounded-lg text-gray-300 cursor-pointer hover:bg-gray-600">
-                      <input
-                        type="checkbox"
-                        checked={profile.consultationPlatforms?.includes(platform) || false}
-                        onChange={(e) => {
-                          const platforms = profile.consultationPlatforms || [];
-                          if (e.target.checked) {
-                            updateField('consultationPlatforms', [...platforms, platform]);
-                          } else {
-                            updateField('consultationPlatforms', platforms.filter(p => p !== platform));
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      {platform}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Timezone
-                </label>
-                <select
-                  value={profile.timezone || 'UTC'}
-                  onChange={(e) => updateField('timezone', e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="America/Mexico_City">Central Time (Mexico City)</option>
-                  <option value="America/New_York">Eastern Time</option>
-                  <option value="America/Chicago">Central Time (US)</option>
-                  <option value="America/Los_Angeles">Pacific Time</option>
-                  <option value="Europe/London">GMT</option>
-                  <option value="UTC">UTC</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-700 p-6 flex justify-between items-center bg-gray-750">
-          <a
-            href={`/${profile.username}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 text-sm"
-          >
-            View Public Profile →
-          </a>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      {/* Header with Back Button */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center gap-4">
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
           >
-            {saving ? 'Saving...' : 'Save Profile'}
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm font-medium">Back to Dashboard</span>
           </button>
+          <div className="flex-1 text-center">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Edit Profile</h1>
+          </div>
+          {/* Theme Toggle */}
+          <ThemeToggle />
+        </div>
+      </div>
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {/* Tabs */}
+          <div className="border-b border-gray-200 dark:border-gray-700 flex gap-1 px-6 bg-gray-50 dark:bg-gray-800">
+            {[
+              { id: 'basic', label: 'Basic Info' },
+              { id: 'credentials', label: 'License & Education' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-3 text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            {/* Basic Info Tab */}
+            {activeTab === 'basic' && (
+              <div className="space-y-12">
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-white/10 pb-12 md:grid-cols-3">
+                  <div>
+                    <h2 className="text-base/7 font-semibold text-white">Profile</h2>
+                    <p className="mt-1 text-sm/6 text-gray-400">
+                      This information will be displayed publicly.
+                    </p>
+                  </div>
+
+                  <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6 md:col-span-2">
+                    <div className="sm:col-span-4">
+                      <label htmlFor="username" className="block text-sm/6 font-medium text-gray-900 dark:text-white">
+                        Username
+                      </label>
+                      <div className="mt-2">
+                        <div className="flex items-center rounded-md bg-white pl-3 outline outline-1 -outline-offset-1 outline-gray-300 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600 dark:bg-white/5 dark:outline-white/10 dark:focus-within:outline-indigo-500">
+                          <div className="shrink-0 select-none text-base text-gray-500 sm:text-sm/6 dark:text-gray-400">
+                            workcation.com/
+                          </div>
+                          <input
+                            id="username"
+                            name="username"
+                            type="text"
+                            placeholder="janesmith"
+                            className="block min-w-0 grow bg-white py-1.5 pl-1 pr-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 sm:text-sm/6 dark:bg-transparent dark:text-white dark:placeholder:text-gray-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-span-full">
+                      <label htmlFor="photo" className="block text-sm/6 font-medium text-gray-900 dark:text-white">
+                        Photo
+                      </label>
+                      <div className="mt-2 flex items-center gap-x-3">
+                        <UserCircle aria-hidden="true" className="size-12 text-gray-300 dark:text-gray-500" />
+                        <button
+                          type="button"
+                          className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:ring-white/5 dark:hover:bg-white/20"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    </div>
+                    <div className="col-span-full">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Professional Biography
+                      </label>
+                      <textarea
+                        value={profile.bio || ''}
+                        onChange={(e) => updateField('bio', e.target.value)}
+                        rows={6}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="Tell patients about your experience, approach to care, and what makes your practice unique..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-white/10 pb-12 md:grid-cols-3">
+                  <div>
+                    <h2 className="text-base/7 font-semibold text-white">Personal Information</h2>
+                    <p className="mt-1 text-sm/6 text-gray-400">
+                      Some basic information about you.
+                    </p>
+                  </div>
+
+                  { /* First Name, Last Name, suffix. */}
+                  <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-8 md:col-span-2">
+                    <div className="sm:col-span-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          First Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={profile.firstName || ''}
+                          onChange={(e) => updateField('firstName', e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                          placeholder="John"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="sm:col-span-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Last Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={profile.lastName || ''}
+                          onChange={(e) => updateField('lastName', e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                          placeholder="Smith"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="sm:col-span-1">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Suffix
+                        </label>
+                        <input
+                          type="text"
+                          value={profile.suffix || ''}
+                          onChange={(e) => updateField('suffix', e.target.value)}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                          placeholder="Jr"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-white/10 pb-12 md:grid-cols-3">
+                  <div>
+                    <h2 className="text-base/7 font-semibold text-white">Details</h2>
+                    <p className="mt-1 text-sm/6 text-gray-400">
+                      Completely optional, it helps our patients know you on a deeper level.
+                    </p>
+                  </div>
+
+                  { /* Gender, Year of Birth, Place of Birth. */}
+                  <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-8 md:col-span-2">
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Gender
+                      </label>
+                      <select
+                        value={profile.gender || ''}
+                        onChange={(e) => updateField('gender', e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                      >
+                        <option value="">Select...</option>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Year of Birth
+                      </label>
+                      <input
+                        type="number"
+                        value={profile.yearOfBirth || ''}
+                        onChange={(e) => updateField('yearOfBirth', parseInt(e.target.value))}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="1975"
+                        min="1920"
+                        max={new Date().getFullYear()}
+                      />
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Place of Birth
+                      </label>
+                      <input
+                        type="text"
+                        value={profile.placeOfBirth || ''}
+                        onChange={(e) => updateField('placeOfBirth', e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="Texas, USA"
+                        maxLength={30}
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Languages Spoken
+                      </label>
+                      <input
+                        type="text"
+                        value={profile.languages?.join(', ') || ''}
+                        onChange={(e) => updateField('languages', e.target.value.split(',').map(s => s.trim()))}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="English, Spanish, French"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Separate with commas</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Credentials Tab */}
+            {activeTab === 'credentials' && (
+              <div className="space-y-12">
+                {/* Medical License */}
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-white/10 pb-12 md:grid-cols-3">
+                  <div>
+                    <h2 className="text-base/7 font-semibold text-white">Medical License</h2>
+                    <p className="mt-1 text-sm/6 text-gray-400">
+                      State-issued license required for practice.
+                    </p>
+                  </div>
+
+                  <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6 md:col-span-2">
+                    <div className="sm:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        License Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={profile.licenseNumber || ''}
+                        onChange={(e) => updateField('licenseNumber', e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="K9472"
+                        maxLength={9}
+                        required
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        License State
+                      </label>
+                      <input
+                        type="text"
+                        value={profile.licenseState || 'TX'}
+                        onChange={(e) => updateField('licenseState', e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="TX"
+                        maxLength={2}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Medical Education */}
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-white/10 pb-12 md:grid-cols-3">
+                  <div>
+                    <h2 className="text-base/7 font-semibold text-white">Medical Education</h2>
+                    <p className="mt-1 text-sm/6 text-gray-400">
+                      Provide your medical school details and degree.
+                    </p>
+                  </div>
+
+                  <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6 md:col-span-2">
+                    <div className="col-span-full">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Medical School <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={profile.medicalSchool || ''}
+                        onChange={(e) => updateField('medicalSchool', e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="Baylor College of Medicine, Houston, TX"
+                        maxLength={67}
+                        required
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Graduation Year <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={profile.graduationYear || ''}
+                        onChange={(e) => updateField('graduationYear', parseInt(e.target.value))}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="2000"
+                        min="1950"
+                        max={new Date().getFullYear()}
+                        required
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Degree Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={profile.degreeType || ''}
+                        onChange={(e) => updateField('degreeType', e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        required
+                      >
+                        <option value="">Select...</option>
+                        <option value="MD">MD</option>
+                        <option value="DO">DO</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Specialties */}
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-white/10 pb-12 md:grid-cols-3">
+                  <div>
+                    <h2 className="text-base/7 font-semibold text-white">Specialties</h2>
+                    <p className="mt-1 text-sm/6 text-gray-400">
+                      Add your primary and secondary specialties.
+                    </p>
+                  </div>
+
+                  <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6 md:col-span-2">
+                    <div className="sm:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Primary Specialty
+                      </label>
+                      <input
+                        type="text"
+                        value={profile.primarySpecialty || ''}
+                        onChange={(e) => updateField('primarySpecialty', e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="Internal Medicine"
+                        maxLength={30}
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Secondary Specialty
+                      </label>
+                      <input
+                        type="text"
+                        value={profile.secondarySpecialty || ''}
+                        onChange={(e) => updateField('secondarySpecialty', e.target.value)}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
+                        placeholder="Sleep Medicine"
+                        maxLength={30}
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Board Certifications
+                      </label>
+                      <textarea
+                        value={profile.boardCertifications?.join('\n') || ''}
+                        onChange={(e) => updateField('boardCertifications', e.target.value.split('\n').filter(s => s.trim()))}
+                        rows={3}
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 font-mono text-sm"
+                        placeholder="American Board of Internal Medicine&#10;American Board of Sleep Medicine"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">One certification per line</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+            <a
+              href={`/${profile.username}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm"
+            >
+              View Public Profile →
+            </a>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

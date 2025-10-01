@@ -1,49 +1,45 @@
 export interface ProviderProfile {
   id: number;
+  userId: number;
   username: string;
+  
+  // Identity (from TX Med Board)
   firstName: string;
   lastName: string;
-  email: string;
-  phoneNumber?: string;
-  nostrPubkey: string;
+  suffix?: string;
   
-  // Profile information
-  profilePicture?: string;
-  medicalLicense?: string;
-  licenseCountry?: string;
-  onlineConsultationCost?: number;
-  onlineConsultationCurrency?: string;
-  consultationPlatforms?: string[]; // ['Zoom', 'Facetime', 'WhatsApp']
-  languages?: string[]; // ['Spanish', 'English', 'French']
-  yearsOfExperience?: number;
+  // License information
+  licenseNumber: string;
+  licenseState?: string;
+  licenseIssuedDate?: string;
+  licenseExpirationDate?: string;
+  registrationStatus?: string; // AC, ACN, etc.
+  registrationDate?: string;
+  methodOfLicensure?: string; // E, R, L, C
   
-  // Address information
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  country?: string;
+  // Education
+  medicalSchool: string;
+  graduationYear: number;
+  degreeType: string; // MD, DO
   
-  // Business hours (stored as JSON string)
-  businessHours?: {
-    [key: string]: { // 'Monday', 'Tuesday', etc.
-      start: string; // '08:00'
-      end: string;   // '20:00'
-      closed?: boolean;
-    };
-  };
-  timezone?: string;
+  // Specialties
+  primarySpecialty?: string;
+  secondarySpecialty?: string;
   
-  // Education & Certifications
-  postgraduateEducation?: string[];
-  specialtyCourses?: string[];
-  certificates?: string[]; // URLs to certificate images
+  // Demographics (for verification)
+  yearOfBirth?: number;
+  placeOfBirth?: string;
+  gender?: string; // M, F
   
-  // Additional info
+  // Additional optional fields not in TX Med Board
   bio?: string;
-  specialties?: string[];
+  languages?: string[]; // Stored as JSON in DB
+  boardCertifications?: string[]; // Stored as JSON in DB
+  profilePicture?: string;
+  phoneNumber?: string;
+  email?: string;
   
+  // Timestamps
   createdAt?: string;
   updatedAt?: string;
 }

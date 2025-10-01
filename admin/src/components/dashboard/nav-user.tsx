@@ -83,7 +83,7 @@ export function NavUser({ authState, onLogout }: NavUserProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/edit-profile')}>
                 <IconUserCircle />
                 Profile
               </DropdownMenuItem>

@@ -41,7 +41,7 @@ export const DatabaseTest: React.FC = () => {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold text-white mb-4">Database Connectivity Test</h2>
+      <h2 className="text-2xl font-bold mb-4">Database Connectivity Test</h2>
       
       <button
         onClick={testConnection}

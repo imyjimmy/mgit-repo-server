@@ -6,6 +6,8 @@ import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MeetingPage } from '@/pages/MeetingPage';
 import { BillingPage } from '@/pages/BillingPage';
+import { EditProfile } from '@/pages/EditProfile';
+import { PublicProfile } from '@/pages/PublicProfile';
 import { AuthState } from '@/types';
 
 function AppRoutes() {
@@ -67,7 +69,16 @@ function AppRoutes() {
           path="/billing"
           element={authState.isAuthenticated ? <BillingPage token={authState.token || ''} /> : <Navigate to="/login" replace />}
         />
+        <Route
+          path="/edit-profile"
+          element={authState.isAuthenticated ? <EditProfile token={authState.token || ''} /> : <Navigate to="/login" replace />}
+        />
         <Route path="/meeting/:roomId" element={<MeetingPage token={authState.token || ''}/>} />
+        {/* Public profile route - must be last to avoid matching other routes */}
+        <Route 
+          path='/:username'
+          element={<PublicProfile />}
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
