@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { NostrAuthService } from '@/services/auth';
 
-interface LoginPageProps {
-  onLogin: () => void;
-}
-
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage() {
+  const { login } = useAuth();
   const [activeTab, ] = useState<'patient' | 'doctor'>('patient');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,7 +22,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Call parent's onLogin callback
-      onLogin();
+      // onLogin();
     } catch (error) {
       console.error('Login failed:', error);
     } finally {
@@ -52,7 +50,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       localStorage.setItem('admin_pubkey', pubkey);
       localStorage.setItem('admin_profile', JSON.stringify(metadata));
 
-      onLogin();
+      login(token, pubkey, metadata);
       // Check if user is registered
       // const registrationCheck = await authService.checkUserRegistration(pubkey, token);
       

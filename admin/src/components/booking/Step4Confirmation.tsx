@@ -24,7 +24,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   console.log('provider:', data.provider);
   console.log('service:', data.service);
   console.log('appointment:', data.appointment);
-  console.log('admin:', data.admin);
+  console.log('patient:', data.patient);
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -48,7 +48,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   };
 
   // Validation - ensure we have all required data
-  if (!data.provider || !data.service || !data.appointment || !data.admin) {
+  if (!data.provider || !data.service || !data.appointment || !data.patient) {
     return (
       <div className="max-w-2xl mx-auto p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -76,12 +76,14 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         providerId: data.provider?.id,
         serviceId: data.service?.id,
         startTime: data.appointment?.datetime,
-        adminInfo: {
-          firstName: data.admin?.firstName,
-          lastName: data.admin?.lastName,
-          email: data.admin?.email,
-          phone: data.admin?.phone,
-          notes: data.admin?.notes
+        timezone: data.appointment?.timezone,
+        isDST: data.appointment?.isDST,
+        patientInfo: {
+          firstName: data.patient?.firstName,
+          lastName: data.patient?.lastName,
+          email: data.patient?.email,
+          phone: data.patient?.phone,
+          notes: data.patient?.notes
         }
       };
 
@@ -91,14 +93,15 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
       const bookingContent = JSON.stringify(bookingPayload);
       const signedEvent = await NostrAuthService.signChallenge(bookingContent);
 
-      console.log('Signed event:', signedEvent);
+      const nostrToken = await NostrAuthService.verify(signedEvent);
+      console.log('Signed event:', signedEvent, ' token: ', nostrToken.token);
 
       // 4. Submit to verification endpoint
       const response = await fetch('/api/appointments/verify-booking', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${nostrToken.token}`
         },
         body: JSON.stringify({
           bookingData: bookingPayload,
@@ -192,40 +195,40 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
             <label className="block text-sm font-medium text-gray-600 mb-1">
               First Name
             </label>
-            <p className="text-gray-900">{data.admin.firstName}</p>
+            <p className="text-gray-900">{data.patient.firstName}</p>
           </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">
               Last Name
             </label>
-            <p className="text-gray-900">{data.admin.lastName}</p>
+            <p className="text-gray-900">{data.patient.lastName}</p>
           </div>
           
-          {data.admin.email && (
+          {data.patient.email && (
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">
                 Email
               </label>
-              <p className="text-gray-900">{data.admin.email}</p>
+              <p className="text-gray-900">{data.patient.email}</p>
             </div>
           )}
           
-          {data.admin.phone && (
+          {data.patient.phone && (
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1">
                 Phone
               </label>
-              <p className="text-gray-900">{data.admin.phone}</p>
+              <p className="text-gray-900">{data.patient.phone}</p>
             </div>
           )}
           
-          {data.admin.notes && (
+          {data.patient.notes && (
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-600 mb-1">
                 Notes
               </label>
-              <p className="text-gray-900">{data.admin.notes}</p>
+              <p className="text-gray-900">{data.patient.notes}</p>
             </div>
           )}
         </div>

@@ -35,7 +35,30 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await profileService.updateProfile(token, profile);
+      // Map frontend fields to backend snake_case
+      const payload = {
+        username: profile.username,
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        suffix: profile.suffix,
+        license_number: profile.licenseNumber,
+        license_state: profile.licenseState,
+        license_issued_date: profile.licenseIssuedDate,
+        license_expiration_date: profile.licenseExpirationDate,
+        registration_status: profile.registrationStatus,
+        registration_date: profile.registrationDate,
+        method_of_licensure: profile.methodOfLicensure,
+        medical_school: profile.medicalSchool,
+        graduation_year: profile.graduationYear,
+        degree_type: profile.degreeType,
+        primary_specialty: profile.primarySpecialty,
+        secondary_specialty: profile.secondarySpecialty,
+        year_of_birth: profile.yearOfBirth,
+        place_of_birth: profile.placeOfBirth,
+        gender: profile.gender,
+      };
+
+      await profileService.updateProfile(token, payload);
       alert('Profile saved successfully!');
       if (onSave) onSave();
     } catch (error) {
@@ -120,11 +143,12 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                       <div className="mt-2">
                         <div className="flex items-center rounded-md bg-white pl-3 outline outline-1 -outline-offset-1 outline-gray-300 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600 dark:bg-white/5 dark:outline-white/10 dark:focus-within:outline-indigo-500">
                           <div className="shrink-0 select-none text-base text-gray-500 sm:text-sm/6 dark:text-gray-400">
-                            workcation.com/
+                            plebdoc.com/
                           </div>
                           <input
                             id="username"
                             name="username"
+                            onChange={(e) => updateField('username', e.target.value)}
                             type="text"
                             placeholder="janesmith"
                             className="block min-w-0 grow bg-white py-1.5 pl-1 pr-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 sm:text-sm/6 dark:bg-transparent dark:text-white dark:placeholder:text-gray-500"

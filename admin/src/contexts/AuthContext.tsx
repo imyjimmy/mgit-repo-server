@@ -1,41 +1,75 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 
 interface AuthState {
   isAuthenticated: boolean;
   token: string | null;
-  profile: any;
+  pubkey: string | null;
+  profile: any | null;
 }
 
-interface AuthContextType {
-  authState: AuthState;
-  handleLogin: () => void;
-  handleLogout: () => void;
+interface AuthContextType extends AuthState {
+  login: (token: string, pubkey: string, profile: any) => void;
+  logout: () => void;
+  refreshAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [authState] = useState<AuthState>({
-    isAuthenticated: false,
-    token: null,
-    profile: null,
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    const token = localStorage.getItem('admin_token');
+    const pubkey = localStorage.getItem('admin_pubkey');
+    const profile = localStorage.getItem('admin_profile');
+    
+    return {
+      isAuthenticated: !!(token && pubkey),
+      token: token,
+      pubkey: pubkey,
+      profile: profile ? JSON.parse(profile) : null
+    };
   });
 
-  // Move your existing auth logic here from the original App.tsx
-  const handleLogin = () => {
-    // Your existing login logic
+  const login = (token: string, pubkey: string, profile: any) => {
+    localStorage.setItem('admin_token', token);
+    localStorage.setItem('admin_pubkey', pubkey);
+    localStorage.setItem('admin_profile', JSON.stringify(profile));
+    
+    setAuthState({
+      isAuthenticated: true,
+      token,
+      pubkey,
+      profile
+    });
   };
 
-  const handleLogout = () => {
-    // Your existing logout logic
+  const logout = () => {
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_pubkey');
+    localStorage.removeItem('admin_profile');
+    
+    setAuthState({
+      isAuthenticated: false,
+      token: null,
+      pubkey: null,
+      profile: null
+    });
   };
 
-  useEffect(() => {
-    // Your existing auth check logic
-  }, []);
+  const refreshAuth = () => {
+    const token = localStorage.getItem('admin_token');
+    const pubkey = localStorage.getItem('admin_pubkey');
+    const profile = localStorage.getItem('admin_profile');
+    
+    setAuthState({
+      isAuthenticated: !!(token && pubkey),
+      token: token,
+      pubkey: pubkey,
+      profile: profile ? JSON.parse(profile) : null
+    });
+  };
 
   return (
-    <AuthContext.Provider value={{ authState, handleLogin, handleLogout }}>
+    <AuthContext.Provider value={{ ...authState, login, logout, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );

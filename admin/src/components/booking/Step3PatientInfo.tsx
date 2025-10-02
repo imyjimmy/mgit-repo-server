@@ -9,11 +9,11 @@ interface Step3Props {
 }
 
 const Step3PatientInfo: React.FC<Step3Props> = ({ data, onNext, onPrev, onUpdate }) => {
-  const [firstName, setFirstName] = useState(data.admin?.firstName || '');
-  const [lastName, setLastName] = useState(data.admin?.lastName || '');
-  const [email, setEmail] = useState(data.admin?.email || '');
-  const [phone, setPhone] = useState(data.admin?.phone || '');
-  const [notes, setNotes] = useState(data.admin?.notes || '');
+  const [firstName, setFirstName] = useState(data.patient?.firstName || '');
+  const [lastName, setLastName] = useState(data.patient?.lastName || '');
+  const [email, setEmail] = useState(data.patient?.email || '');
+  const [phone, setPhone] = useState(data.patient?.phone || '');
+  const [notes, setNotes] = useState(data.patient?.notes || '');
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -27,7 +27,7 @@ const Step3PatientInfo: React.FC<Step3Props> = ({ data, onNext, onPrev, onUpdate
       notes: notes || undefined,
     };
 
-    onUpdate({ admin: adminData });
+    onUpdate({ patient: adminData });
   }, [firstName, lastName, email, phone, notes]);
 
   const validateForm = () => {

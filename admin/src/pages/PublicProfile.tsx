@@ -1,306 +1,215 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { profileService } from '@/services/profile';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import FooterSection from '@/components/landingpage/FooterSection';
 import { ProviderProfile } from '@/types/profile';
 
 export const PublicProfile: React.FC = () => {
   const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<ProviderProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch(`/api/admin/provider/${username}/profile`);
+        if (!response.ok) {
+          throw new Error('Provider not found');
+        }
+        const data = await response.json();
+        setProfile(data.profile);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (username) {
-      loadProfile(username);
+      fetchProfile();
     }
   }, [username]);
 
-  const loadProfile = async (username: string) => {
-    try {
-      const data = await profileService.getPublicProfile(username);
-      setProfile(data);
-    } catch (error) {
-      console.error('Failed to load profile:', error);
-      setError('Profile not found');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatBusinessHours = (hours: any) => {
-    if (!hours) return null;
-    
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const formatted: string[] = [];
-    
-    days.forEach(day => {
-      const dayHours = hours[day];
-      if (dayHours && !dayHours.closed) {
-        formatted.push(`${day}: ${dayHours.start} - ${dayHours.end}`);
-      } else if (dayHours?.closed) {
-        formatted.push(`${day}: Closed`);
-      }
-    });
-    
-    return formatted.join('\n');
+  const handleBookAppointment = () => {
+    // Navigate to booking page or show booking modal
+    console.log('Book appointment with provider:', username);
+    navigate(`/providers/${username}/book`);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading profile...</div>
+      <div className="w-full min-h-screen bg-[#F7F5F3] flex items-center justify-center">
+        <div className="text-[#37322F] text-lg">Loading...</div>
       </div>
     );
   }
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Profile Not Found</h1>
-          <p className="text-gray-600">The profile you're looking for doesn't exist.</p>
+      <div className="w-full min-h-screen bg-[#F7F5F3] flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <div className="text-[#37322F] text-xl mb-4">
+            {error || 'Provider not found'}
+          </div>
+          <button
+            onClick={() => navigate('/')}
+            className="text-[#37322F] underline hover:no-underline"
+          >
+            Return to home
+          </button>
         </div>
       </div>
     );
   }
 
+  const fullName = `${profile.firstName} ${profile.lastName}${profile.suffix ? ', ' + profile.suffix : ''}`;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          <div className="flex items-start gap-6">
-            {profile.profilePicture && (
-              <img
-                src={profile.profilePicture}
-                alt={`${profile.firstName} ${profile.lastName}`}
-                className="w-24 h-24 rounded-full object-cover border-4 border-blue-100"
-              />
-            )}
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Dr. {profile.firstName} {profile.lastName}
-              </h1>
-              {profile.specialties && profile.specialties.length > 0 && (
-                <p className="text-gray-600 mb-3">{profile.specialties.join(' • ')}</p>
-              )}
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                {profile.phoneNumber && (
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    {profile.phoneNumber}
-                  </div>
-                )}
-                {profile.email && (
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    {profile.email}
-                  </div>
-                )}
-                {profile.addressLine1 && (
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    {profile.city}, {profile.country}
-                  </div>
-                )}
-              </div>
-            {/* Verified badge */}
-            <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              Verified Doctor
-            </div>
-          </div>
-        
-          <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
-            Book Appointment
-          </button>
-        </div>
-      </div>
-    </div>
-
-    {/* Main Content */}
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Left Column - Main Info */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Bio */}
-          {profile.bio && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">About</h2>
-              <p className="text-gray-700 whitespace-pre-wrap">{profile.bio}</p>
-            </div>
-          )}
-
-          {/* Experience */}
-          {profile.yearsOfExperience && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Experience</h2>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">🏥</span>
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900">{profile.yearsOfExperience} years</div>
-                  <div className="text-sm text-gray-600">of professional experience</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Postgraduate Education */}
-          {profile.postgraduateEducation && profile.postgraduateEducation.length > 0 && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Postgraduate Education</h2>
-              <ul className="space-y-3">
-                {profile.postgraduateEducation.map((edu, index) => (
-                  <li key={index} className="flex gap-3">
-                    <span className="text-blue-600 mt-1">•</span>
-                    <span className="text-gray-700">{edu}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Specialty Courses */}
-          {profile.specialtyCourses && profile.specialtyCourses.length > 0 && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Specialty Courses</h2>
-              <ul className="space-y-3">
-                {profile.specialtyCourses.map((course, index) => (
-                  <li key={index} className="flex gap-3">
-                    <span className="text-blue-600 mt-1">•</span>
-                    <span className="text-gray-700 text-sm">{course}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Certificates */}
-          {profile.certificates && profile.certificates.length > 0 && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Certificates</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {profile.certificates.map((cert, index) => (
-                  <img
-                    key={index}
-                    src={cert}
-                    alt={`Certificate ${index + 1}`}
-                    className="w-full h-48 object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => window.open(cert, '_blank')}
+    <div className="w-full bg-[#F7F5F3] flex flex-col">
+      
+      {/* Profile Content Section */}
+      <div className="bg-[#F7F5F3] py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto grid max-w-2xl grid-cols-1 items-start gap-x-8 gap-y-16 sm:gap-y-24 lg:mx-0 lg:max-w-none lg:grid-cols-2">
+            
+            {/* Left Column - Profile Card */}
+            <div className="lg:pr-4">
+              <div className="relative overflow-hidden rounded-3xl bg-white/40 backdrop-blur-sm px-6 pb-9 pt-64 shadow-lg after:pointer-events-none after:absolute after:inset-0 after:rounded-3xl after:ring-1 after:ring-inset after:ring-[#37322F]/10 sm:px-12 lg:max-w-lg lg:px-8 lg:pb-8 xl:px-10 xl:pb-10">
+                
+                {/* Background gradient blur effect */}
+                <div
+                  aria-hidden="true"
+                  className="absolute left-1/2 top-1/2 -ml-16 -translate-x-1/2 -translate-y-1/2 transform-gpu blur-3xl"
+                >
+                  <div
+                    style={{
+                      clipPath:
+                        'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
+                    }}
+                    className="aspect-[1097/845] w-[68.5625rem] bg-gradient-to-tr from-[#37322F]/20 to-[#37322F]/30 opacity-40"
                   />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column - Quick Info */}
-        <div className="space-y-6">
-          {/* License Info */}
-          {profile.medicalLicense && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-3">License Information</h3>
-              <div className="text-sm">
-                <div className="text-gray-600 mb-1">License Number</div>
-                <div className="font-mono font-semibold text-gray-900">{profile.medicalLicense}</div>
-                {profile.licenseCountry && (
-                  <>
-                    <div className="text-gray-600 mt-3 mb-1">Country</div>
-                    <div className="font-semibold text-gray-900">{profile.licenseCountry}</div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Online Consultation */}
-          {profile.onlineConsultationCost && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-3">Online Consultation</h3>
-              <div className="mb-4">
-                <div className="text-3xl font-bold text-blue-600">
-                  ${profile.onlineConsultationCost} {profile.onlineConsultationCurrency || 'USD'}
                 </div>
-                <div className="text-sm text-gray-600">per session</div>
+                
+                {/* Profile info */}
+                <figure className="relative isolate">
+                  <div className="mb-6">
+                    <div className="w-24 h-24 rounded-full bg-[#37322F]/10 flex items-center justify-center mx-auto">
+                      <span className="text-4xl font-semibold text-[#37322F]">
+                        {profile.firstName?.[0]}{profile.lastName?.[0]}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {profile.bio && (
+                    <blockquote className="mt-6 text-xl/8 font-semibold text-[#37322F]">
+                      <p>"{profile.bio}"</p>
+                    </blockquote>
+                  )}
+                  
+                  <figcaption className="mt-6 text-sm/6 text-[rgba(55,50,47,0.70)]">
+                    <strong className="font-semibold text-[#37322F]">{fullName}</strong>
+                    {profile.degreeType && `, ${profile.degreeType}`}
+                  </figcaption>
+                </figure>
+              </div>
+            </div>
+            
+            {/* Right Column - Details */}
+            <div>
+              <div className="text-base/7 text-[rgba(55,50,47,0.70)] lg:max-w-lg">
+                {profile.primarySpecialty && (
+                  <p className="text-base/7 font-semibold text-[#37322F]/80">
+                    {profile.primarySpecialty}
+                  </p>
+                )}
+                
+                <h1 className="mt-2 text-pretty text-4xl font-semibold tracking-tight text-[#37322F] sm:text-5xl">
+                  {fullName}
+                </h1>
+                
+                <div className="max-w-xl">
+                  {profile.bio && (
+                    <p className="mt-6">{profile.bio}</p>
+                  )}
+                  {profile.medicalSchool && (
+                    <div className="mt-8">
+                      <h3 className="font-semibold text-[#37322F] mb-2">Education</h3>
+                      <p>{profile.medicalSchool}</p>
+                      {profile.graduationYear && (
+                        <p className="text-sm mt-1">Class of {profile.graduationYear}</p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {profile.licenseState && profile.licenseNumber && (
+                    <div className="mt-8">
+                      <h3 className="font-semibold text-[#37322F] mb-2">License</h3>
+                      <p>{profile.licenseState} #{profile.licenseNumber}</p>
+                      {profile.registrationStatus && (
+                        <p className="text-sm mt-1">{profile.registrationStatus}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               
-              {profile.consultationPlatforms && profile.consultationPlatforms.length > 0 && (
-                <>
-                  <div className="text-sm text-gray-600 mb-2">Platforms</div>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.consultationPlatforms.map(platform => (
-                      <span key={platform} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                        {platform}
-                      </span>
-                    ))}
-                  </div>
-                </>
+              {/* Stats Grid - if we have data to show */}
+              {(profile.graduationYear || profile.licenseState || profile.yearOfBirth) && (
+                <dl className="mt-10 grid grid-cols-2 gap-8 border-t border-[#37322F]/20 pt-10 sm:grid-cols-3">
+                  {profile.graduationYear && (
+                    <div>
+                      <dt className="text-sm/6 font-semibold text-[rgba(55,50,47,0.60)]">Graduated</dt>
+                      <dd className="mt-2 text-3xl/10 font-bold tracking-tight text-[#37322F]">
+                        {profile.graduationYear}
+                      </dd>
+                    </div>
+                  )}
+                  
+                  {profile.licenseState && (
+                    <div>
+                      <dt className="text-sm/6 font-semibold text-[rgba(55,50,47,0.60)]">Licensed in</dt>
+                      <dd className="mt-2 text-3xl/10 font-bold tracking-tight text-[#37322F]">
+                        {profile.licenseState}
+                      </dd>
+                    </div>
+                  )}
+                  
+                  {profile.graduationYear && (
+                    <div>
+                      { profile.graduationYear && (<>
+                        <dt className="text-sm/6 font-semibold text-[rgba(55,50,47,0.60)]">Experience</dt>
+                      <dd className="mt-2 text-3xl/10 font-bold tracking-tight text-[#37322F]">
+                        {new Date().getFullYear() - profile.graduationYear} years
+                      </dd></>)
+                      }
+                    </div>
+                  )}
+                </dl>
               )}
-            </div>
-          )}
-
-          {/* Languages */}
-          {profile.languages && profile.languages.length > 0 && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-3">Languages</h3>
-              <div className="flex flex-wrap gap-2">
-                {profile.languages.map(lang => (
-                  <span key={lang} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-                    {lang}
+              
+              {/* Call to Action */}
+              <div className="mt-10 flex">
+                <button
+                  onClick={handleBookAppointment}
+                  className="h-12 px-8 bg-[#37322F] shadow-[0px_0px_0px_2.5px_rgba(255,255,255,0.08)_inset] rounded-full flex justify-center items-center hover:bg-[#4a4440] transition-colors relative overflow-hidden"
+                >
+                  <div className="w-44 h-[41px] absolute left-0 top-[-0.5px] bg-gradient-to-b from-[rgba(255,255,255,0)] to-[rgba(0,0,0,0.10)] mix-blend-multiply"></div>
+                  <span className="text-white text-base font-medium relative z-10">
+                    Book Appointment <span aria-hidden="true">→</span>
                   </span>
-                ))}
+                </button>
               </div>
             </div>
-          )}
-
-          {/* Business Hours */}
-          {profile.businessHours && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-3">Business Hours</h3>
-              <div className="text-sm space-y-2">
-                {formatBusinessHours(profile.businessHours)?.split('\n').map((line, index) => (
-                  <div key={index} className="flex justify-between">
-                    <span className="text-gray-600">{line.split(':')[0]}:</span>
-                    <span className="font-medium text-gray-900">{line.split(':').slice(1).join(':')}</span>
-                  </div>
-                ))}
-              </div>
-              {profile.timezone && (
-                <div className="mt-3 pt-3 border-t text-xs text-gray-500">
-                  Timezone: {profile.timezone}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Location Map */}
-          {profile.addressLine1 && (
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h3 className="font-bold text-gray-900 mb-3">Location</h3>
-              <div className="text-sm text-gray-700 space-y-1">
-                <div>{profile.addressLine1}</div>
-                {profile.addressLine2 && <div>{profile.addressLine2}</div>}
-                <div>{profile.city}, {profile.state} {profile.postalCode}</div>
-                <div>{profile.country}</div>
-              </div>
-              <button className="mt-4 w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors">
-                Get Directions
-              </button>
-            </div>
-          )}
+            
+          </div>
         </div>
       </div>
+
+      {/* Footer Section */}
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-0 max-w-[1060px] mx-auto">
+        <FooterSection />
+      </div>
     </div>
-  </div>);
-};
+  );
+}

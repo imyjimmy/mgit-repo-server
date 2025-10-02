@@ -27,42 +27,21 @@ class ProfileService {
     return await response.json();
   }
   
-  async updateProfile(token: string, profile: Partial<ProviderProfile>): Promise<ProviderProfile> {
-    const response = await fetch(`${this.baseUrl}/api/admin/profile`, {
-      method: 'PUT',
+  async updateProfile(token: string, profile: any): Promise<void> {
+    const response = await fetch('/api/admin/provider/profile', {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(profile)
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to update profile');
     }
-    
-    return await response.json();
   }
   
-  async uploadCertificate(token: string, file: File): Promise<string> {
-    const formData = new FormData();
-    formData.append('certificate', file);
-    
-    const response = await fetch(`${this.baseUrl}/api/admin/profile/certificate`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to upload certificate');
-    }
-    
-    const data = await response.json();
-    return data.url;
-  }
 }
 
 export const profileService = new ProfileService();

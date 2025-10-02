@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { ProgressBar } from './ProgressBar';
 import { Step1ProviderService } from './Step1ProviderService';
 import { Step2Availability } from './Step2Availability';
@@ -8,8 +9,8 @@ import { Step4Confirmation } from './Step4Confirmation';
 export interface BookingData {
   provider: { id: string; name: string; email?: string } | null;
   service: { id: string; name: string; duration: number; price?: string } | null;
-  appointment: { date: string; time: string; datetime: string } | null;
-  admin: {
+  appointment: { date: string; time: string; timezone: string; isDST: boolean; datetime: string } | null;
+  patient: {
     firstName: string;
     lastName: string;
     email?: string;
@@ -21,15 +22,18 @@ export interface BookingData {
 
 interface BookingWorkflowProps {
   token: string;
+  providerId: string;
 }
 
-export function BookingWorkflow({ token }: BookingWorkflowProps) {
+export function BookingWorkflow({ providerId }: BookingWorkflowProps) {
+  const { token } = useAuth();
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData>({
     provider: null,
     service: null,
     appointment: null,
-    admin: null,
+    patient: null,
   });
 
   const nextStep = () => {
@@ -51,10 +55,10 @@ export function BookingWorkflow({ token }: BookingWorkflowProps) {
   return (
     <div className="py-6">
       <ProgressBar currentStep={currentStep} />
-      { token? <>{console.log('token: ', token)}</>: <></>}
       <div className="w-3/5 mx-auto bg-card shadow-lg border rounded-lg p-6">
         {currentStep === 1 && (
           <Step1ProviderService
+            providerId={String(providerId)}
             data={bookingData}
             onNext={nextStep}
             onUpdate={updateBookingData}
@@ -84,7 +88,7 @@ export function BookingWorkflow({ token }: BookingWorkflowProps) {
             data={bookingData}
             onPrev={prevStep}
             onUpdate={updateBookingData}
-            token={token}
+            token={token || ''}
           />
         )}
       </div>

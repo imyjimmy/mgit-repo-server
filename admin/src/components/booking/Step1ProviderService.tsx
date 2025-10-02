@@ -7,6 +7,7 @@ interface Step1Props {
   data: BookingData;
   onNext: () => void;
   onUpdate: (updates: Partial<BookingData>) => void;
+  providerId?: string;
 }
 
 interface Provider {
@@ -22,7 +23,7 @@ interface Service {
   price: string;
 }
 
-export function Step1ProviderService({ data, onNext, onUpdate }: Step1Props) {
+export function Step1ProviderService({ data, onNext, onUpdate, providerId }: Step1Props) {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(
@@ -39,6 +40,20 @@ export function Step1ProviderService({ data, onNext, onUpdate }: Step1Props) {
   useEffect(() => {
     loadProviders();
   }, []);
+
+  // Auto-select provider when providerId is provided and providers are loaded
+  useEffect(() => {
+    if (providerId && providers.length > 0 && !selectedProvider) {
+      console.log("here!!!!", providers, providerId);
+      const matchingProvider = providers.find(p => { console.log(p.id, typeof p.id, providerId, typeof providerId); return  p.id === providerId } );
+      console.log('matching provider: ', matchingProvider);
+      if (matchingProvider) {
+        console.log('🎯 Auto-selecting provider:', matchingProvider);
+        setSelectedProvider(matchingProvider);
+        onUpdate({ provider: matchingProvider });
+      }
+    }
+  }, [providers]);
 
   useEffect(() => {
     if (selectedProvider) {
@@ -146,6 +161,9 @@ export function Step1ProviderService({ data, onNext, onUpdate }: Step1Props) {
     );
   }
 
+  // Disable provider selection if providerId is provided
+  const isProviderLocked = !!providerId;
+
   return (
     <div className="mx-auto w-5/6">
       <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">Select Provider & Service</h2>
@@ -159,36 +177,40 @@ export function Step1ProviderService({ data, onNext, onUpdate }: Step1Props) {
             setProviderQuery('');
             handleProviderChange(provider);
           }}
+          disabled={isProviderLocked}
         >
           <Label className="block text-sm/6 font-medium text-gray-900 dark:text-white">
             Provider
           </Label>
           <div className="relative mt-2">
             <ComboboxInput
-              className="block w-full rounded-md bg-white py-1.5 pl-3 pr-12 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-gray-700 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
+              className="block w-full rounded-md bg-white py-1.5 pl-3 pr-12 text-base text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-gray-700 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               onChange={(event) => setProviderQuery(event.target.value)}
               onBlur={() => setProviderQuery('')}
               displayValue={(provider: Provider | null) => provider?.name || ''}
               placeholder="Please Select a Provider"
+              disabled={isProviderLocked}
             />
             <ComboboxButton className="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
               <ChevronDownIcon className="size-5 text-gray-400" aria-hidden="true" />
             </ComboboxButton>
 
-            <ComboboxOptions
-              transition
-              className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg outline outline-1 outline-black/5 data-[closed]:data-[leave]:opacity-0 data-[leave]:transition data-[leave]:duration-100 data-[leave]:ease-in sm:text-sm dark:bg-gray-800 dark:shadow-none dark:-outline-offset-1 dark:outline-white/10"
-            >
-              {filteredProviders.map((provider) => (
-                <ComboboxOption
-                  key={provider.id}
-                  value={provider}
-                  className="cursor-default select-none px-3 py-2 text-gray-900 data-[focus]:bg-indigo-600 data-[focus]:text-white data-[focus]:outline-none dark:text-gray-300 dark:data-[focus]:bg-indigo-500"
-                >
-                  <span className="block truncate">{provider.name}</span>
-                </ComboboxOption>
-              ))}
-            </ComboboxOptions>
+            {!isProviderLocked && (
+              <ComboboxOptions
+                transition
+                className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg outline outline-1 outline-black/5 data-[closed]:data-[leave]:opacity-0 data-[leave]:transition data-[leave]:duration-100 data-[leave]:ease-in sm:text-sm dark:bg-gray-800 dark:shadow-none dark:-outline-offset-1 dark:outline-white/10"
+              >
+                {filteredProviders.map((provider) => (
+                  <ComboboxOption
+                    key={provider.id}
+                    value={provider}
+                    className="cursor-default select-none px-3 py-2 text-gray-900 data-[focus]:bg-indigo-600 data-[focus]:text-white data-[focus]:outline-none dark:text-gray-300 dark:data-[focus]:bg-indigo-500"
+                  >
+                    <span className="block truncate">{provider.name}</span>
+                  </ComboboxOption>
+                ))}
+              </ComboboxOptions>
+            )}
           </div>
         </Combobox>
 

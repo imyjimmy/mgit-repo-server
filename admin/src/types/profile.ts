@@ -11,6 +11,7 @@ export interface ProviderProfile {
   // License information
   licenseNumber: string;
   licenseState?: string;
+
   licenseIssuedDate?: string;
   licenseExpirationDate?: string;
   registrationStatus?: string; // AC, ACN, etc.

@@ -23,6 +23,25 @@ const formatDate = (dateString: string) => {
   return `${month}/${day}/${year}`;
 };
 
+export const isDST = () => {
+  const now = new Date();
+  const january = new Date(now.getFullYear(), 0, 1); // January 1st of the current year
+  const july = new Date(now.getFullYear(), 6, 1);    // July 1st of the current year
+
+  const janOffset = january.getTimezoneOffset();
+  const julOffset = july.getTimezoneOffset();
+  const currentOffset = now.getTimezoneOffset();
+
+  // In the Northern Hemisphere, DST typically means a smaller (more negative) offset.
+  // In the Southern Hemisphere, DST typically means a smaller (more negative) offset as well,
+  // but the standard time might be during their winter (our summer).
+  // The key is that the offset during DST will be different from the standard offset.
+  
+  // We find the maximum of the two offsets (Jan and Jul) to represent the standard time offset.
+  // If the current offset is different from this standard offset, it indicates DST.
+  return Math.max(janOffset, julOffset) !== currentOffset;
+}
+
 export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props) {
   const [selectedDate, setSelectedDate] = useState<string>(
     data.appointment?.date || new Date().toLocaleDateString('en-CA')
@@ -72,10 +91,13 @@ export function Step2Availability({ data, onNext, onPrev, onUpdate }: Step2Props
 
   const updateAppointment = (date: string, time: string) => {
     const datetime = time ? `${date} ${time}:00` : '';
+    const dst = isDST();
     onUpdate({
       appointment: {
         date,
         time,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        isDST: dst,
         datetime
       }
     });
