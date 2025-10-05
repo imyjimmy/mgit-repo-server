@@ -7,18 +7,18 @@ interface Step4ConfirmationProps {
   onPrev: () => void;
   onUpdate: (updates: Partial<BookingData>) => void;
   onComplete?: (appointmentId: number) => void;
-  token: string;
 }
 
 const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   data,
   onPrev,
   onComplete,
-  token
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [appointmentId, setAppointmentId] = useState<number | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null);
 
   console.log('Step4Confirmation render - data:', data);
   console.log('provider:', data.provider);
@@ -113,6 +113,8 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
       
       if (result.status === 'OK') {
         setSuccess(true);
+        setAppointmentId(result.appointmentId);
+        setRoomId(result.roomId);
         // Delay before calling onComplete to show success message
         setTimeout(() => {
           onComplete?.(result.appointmentId);
@@ -129,18 +131,88 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
     }
   };
 
-  if (success) {
+  if (success && roomId) {
+    const meetingLink = `${window.location.origin}/meeting/${roomId}`;  
     return (
       <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-          <div className="text-green-600 text-5xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-green-800 mb-2">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+          <div className="text-green-600 text-5xl mb-4 text-center">✓</div>
+          <h2 className="text-2xl font-bold text-green-800 mb-2 text-center">
             Appointment Confirmed!
           </h2>
-          <p className="text-green-700">
+          <p className="text-green-700 text-center mb-6">
             Your appointment has been successfully booked and cryptographically verified.
-            You should receive a confirmation shortly.
+            You should receive a confirmation email shortly.
           </p>
+
+          {/* Meeting Link Section */}
+          <div className="bg-white border border-green-300 rounded-lg p-4 mt-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              Your Meeting Link
+            </h3>
+            <div className="flex flex-col gap-3">
+              <input
+                type="text"
+                readOnly
+                value={meetingLink}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 text-sm font-mono"
+                onClick={(e) => e.currentTarget.select()}
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(meetingLink);
+                  // Optional: Add toast notification here
+                }}
+                className="self-start px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-semibold"
+              >
+                Copy Link
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mt-3">
+              Save this link to join your video consultation at the scheduled time.
+              You'll also receive this link via email.
+            </p>
+          </div>
+
+          {/* Appointment Details */}
+          <div className="bg-white border border-green-300 rounded-lg p-4 mt-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              Appointment Details
+            </h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Appointment ID:</span>
+                <span className="font-semibold text-gray-800">#{appointmentId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Provider:</span>
+                <span className="font-semibold text-gray-800">{data.provider.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Service:</span>
+                <span className="font-semibold text-gray-800">{data.service.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Date & Time:</span>
+                <span className="font-semibold text-gray-800">
+                  {formatDate(data.appointment.datetime)} at {formatTime(data.appointment.datetime)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Next Steps */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">
+              📅 Next Steps
+            </h3>
+            <ul className="text-sm text-blue-700 space-y-1 ml-4 list-disc">
+              <li>Check your email for appointment confirmation</li>
+              <li>Save the meeting link above</li>
+              <li>Join the meeting at your scheduled time</li>
+              <li>Prepare any questions or documents for your provider</li>
+            </ul>
+          </div>
         </div>
       </div>
     );
@@ -263,32 +335,6 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
           </div>
         </div>
       )}
-
-      {/* Action Buttons */}
-      {/* <div className="flex gap-4">
-        <button
-          onClick={onPrev}
-          disabled={isSubmitting}
-          className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-        >
-          Back to Admin Info
-        </button>
-        
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {isSubmitting ? (
-            <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-              Creating Appointment...
-            </div>
-          ) : (
-            'Confirm & Book Appointment'
-          )}
-        </button>
-      </div> */}
 
       <div className="mt-8 flex justify-between">
         <button

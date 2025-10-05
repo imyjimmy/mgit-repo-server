@@ -187,12 +187,13 @@ function useIntervalManager() {
 }
 
 export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) => {
-  const [roomId, ] = useState(initialRoomId || 'bright-dolphin-swimming');
+  const [roomId, setRoomId] = useState(initialRoomId || '');
   
   /** Appointments */
   const [, setAppointments] = useState<any[]>([]);
   const [currentAppointment, setCurrentAppointment] = useState<any>(null);
-  const [, setLoading] = useState(true);
+  const [noAppointmentsMessage, setNoAppointmentsMessage] = useState<string>('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchTodaysAppointments = async () => {
@@ -213,6 +214,12 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) 
           
           setAppointments(todaysAppointments);
           
+          if (todaysAppointments.length === 0) {
+            setNoAppointmentsMessage('No appointments scheduled for today');
+            setLoading(false);
+            return;
+          }
+          
           // Find the first appointment that isn't in the past
           const now = new Date();
           const nextAppointment = todaysAppointments.find((apt: { start_datetime: string | number | Date; }) => {
@@ -222,16 +229,28 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) 
           // If no future appointments, use the most recent one
           const spotlightAppointment = nextAppointment || todaysAppointments[todaysAppointments.length - 1];
           setCurrentAppointment(spotlightAppointment);
+          
+          // Set the roomId from the appointment's location field
+          if (spotlightAppointment?.location) {
+            setRoomId(spotlightAppointment.location);
+          } else {
+            setNoAppointmentsMessage('Current appointment has no meeting room assigned');
+          }
         }
       } catch (error) {
         console.error('Error fetching appointments:', error);
+        setNoAppointmentsMessage('Error loading appointments');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchTodaysAppointments();
-  }, [token]);
+    if (!initialRoomId) {
+      fetchTodaysAppointments();
+    } else {
+      setLoading(false);
+    }
+  }, [token, initialRoomId]);
 
   const [isInRoom, setIsInRoom] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('Not connected');
@@ -523,20 +542,8 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) 
       // STEP 1: Call the backend leave endpoint FIRST
       if (isInRoom) {
         try {
-          const response = await fetch(`${window.location.origin}/api/webrtc/rooms/${roomId}/leave`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.ok) {
-            const result = await response.json();
-            console.log('📤 ADMIN: Server leave response:', result);
-          } else {
-            console.error('❌ ADMIN: Server leave failed:', response.status);
-          }
+          const result = await webrtcService.leaveRoom(roomId, token);
+          console.log('📤 ADMIN: Server leave response:', result);
         } catch (error) {
           console.error('❌ ADMIN: Error calling leave endpoint:', error);
         }
@@ -873,6 +880,34 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) 
     };
   }, []); //isInRoom, cleanupWebRTCState, connectionStatus, handshakeInProgress
   
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading appointments...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error/no appointments message
+  if (!roomId && noAppointmentsMessage) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md">
+          <div className="text-yellow-600 text-4xl mb-4">📅</div>
+          <h2 className="text-xl font-semibold text-yellow-800 mb-2">
+            No Active Meeting
+          </h2>
+          <p className="text-yellow-700">
+            {noAppointmentsMessage}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-12 gap-4 h-full">
       {/* Left navigation - Previous appointments */}

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { ProgressBar } from './ProgressBar';
 import { Step1ProviderService } from './Step1ProviderService';
 import { Step2Availability } from './Step2Availability';
@@ -21,13 +20,10 @@ export interface BookingData {
 }
 
 interface BookingWorkflowProps {
-  token: string;
   providerId: string;
 }
 
-export function BookingWorkflow({ providerId }: BookingWorkflowProps) {
-  const { token } = useAuth();
-  
+export function BookingWorkflow({ providerId }: BookingWorkflowProps) {  
   const [currentStep, setCurrentStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData>({
     provider: null,
@@ -55,7 +51,7 @@ export function BookingWorkflow({ providerId }: BookingWorkflowProps) {
   return (
     <div className="py-6">
       <ProgressBar currentStep={currentStep} />
-      <div className="w-3/5 mx-auto bg-card shadow-lg border rounded-lg p-6">
+      <div className="w-3/4 mx-auto bg-card shadow-lg border rounded-lg p-6">
         {currentStep === 1 && (
           <Step1ProviderService
             providerId={String(providerId)}
@@ -88,7 +84,6 @@ export function BookingWorkflow({ providerId }: BookingWorkflowProps) {
             data={bookingData}
             onPrev={prevStep}
             onUpdate={updateBookingData}
-            token={token || ''}
           />
         )}
       </div>

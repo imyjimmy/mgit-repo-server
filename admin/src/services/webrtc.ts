@@ -1,8 +1,18 @@
 class WebRTCService {
   private baseUrl = window.location.origin;
+  private isGuestMode = false;
+
+  setGuestMode(enabled: boolean) {
+    this.isGuestMode = enabled;
+  }
+
+  private getUrl(path: string): string {
+    const url = `${this.baseUrl}${path}`;
+    return this.isGuestMode ? `${url}?guest=true` : url;
+  }
 
   async joinRoom(roomId: string, token: string): Promise<{ participants: number, shouldInitiateOffer: boolean, userRole: any, joinOrder: number }> {
-    const response = await fetch(`${this.baseUrl}/api/webrtc/rooms/${roomId}/join`, {
+    const response = await fetch(this.getUrl(`/api/webrtc/rooms/${roomId}/join`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -20,8 +30,25 @@ class WebRTCService {
     };
   }
   
+  async leaveRoom(roomId: string, token: string): Promise<{ status: string, participants: number }> {
+    const response = await fetch(this.getUrl(`/api/webrtc/rooms/${roomId}/leave`), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const result = await response.json();
+    
+    return {
+      status: result.status,
+      participants: result.participants
+    };
+  }
+
   async sendIceCandidate(roomId: string, candidate: RTCIceCandidate, token: string): Promise<void> {
-    await fetch(`${this.baseUrl}/api/webrtc/rooms/${roomId}/ice-candidate`, {
+    await fetch(this.getUrl(`/api/webrtc/rooms/${roomId}/ice-candidate`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -32,7 +59,7 @@ class WebRTCService {
   }
   
   async getIceCandidates(roomId: string, token: string): Promise<{ candidates: any[] }> {
-    const response = await fetch(`${this.baseUrl}/api/webrtc/rooms/${roomId}/ice-candidates`, {
+    const response = await fetch(this.getUrl(`/api/webrtc/rooms/${roomId}/ice-candidates`), {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
@@ -40,7 +67,7 @@ class WebRTCService {
   }
   
   async sendOffer(roomId: string, offer: RTCSessionDescriptionInit, token: string): Promise<void> {
-    await fetch(`${this.baseUrl}/api/webrtc/rooms/${roomId}/offer`, {
+    await fetch(this.getUrl(`/api/webrtc/rooms/${roomId}/offer`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -51,7 +78,7 @@ class WebRTCService {
   }
 
   async getOffer(roomId: string, token: string): Promise<{ offer: any }> {
-    const response = await fetch(`${this.baseUrl}/api/webrtc/rooms/${roomId}/offer`, {
+    const response = await fetch(this.getUrl(`/api/webrtc/rooms/${roomId}/offer`), {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
@@ -59,7 +86,7 @@ class WebRTCService {
   }
   
   async getAnswer(roomId: string, token: string): Promise<{ answer: any }> {
-    const response = await fetch(`${this.baseUrl}/api/webrtc/rooms/${roomId}/answer`, {
+    const response = await fetch(this.getUrl(`/api/webrtc/rooms/${roomId}/answer`), {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
@@ -67,7 +94,7 @@ class WebRTCService {
   }
 
   async sendAnswer(roomId: string, answer: RTCSessionDescriptionInit, token: string): Promise<void> {
-    await fetch(`${this.baseUrl}/api/webrtc/rooms/${roomId}/answer`, {
+    await fetch(this.getUrl(`/api/webrtc/rooms/${roomId}/answer`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -78,11 +105,11 @@ class WebRTCService {
   }
   
   createEventSource(roomId: string, token: string): EventSource {
-    const eventSourceUrl = `${this.baseUrl}/api/webrtc/rooms/${roomId}/events?token=${encodeURIComponent(token)}`;
+    const baseUrl = this.getUrl(`/api/webrtc/rooms/${roomId}/events`);
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    const eventSourceUrl = `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
     console.log('🔗 EventSource URL:', eventSourceUrl);
-    console.log('🌐 Base URL:', this.baseUrl);
-    console.log('🏠 Window origin:', window.location.origin);
-    return new EventSource(`${this.baseUrl}/api/webrtc/rooms/${roomId}/events?token=${encodeURIComponent(token)}`);
+    return new EventSource(eventSourceUrl);
   }
 }
 

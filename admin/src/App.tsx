@@ -35,7 +35,7 @@ function AppRoutes() {
           path="/edit-profile"
           element={isAuthenticated && token  ? <EditProfile token={token} /> : <Navigate to="/login" replace />}
         />
-        <Route path="/meeting/:roomId" element={isAuthenticated && token  ? <MeetingPage token={token}/> : <Navigate to="/login" replace />} />
+        <Route path="/meeting/:roomId" element={<MeetingPage token={token || ''}/>} />
         {/* Public profile route - must be last to avoid matching other routes */}
         <Route 
           path='/providers/:username'

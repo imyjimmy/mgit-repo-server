@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Header } from '@/components/Header';
 import FooterSection from '@/components/landingpage/FooterSection';
 import { BookingWorkflow } from '@/components/booking/BookingWorkflow';
 import { ProviderProfile } from '@/types/profile';
@@ -32,21 +31,6 @@ export function BookAppointment() {
       fetchProfile();
     }
   }, [username]);
-
-  const handleLogout = () => {
-    // No-op for public booking page
-  };
-
-  const handleBookingComplete = (appointmentId: string) => {
-    // Navigate to confirmation page or show success message
-    console.log('Booking completed:', appointmentId);
-    navigate(`/appointment/${appointmentId}/confirmation`);
-  };
-
-  const handleCancel = () => {
-    // Navigate back to provider profile
-    navigate(`/providers/${username}`);
-  };
 
   if (loading) {
     return (
