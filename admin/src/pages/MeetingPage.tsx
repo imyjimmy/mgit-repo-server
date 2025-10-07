@@ -25,6 +25,7 @@ export const MeetingPage = ({ token }: MeetingPageProps) => {
       <WebRTCTest 
         token={token} 
         initialRoomId={roomId}
+        viewMode={'guest'}
       />
     </div>
   );

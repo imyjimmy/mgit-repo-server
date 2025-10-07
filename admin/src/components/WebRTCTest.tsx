@@ -4,6 +4,7 @@ import { webrtcService } from '../services/webrtc';
 interface WebRTCTestProps {
   token: string;
   initialRoomId?: string;
+  viewMode?: 'guest' | 'provider';
 }
 
 // Advanced interval management hook with comprehensive cleanup
@@ -186,7 +187,7 @@ function useIntervalManager() {
   };
 }
 
-export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) => {
+export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId, viewMode = 'provider' }) => {
   const [roomId, setRoomId] = useState(initialRoomId || '');
   
   /** Appointments */
@@ -911,18 +912,19 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) 
   return (
     <div className="grid grid-cols-12 gap-4 h-full">
       {/* Left navigation - Previous appointments */}
-      <div className="col-span-1 flex items-center justify-center">
-        <button 
-          onClick={() => {}}
-          className="p-3 rounded-full hover:bg-muted transition-colors"
-          title="Previous appointments"
-        >
-          <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-      </div>
-      <div className="col-span-10">
+      { viewMode === 'provider' && (
+        <div className="col-span-1 flex items-center justify-center">
+          <button 
+            onClick={() => {}}
+            className="p-3 rounded-full hover:bg-muted transition-colors"
+            title="Previous appointments"
+          >
+            <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+        </div>)}
+      <div className={viewMode === 'provider' ? 'col-span-10' : 'col-span-12'}>
         <div className="bg-background flex flex-col border bg-card shadow rounded-xl h-full">
           {/* Header with appointment info */}
           <div className="border-b border-border p-4 mx-8 mt-4">
@@ -1023,17 +1025,18 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId }) 
           </div>
         </div>
       </div>
-      <div className="col-span-1 flex items-center justify-center">
-        <button 
-          onClick={() => {}}
-          className="p-3 rounded-full hover:bg-muted transition-colors"
-          title="Future appointments"
-        >
-          <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
+      { viewMode === 'provider' && (
+        <div className="col-span-1 flex items-center justify-center">
+          <button 
+            onClick={() => {}}
+            className="p-3 rounded-full hover:bg-muted transition-colors"
+            title="Future appointments"
+          >
+            <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+      </div>)}
     </div>
   );
 };
