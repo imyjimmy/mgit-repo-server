@@ -1,12 +1,13 @@
 export interface ProviderProfile {
-  id: number;
   userId: number;
-  username: string;
+  username?: string;
   
   // Identity (from TX Med Board)
   firstName: string;
   lastName: string;
   suffix?: string;
+  bio?: string;
+  profilePic?: string; // url
   
   // License information
   licenseNumber: string;
@@ -33,7 +34,7 @@ export interface ProviderProfile {
   gender?: string; // M, F
   
   // Additional optional fields not in TX Med Board
-  bio?: string;
+
   languages?: string[]; // Stored as JSON in DB
   boardCertifications?: string[]; // Stored as JSON in DB
   profilePicture?: string;

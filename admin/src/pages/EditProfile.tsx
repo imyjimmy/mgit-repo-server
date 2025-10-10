@@ -13,9 +13,11 @@ interface EditProfileProps {
 export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Partial<ProviderProfile>>({});
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'basic' | 'credentials' | 'additional'>('basic');
+  const [validationError, setValidationError] = useState<string>('');
 
   useEffect(() => {
     loadProfile();
@@ -32,7 +34,43 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('profile_pic', file);
+
+      const response = await fetch('/api/admin/provider/profile-pic', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+      updateField('profilePic', data.url);
+      alert('Profile picture updated!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload profile picture');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
+    if (activeTab === 'basic' && !validateBasicInfo()) {
+      return;
+    }
+
     setSaving(true);
     try {
       // Map frontend fields to backend snake_case
@@ -40,6 +78,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
         username: profile.username,
         first_name: profile.firstName,
         last_name: profile.lastName,
+        bio: profile.bio,
         suffix: profile.suffix,
         license_number: profile.licenseNumber,
         license_state: profile.licenseState,
@@ -71,6 +110,28 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
 
   const updateField = (field: keyof ProviderProfile, value: any) => {
     setProfile({ ...profile, [field]: value });
+  };
+
+  const validateBasicInfo = (): boolean => {
+    const errors: string[] = [];
+    
+    if (!profile.username?.trim()) {
+      errors.push('Username');
+    }
+    if (!profile.firstName?.trim()) {
+      errors.push('First Name');
+    }
+    if (!profile.lastName?.trim()) {
+      errors.push('Last Name');
+    }
+    
+    if (errors.length > 0) {
+      setValidationError(`Please fill in required fields: ${errors.join(', ')}`);
+      return false;
+    }
+    
+    setValidationError('');
+    return true;
   };
 
   if (loading) {
@@ -122,6 +183,15 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
             ))}
           </div>
 
+          {/* Validation Error */}
+          {validationError && (
+            <div className="px-6 pt-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                <p className="text-sm text-red-800 dark:text-red-200">{validationError}</p>
+              </div>
+            </div>
+          )}
+
           {/* Content */}
           <div className="p-6">
             {/* Basic Info Tab */}
@@ -138,7 +208,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                   <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6 md:col-span-2">
                     <div className="sm:col-span-4">
                       <label htmlFor="username" className="block text-sm/6 font-medium text-gray-900 dark:text-white">
-                        Username
+                        Username <span className="text-red-500">*</span>
                       </label>
                       <div className="mt-2">
                         <div className="flex items-center rounded-md bg-white pl-3 outline outline-1 -outline-offset-1 outline-gray-300 focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600 dark:bg-white/5 dark:outline-white/10 dark:focus-within:outline-indigo-500">
@@ -151,6 +221,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                             onChange={(e) => updateField('username', e.target.value)}
                             type="text"
                             placeholder="janesmith"
+                            value={profile.username || ''}
                             className="block min-w-0 grow bg-white py-1.5 pl-1 pr-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline focus:outline-0 sm:text-sm/6 dark:bg-transparent dark:text-white dark:placeholder:text-gray-500"
                           />
                         </div>
@@ -161,13 +232,25 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                         Photo
                       </label>
                       <div className="mt-2 flex items-center gap-x-3">
-                        <UserCircle aria-hidden="true" className="size-12 text-gray-300 dark:text-gray-500" />
-                        <button
-                          type="button"
-                          className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:ring-white/5 dark:hover:bg-white/20"
-                        >
-                          Change
-                        </button>
+                        {profile.profilePic ? (
+                          <img 
+                            src={profile.profilePic} 
+                            alt="Profile" 
+                            className="size-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <UserCircle aria-hidden="true" className="size-12 text-gray-300 dark:text-gray-500" />
+                        )}
+                        <label className="cursor-pointer rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:ring-white/5 dark:hover:bg-white/20">
+                          {uploadingPhoto ? 'Uploading...' : 'Change'}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            onChange={handlePhotoUpload}
+                            disabled={uploadingPhoto}
+                            className="sr-only"
+                          />
+                        </label>
                       </div>
                     </div>
                     <div className="col-span-full">
@@ -475,20 +558,47 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
           {/* Footer */}
           <div className="border-t border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
             <a
-              href={`/${profile.username}`}
+              href={`/providers/${profile.username}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm"
             >
               View Public Profile →
             </a>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Saving...' : 'Save Profile'}
-            </button>
+            
+            {activeTab === 'basic' ? (
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-6 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Saving...' : 'Save Progress'}
+                </button>
+                <button
+                  onClick={() => setActiveTab('credentials')}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                  Add Credentials →
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setActiveTab('basic')}
+                  className="px-6 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Publishing...' : 'Publish Profile'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
