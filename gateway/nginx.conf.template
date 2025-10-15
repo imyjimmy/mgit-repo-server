@@ -110,40 +110,27 @@ http {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_buffering off;
-
-    # scheduler services
-    # Route plebdoc API endpoints
-    location /api/admin {
-      proxy_pass http://plebdoc_backend;
-    }
     
-    location /api/appointments {
-      proxy_pass http://plebdoc_backend;
+    # mgit routes (most specific)
+    location /api/mgit {
+      proxy_pass http://mgit_backend;
     }
 
-    location /api/providers {
-      proxy_pass http://plebdoc_backend;
+    # Nostr auth routes (specific)
+    location /api/auth {
+      proxy_pass http://mgit_backend;
     }
 
-    location /api/patients {
-      proxy_pass http://plebdoc_backend;
-    }
-    
+    # WebRTC with specific logging
     location /api/webrtc {
       access_log /var/log/nginx/webrtc_access.log;
       error_log /var/log/nginx/webrtc_error.log debug;
       proxy_pass http://plebdoc_backend;
     }
 
-    # mgit-backend is responsible for these routes:
-    # mgit routes
-    location /api/mgit {
-      proxy_pass http://mgit_backend;
-    }
-
-    # verifies nostr logins
-    location /api/auth {
-      proxy_pass http://mgit_backend;
+    # All other /api routes go to scheduler backend (catch-all)
+    location /api/ {
+      proxy_pass http://plebdoc_backend;
     }
 
     # Patient frontend (for development, you can access at /patient)

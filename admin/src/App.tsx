@@ -8,6 +8,8 @@ import { BillingPage } from '@/pages/BillingPage';
 import { EditProfile } from '@/pages/EditProfile';
 import { PublicProfile } from '@/pages/PublicProfile';
 import { BookAppointment } from '@/pages/BookAppointment';
+import { GoogleCallbackPage } from '@/pages/GoogleCallbackPage';
+
 
 function AppRoutes() {
   const { isAuthenticated, token, logout } = useAuth();
@@ -45,7 +47,9 @@ function AppRoutes() {
           path='/providers/:username/book'
           element={<BookAppointment />}
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/login/google-callback" element={<GoogleCallbackPage />} />
+        {/* // Catch-all at the END - assumes any unmatched route is a username */}
+        <Route path="/:username" element={<PublicProfile />} />
       </Routes>
     </Router>
   );

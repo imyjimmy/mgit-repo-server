@@ -75,55 +75,26 @@ export const PublicProfile: React.FC = () => {
             
             {/* Left Column - Profile Card */}
             <div className="lg:pr-4">
-              <div className="relative overflow-hidden rounded-3xl bg-white/40 backdrop-blur-sm px-6 pb-9 pt-64 shadow-lg after:pointer-events-none after:absolute after:inset-0 after:rounded-3xl after:ring-1 after:ring-inset after:ring-[#37322F]/10 sm:px-12 lg:max-w-lg lg:px-8 lg:pb-8 xl:px-10 xl:pb-10">
-                
-                {/* Background gradient blur effect */}
-                <div
-                  aria-hidden="true"
-                  className="absolute left-1/2 top-1/2 -ml-16 -translate-x-1/2 -translate-y-1/2 transform-gpu blur-3xl"
-                >
-                  <div
-                    style={{
-                      clipPath:
-                        'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
-                    }}
-                    className="aspect-[1097/845] w-[68.5625rem] bg-gradient-to-tr from-[#37322F]/20 to-[#37322F]/30 opacity-40"
+              <div className="relative overflow-hidden rounded-3xl shadow-xl lg:max-w-lg aspect-square">
+                {profile.profilePic ? (
+                  <img 
+                    src={profile.profilePic} 
+                    alt={fullName}
+                    className="w-full h-full object-cover"
                   />
-                </div>
-                
-                {/* Profile info */}
-                <figure className="relative isolate">
-                  <div className="mb-6">
-                    <div className="w-24 h-24 rounded-full bg-[#37322F]/10 flex items-center justify-center mx-auto">
-                      <span className="text-4xl font-semibold text-[#37322F]">
-                        {profile.firstName?.[0]}{profile.lastName?.[0]}
-                      </span>
-                    </div>
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#37322F]/10 to-[#37322F]/20 flex items-center justify-center">
+                    <span className="text-9xl font-bold text-[#37322F]">
+                      {profile.firstName?.[0]}{profile.lastName?.[0]}
+                    </span>
                   </div>
-                  
-                  {profile.bio && (
-                    <blockquote className="mt-6 text-xl/8 font-semibold text-[#37322F]">
-                      <p>"{profile.bio}"</p>
-                    </blockquote>
-                  )}
-                  
-                  <figcaption className="mt-6 text-sm/6 text-[rgba(55,50,47,0.70)]">
-                    <strong className="font-semibold text-[#37322F]">{fullName}</strong>
-                    {profile.degreeType && `, ${profile.degreeType}`}
-                  </figcaption>
-                </figure>
+                )}
               </div>
             </div>
             
             {/* Right Column - Details */}
             <div>
               <div className="text-base/7 text-[rgba(55,50,47,0.70)] lg:max-w-lg">
-                {profile.primarySpecialty && (
-                  <p className="text-base/7 font-semibold text-[#37322F]/80">
-                    {profile.primarySpecialty}
-                  </p>
-                )}
-                
                 <h1 className="mt-2 text-pretty text-4xl font-semibold tracking-tight text-[#37322F] sm:text-5xl">
                   {fullName}
                 </h1>
@@ -132,6 +103,13 @@ export const PublicProfile: React.FC = () => {
                   {profile.bio && (
                     <p className="mt-6">{profile.bio}</p>
                   )}
+
+                  {(profile.primarySpecialty || profile.secondarySpecialty) && (
+                    <p className="text-base/7 font-semibold text-[#37322F]/80">
+                      {[profile.primarySpecialty, profile.secondarySpecialty].filter(Boolean).join(' • ')}
+                    </p>
+                  )}
+
                   {profile.medicalSchool && (
                     <div className="mt-8">
                       <h3 className="font-semibold text-[#37322F] mb-2">Education</h3>
@@ -149,6 +127,24 @@ export const PublicProfile: React.FC = () => {
                       {profile.registrationStatus && (
                         <p className="text-sm mt-1">{profile.registrationStatus}</p>
                       )}
+                    </div>
+                  )}
+
+                  {profile.boardCertifications && profile.boardCertifications.length > 0 && (
+                    <div className="mt-8">
+                      <h3 className="font-semibold text-[#37322F] mb-2">Board Certifications</h3>
+                      <ul className="space-y-1">
+                        {profile.boardCertifications.map((cert, index) => (
+                          <li key={index} className="text-sm">• {cert}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {profile.languages && profile.languages.length > 0 && (
+                    <div className="mt-8">
+                      <h3 className="font-semibold text-[#37322F] mb-2">Languages</h3>
+                      <p>{profile.languages.join(', ')}</p>
                     </div>
                   )}
                 </div>

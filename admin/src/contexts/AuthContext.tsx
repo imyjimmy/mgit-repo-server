@@ -21,8 +21,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const pubkey = localStorage.getItem('admin_pubkey');
     const profile = localStorage.getItem('admin_profile');
     
+    console.log('isAuthenticated: ', !!(token));
     return {
-      isAuthenticated: !!(token && pubkey),
+      isAuthenticated: !!(token),
       token: token,
       pubkey: pubkey,
       profile: profile ? JSON.parse(profile) : null

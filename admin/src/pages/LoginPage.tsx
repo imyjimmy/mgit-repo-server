@@ -66,9 +66,24 @@ export function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = () => {
-    // TODO: Implement Google OAuth
-    console.log('Google login for:', activeTab);
+  const handleGoogleLogin = async () => {
+    try {
+      // No authentication needed - this is the login endpoint!
+      const response = await fetch('/api/google/login/start');
+      
+      const data = await response.json();
+      
+      if (data.success && data.authUrl) {
+        // Redirect to Google OAuth
+        window.location.href = data.authUrl;
+      } else {
+        console.error('Failed to get Google auth URL');
+        // Could show error toast/alert here
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      // Could show error toast/alert here
+    }
   };
 
   const handleLinkedInLogin = () => {
@@ -200,7 +215,7 @@ export function LoginPage() {
                 <span className="text-sm font-medium text-[#37322F]">Login with Google</span>
               </button>
 
-              <button
+              {/* <button
                 onClick={handleLinkedInLogin}
                 className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border-2 border-[#0072b1] rounded-lg hover:bg-[#f2f2f2] transition-colors" 
               >
@@ -210,7 +225,7 @@ export function LoginPage() {
                   </svg>
                 </span>
                 <span className="text-sm font-medium text-gray-700">Sign in with LinkedIn</span>
-              </button>
+              </button> */}
             </div>
 
             {/* Patient Portal Link */}

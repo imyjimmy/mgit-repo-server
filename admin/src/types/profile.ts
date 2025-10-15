@@ -9,6 +9,10 @@ export interface ProviderProfile {
   bio?: string;
   profilePic?: string; // url
   
+  // working timezone etc
+  timezone: string;
+  workingPlan: any;
+
   // License information
   licenseNumber: string;
   licenseState?: string;

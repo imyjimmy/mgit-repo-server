@@ -76,6 +76,11 @@ services:
       - DB_USER=user
       - DB_PASSWORD=password
       - DB_NAME=easyappointments
+      # Google OAuth
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - GOOGLE_REDIRECT_URI_ADMIN=${GOOGLE_REDIRECT_URI_ADMIN}
     depends_on:
       - mysql
     restart: unless-stopped

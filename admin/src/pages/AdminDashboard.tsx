@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 // import { Header } from '../components/Header';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
-import { Card } from '@/components/ui/card';
 import { SiteHeader } from '@/components/SiteHeader';
 
-import { MedicalRepos } from '@/components/MedicalRepos'
+import { MedicalRepos } from '@/components/MedicalRepos';
+import { Settings } from '@/components/Settings';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { BillingPage } from '@/pages/BillingPage';
 import { ServicesManager } from '@/components/ServicesManager';
@@ -14,20 +14,16 @@ import { WebRTCTest } from '../components/WebRTCTest';
 import { DatabaseTest } from '../components/DatabaseTest';
 // import { RegistrationView } from '../components/RegistrationView';
 
+import { useAuth } from '@/contexts/AuthContext';
 import { NostrAuthService } from '../services/auth';
-import { AuthState, UserInfo } from '../types';
+import { UserInfo } from '../types';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    token: null,
-    pubkey: null,
-    profile: null
-  });
+  const { isAuthenticated, token, pubkey, profile } = useAuth();
   
   const [userInfo] = useState<UserInfo | null>(null);
   // const [needsRegistration, setNeedsRegistration] = useState(false);
@@ -114,26 +110,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
     );
   }
 
-  if (!authState.isAuthenticated) { {/* will still need this as a de-facto log in screen */}
+  if (!isAuthenticated) { {/* will still need this as a de-facto log in screen */}
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700 max-w-md w-full mx-4">
-      <div className="text-center mb-6">
-      <h1 className="text-2xl font-bold text-white mb-2">🏥 MGit admin</h1>
-      <p className="text-gray-400">Medical Repository Server administration</p>
-      </div>
-      
-      <div className="text-center">
-      <h2 className="text-xl font-semibold text-white mb-4">admin Login</h2>
-      <p className="text-gray-400 mb-6">Use your Nostr keys to authenticate as the server admin.</p>
-      <button 
-      onClick={handleLogin}
-      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
-      >
-      Login with Nostr
-      </button>
-      </div>
-      </div>
+        <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700 max-w-md w-full mx-4">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-white mb-2">🏥 MGit admin</h1>
+            <p className="text-gray-400">Medical Repository Server administration</p>
+          </div>
+          <div>is authenticated: {isAuthenticated}</div>
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-white mb-4">admin Login</h2>
+            <p className="text-gray-400 mb-6">Use your Nostr keys to authenticate as the server admin.</p>
+            <button 
+            onClick={handleLogin}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
+            >
+            Login with Nostr
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -150,6 +146,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
   //   );
   // }
   
+  /* 
+  export interface AuthState {
+    isAuthenticated: boolean;
+    token: string | null;
+    pubkey: string | null;
+    profile: NostrProfile | null;
+  }
+  */
+
   return (
     <SidebarProvider
       style={{
@@ -158,43 +163,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
       } as React.CSSProperties}
     >
       <AppSidebar 
-        authState={authState}
+        authState={{ isAuthenticated, token, pubkey, profile }}
         activeSection={activeSection}
         onLogout={onLogout}
         onSectionChange={setActiveSection}
       />
       <SidebarInset>
         <SiteHeader 
-          authState={authState}
+          authState={{ isAuthenticated, token, pubkey, profile }}
           onLogout={onLogout}
           activeSection={activeSection}
           toggleHeader={false}
         />
         
         <div className="flex-1 overflow-auto p-6">
-          {activeSection === 'webrtc' && authState.token && (
-            <WebRTCTest token={authState.token} />
+          {activeSection === 'webrtc' && token && (
+            <WebRTCTest token={token} />
           )}
-          {activeSection === 'calendar' && authState.token && (
-            <CalendarPage token={authState.token} />
+          {activeSection === 'calendar' && token && (
+            <CalendarPage token={token} />
           )}
-          {activeSection === 'settings' && (
-            <Card className="p-6">
-              <h3 className="text-xl font-semibold mb-4">Settings</h3>
-              <div className="text-muted-foreground">
-                <p>Server is running normally</p>
-                <p className="text-sm mt-2">Additional system information would go here...</p>
-              </div>
-            </Card>
+          {activeSection === 'settings' && token && (
+            <Settings token={token} />
           )}
           {activeSection === 'database' && <DatabaseTest />}
-          {activeSection === 'repositories' && authState.token && (
-            <MedicalRepos token={authState.token} />
+          {activeSection === 'repositories' && token && (
+            <MedicalRepos token={token} />
           )}
-          {activeSection === 'billing' && authState.token && (
-            <BillingPage token={authState.token} />
+          {activeSection === 'billing' && token && (
+            <BillingPage token={token} />
           )}
-          {activeSection === 'services' && authState.token && (
+          {activeSection === 'services' && token && (
             <ServicesManager />
           )}
           {/* {activeSection === 'appointments' && authState.token && (
