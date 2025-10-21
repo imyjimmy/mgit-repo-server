@@ -49,7 +49,7 @@ export function LoginPage() {
           dashboard: false,
           billing: false,
           services: false,
-          calendar: false
+          telehealth: false
         });
       } else {
         // New user - login but flag needs onboarding
@@ -57,7 +57,7 @@ export function LoginPage() {
           dashboard: true,
           billing: true,
           services: true,
-          calendar: true
+          telehealth: true
         });
       }
     } catch (error) {

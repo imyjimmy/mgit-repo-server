@@ -60,7 +60,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
   const [loading, setLoading] = useState(false);
   const [creatingInvoice, setCreatingInvoice] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showUserRegModal, setshowUserRegModal] = useState<boolean>(false);
+  const [showUserRegModal, setShowUserRegModal] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | null, text: string }>({ type: null, text: '' });
 
   // viewing / sending invoices
@@ -111,10 +111,10 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
         if (data.status === 'success' && data.userFound && data.user) {
           setCurrentProviderId(data.user.id);
           completeOnboarding('billing');
-          setshowUserRegModal(false);
+          setShowUserRegModal(false);
         } else {
           setError('Current user is not a provider');
-          setshowUserRegModal(true);
+          setShowUserRegModal(true);
         }
       } else {
         setError('Failed to fetch user information');
@@ -326,12 +326,12 @@ return (
       onAction={() => navigate('/edit-profile')}
       secondaryActionLabel="Look Around First"
       onSecondaryAction={() => { 
-        setshowUserRegModal(false) 
+        setShowUserRegModal(false) 
         completeOnboarding('billing')
       }}
       showCloseButton={true}
       onClose={() => { 
-        setshowUserRegModal(false) 
+        setShowUserRegModal(false) 
         completeOnboarding('billing')
       }}
     >

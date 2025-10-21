@@ -79,6 +79,7 @@ docker rmi mgit-repo-server_plebdoc-api:latest 2>/dev/null || true
 docker rmi plebdoc-scheduler-service-api 2>/dev/null || true
 
 docker rmi mgit-repo-server-patient-frontend 2>/dev/null || true
+docker rmi mgit-repo-server-admin-frontend 2>/dev/null || true
 
 # Clean up unused images
 echo "🧹 Cleaning up unused images..."

@@ -9,7 +9,7 @@ interface AuthState {
     dashboard: boolean;
     billing: boolean;
     services: boolean;
-    calendar: boolean;
+    telehealth: boolean;
   };
 }
 
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         dashboard: false,
         billing: false,
         services: false,
-        calendar: false,
+        telehealth: false,
       }
     };
   });
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       dashboard: false,
       billing: false,
       services: false,
-      calendar: false
+      telehealth: false
     };
 
     setAuthState({
