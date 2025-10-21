@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { NostrAuthService } from '@/services/auth';
+// import { UserInfo } from '@/types'
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { setSession } = useAuth()
   const [activeTab, ] = useState<'patient' | 'doctor'>('patient');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,17 +31,6 @@ export function LoginPage() {
     }
   };
 
-  // const handleNostrLogin = async () => {
-  //   try {
-  //     // Your existing Nostr login logic would go here
-  //     console.log('Nostr login attempt for:', activeTab);
-  //     onLogin();
-  //   } catch (error) {
-  //     console.error('Nostr login failed:', error);
-  //     alert('Please install a Nostr browser extension like nos2x');
-  //   }
-  // };
-
   const handleNostrLogin = async () => {
     try {
       const { token, pubkey, metadata } = await NostrAuthService.login();
@@ -50,16 +40,26 @@ export function LoginPage() {
       localStorage.setItem('admin_pubkey', pubkey);
       localStorage.setItem('admin_profile', JSON.stringify(metadata));
 
-      login(token, pubkey, metadata);
       // Check if user is registered
-      // const registrationCheck = await authService.checkUserRegistration(pubkey, token);
+      const registrationCheck = await NostrAuthService.checkUserRegistration(pubkey, token);
       
-      // if (registrationCheck.isRegistered) {
-      //   setUserInfo(registrationCheck.user || null);
-      //   setNeedsRegistration(false);
-      // } else {
-      //   setNeedsRegistration(true);
-      // }
+      if (registrationCheck.isRegistered) {
+      // Existing user - login normally
+        setSession(token, pubkey, metadata, {
+          dashboard: false,
+          billing: false,
+          services: false,
+          calendar: false
+        });
+      } else {
+        // New user - login but flag needs onboarding
+        setSession(token, pubkey, metadata, {
+          dashboard: true,
+          billing: true,
+          services: true,
+          calendar: true
+        });
+      }
     } catch (error) {
       console.error('Nostr login failed:', error);
       alert('Please install a Nostr browser extension like nos2x');
@@ -84,11 +84,6 @@ export function LoginPage() {
       console.error('Google login error:', error);
       // Could show error toast/alert here
     }
-  };
-
-  const handleLinkedInLogin = () => {
-    // TODO: Implement LinkedIn OAuth
-    console.log('LinkedIn login for:', activeTab);
   };
 
   return (

@@ -104,7 +104,7 @@ export function AppSidebar({ authState, activeSection, onSectionChange, onLogout
             <span className="text-xs font-medium">SERVER ONLINE</span>
           </div>
           <div className="text-xs text-muted-foreground space-y-1">
-            <div>Status: Running</div>
+            <div>Status: 456</div>
             <div>Port: 3003</div>
             <div>{ process.env.NODE_ENV }</div>
           </div>

@@ -5,10 +5,21 @@ interface AuthState {
   token: string | null;
   pubkey: string | null;
   profile: any | null;
+  needsOnboarding: {
+    dashboard: boolean;
+    billing: boolean;
+    services: boolean;
+    calendar: boolean;
+  };
 }
 
 interface AuthContextType extends AuthState {
-  login: (token: string, pubkey: string, profile: any) => void;
+  completeOnboarding: (section: keyof AuthState['needsOnboarding']) => void;
+  setSession: (
+    token: string, 
+    pubkey: string, 
+    profile: any, 
+    needsOnboarding?: Partial<AuthState['needsOnboarding']> ) => void;
   logout: () => void;
   refreshAuth: () => void;
 }
@@ -20,26 +31,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('admin_token');
     const pubkey = localStorage.getItem('admin_pubkey');
     const profile = localStorage.getItem('admin_profile');
-    
+    const onboarding = localStorage.getItem('needs_onboarding');
+
     console.log('isAuthenticated: ', !!(token));
     return {
       isAuthenticated: !!(token),
       token: token,
       pubkey: pubkey,
-      profile: profile ? JSON.parse(profile) : null
+      profile: profile ? JSON.parse(profile) : null,
+      needsOnboarding: onboarding ? JSON.parse(onboarding) : {
+        dashboard: false,
+        billing: false,
+        services: false,
+        calendar: false,
+      }
     };
   });
 
-  const login = (token: string, pubkey: string, profile: any) => {
-    localStorage.setItem('admin_token', token);
-    localStorage.setItem('admin_pubkey', pubkey);
-    localStorage.setItem('admin_profile', JSON.stringify(profile));
-    
+  const setSession = (
+    token: string, 
+    pubkey: string, 
+    profile: any, 
+    needsOnboarding?: Partial<AuthState['needsOnboarding']>
+  ) => {
+    const defaultOnboarding = {
+      dashboard: false,
+      billing: false,
+      services: false,
+      calendar: false
+    };
+
     setAuthState({
       isAuthenticated: true,
       token,
       pubkey,
-      profile
+      profile,
+      needsOnboarding: needsOnboarding 
+        ? { ...defaultOnboarding, ...needsOnboarding }  // Merge with defaults
+        : defaultOnboarding  // New user - needs all onboarding
+    });
+
+    localStorage.setItem('admin_token', token);
+    localStorage.setItem('admin_pubkey', pubkey);
+    localStorage.setItem('admin_profile', JSON.stringify(profile));
+    localStorage.setItem('needs_onboarding', JSON.stringify(
+      needsOnboarding || defaultOnboarding
+    ));
+  };
+
+  const completeOnboarding = (section: keyof AuthState['needsOnboarding']) => {
+    setAuthState(prev => {
+      const updated = {
+        ...prev,
+        needsOnboarding: {
+          ...prev.needsOnboarding,
+          [section]: false  // ← Mark this section as completed
+        }
+      };
+      
+      // Persist to localStorage
+      localStorage.setItem('needs_onboarding', JSON.stringify(updated.needsOnboarding));
+      
+      return updated;
     });
   };
 
@@ -70,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ ...authState, login, logout, refreshAuth }}>
+    <AuthContext.Provider value={{ ...authState, completeOnboarding, setSession, logout, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );

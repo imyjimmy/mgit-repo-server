@@ -205,7 +205,22 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId, vi
           }
         });
         
+        // Check HTTP status first
+        if (response.status === 404 || !response.ok) {
+          setNoAppointmentsMessage('No provider profile found. Please complete your profile setup.');
+          setLoading(false);
+          return;
+        }
+        
         const data = await response.json();
+        
+        if (data.status === 'error') {
+          // API returned error response
+          setNoAppointmentsMessage(data.message || 'Failed to load appointments');
+          setLoading(false);
+          return;
+        }
+        
         if (data.status === 'success') {
           const today = new Date().toDateString();
           const todaysAppointments = data.appointments.filter((apt: { start_datetime: string | number | Date; }) => {
@@ -239,8 +254,9 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId, vi
           }
         }
       } catch (error) {
-        console.error('Error fetching appointments:', error);
-        setNoAppointmentsMessage('Error loading appointments');
+        // This catches actual errors: network failures, JSON parse errors, etc.
+        console.error('Network or parsing error fetching appointments:', error);
+        setNoAppointmentsMessage('Unable to connect to server. Please check your internet connection.');
       } finally {
         setLoading(false);
       }
@@ -892,7 +908,7 @@ export const WebRTCTest: React.FC<WebRTCTestProps> = ({ token, initialRoomId, vi
     );
   }
 
-  // Show error/no appointments message
+  // Show No Appointments
   if (!roomId && noAppointmentsMessage) {
     return (
       <div className="flex items-center justify-center h-screen">

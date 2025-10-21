@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext'
 import { Eye, Copy, ExternalLink, Check, Send } from 'lucide-react';
+import { OnboardingModal } from '@/components/OnboardingModal';
 
 interface BillingPageProps {
   token: string;
@@ -48,12 +51,16 @@ interface InvoiceDetails {
 }
 
 export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
+  const navigate = useNavigate();
+  const { needsOnboarding, completeOnboarding } = useAuth();
+  
   const [stats, setStats] = useState<BillingStats | null>(null);
   const [currentProviderId, setCurrentProviderId] = useState<number | null>(null);
   const [pastAppointments, setPastAppointments] = useState<PastAppointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [creatingInvoice, setCreatingInvoice] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showUserRegModal, setshowUserRegModal] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | null, text: string }>({ type: null, text: '' });
 
   // viewing / sending invoices
@@ -103,8 +110,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
         const data = await response.json();
         if (data.status === 'success' && data.userFound && data.user) {
           setCurrentProviderId(data.user.id);
+          completeOnboarding('billing');
+          setshowUserRegModal(false);
         } else {
           setError('Current user is not a provider');
+          setshowUserRegModal(true);
         }
       } else {
         setError('Failed to fetch user information');
@@ -307,6 +317,42 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
   const unbilledAppointments = pastAppointments.filter(apt => !apt.has_invoice);
 
 return (
+  <>
+    <OnboardingModal
+      isOpen={!!needsOnboarding['billing'] && showUserRegModal && !!token}
+      title="No Provider Profile Found"
+      description="You haven't completed your provider registration yet. Complete your profile to start accepting payments and managing invoices."
+      actionLabel="Complete Profile Setup"
+      onAction={() => navigate('/edit-profile')}
+      secondaryActionLabel="Look Around First"
+      onSecondaryAction={() => { 
+        setshowUserRegModal(false) 
+        completeOnboarding('billing')
+      }}
+      showCloseButton={true}
+      onClose={() => { 
+        setshowUserRegModal(false) 
+        completeOnboarding('billing')
+      }}
+    >
+      <div className="bg-[#F7F5F3] rounded-lg p-6">
+        <p className="text-[#37322F] mb-4 font-medium">To enable billing features, you need to:</p>
+        <ul className="space-y-3 text-[rgba(55,50,47,0.80)]">
+          <li className="flex items-start">
+            <span className="text-gray-600 mr-3 font-bold">•</span>
+            <span>Complete your provider profile</span>
+          </li>
+          <li className="flex items-start">
+            <span className="text-gray-600 mr-3 font-bold">•</span>
+            <span>Set up payment information</span>
+          </li>
+          <li className="flex items-start">
+            <span className="text-gray-600 mr-3 font-bold">•</span>
+            <span>Configure your billing preferences</span>
+          </li>
+        </ul>
+      </div>
+    </OnboardingModal>
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-card rounded-xl p-6 border border-border">
@@ -570,5 +616,6 @@ return (
         </div>
       )}
     </div>
+  </>
   );
 };

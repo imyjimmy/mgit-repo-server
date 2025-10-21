@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 // import { Header } from '../components/Header';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/AppSidebar';
@@ -9,199 +9,107 @@ import { Settings } from '@/components/Settings';
 import { CalendarPage } from '@/pages/CalendarPage';
 import { BillingPage } from '@/pages/BillingPage';
 import { ServicesManager } from '@/components/ServicesManager';
+import { OnboardingModal } from '@/components/OnboardingModal';
 
 import { WebRTCTest } from '../components/WebRTCTest';
 import { DatabaseTest } from '../components/DatabaseTest';
 // import { RegistrationView } from '../components/RegistrationView';
 
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { NostrAuthService } from '../services/auth';
-import { UserInfo } from '../types';
+// import { NostrAuthService } from '../services/auth';
 
 interface AdminDashboardProps {
   onLogout: () => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
-  const { isAuthenticated, token, pubkey, profile } = useAuth();
-  
-  const [userInfo] = useState<UserInfo | null>(null);
-  // const [needsRegistration, setNeedsRegistration] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { isAuthenticated, token, pubkey, profile, needsOnboarding, completeOnboarding } = useAuth();
   const [activeSection, setActiveSection] = useState('webrtc');
-  
-  useEffect(() => {
-    checkExistingAuth();
-  }, []);
-  
-  const checkExistingAuth = async () => {
-    setLoading(true);
-    try {
-      // Check for existing auth in localStorage
-      const token = localStorage.getItem('admin_token');
-      const pubkey = localStorage.getItem('admin_pubkey');
-      const profile = localStorage.getItem('admin_profile');
-      
-      if (token && pubkey) {
-        // Check if user is registered in database
-        // const registrationCheck = await authService.checkUserRegistration(pubkey, token);
-        
-        setAuthState({
-          isAuthenticated: true,
-          token,
-          pubkey,
-          profile: profile ? JSON.parse(profile) : null
-        });
-        
-        // if (registrationCheck.isRegistered) {
-        //   setUserInfo(registrationCheck.user || null);
-        //   setNeedsRegistration(false);
-        // } else {
-        //   setNeedsRegistration(true);
-        // }
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      // Clear invalid auth
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_pubkey');
-      localStorage.removeItem('admin_profile');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleLogin = async () => {
-    try {
-      const { token, pubkey, metadata } = await NostrAuthService.login();
-      
-      // Store credentials
-      localStorage.setItem('admin_token', token);
-      localStorage.setItem('admin_pubkey', pubkey);
-      localStorage.setItem('admin_profile', JSON.stringify(metadata));
-      
-      setAuthState({
-        isAuthenticated: true,
-        token,
-        pubkey,
-        profile: metadata
-      });
-
-      // Check if user is registered
-      // const registrationCheck = await authService.checkUserRegistration(pubkey, token);
-      
-      // if (registrationCheck.isRegistered) {
-      //   setUserInfo(registrationCheck.user || null);
-      //   setNeedsRegistration(false);
-      // } else {
-      //   setNeedsRegistration(true);
-      // }
-    } catch (error) {
-      console.error('Login failed:', error);
-    }
-  };
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white">Loading...</div>
-        <div>{userInfo?.nostr_pubkey}</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) { {/* will still need this as a de-facto log in screen */}
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="bg-gray-800 rounded-xl p-8 shadow-xl border border-gray-700 max-w-md w-full mx-4">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-white mb-2">🏥 MGit admin</h1>
-            <p className="text-gray-400">Medical Repository Server administration</p>
-          </div>
-          <div>is authenticated: {isAuthenticated}</div>
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-white mb-4">admin Login</h2>
-            <p className="text-gray-400 mb-6">Use your Nostr keys to authenticate as the server admin.</p>
-            <button 
-            onClick={handleLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
-            >
-            Login with Nostr
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // if (needsRegistration) {
-  //   return (
-  //     <RegistrationView 
-  //       pubkey={authState.pubkey || ''} 
-  //       onRegistrationComplete={() => {
-  //         setNeedsRegistration(false);
-  //         checkExistingAuth(); // Recheck after registration
-  //       }}
-  //     />
-  //   );
-  // }
-  
-  /* 
-  export interface AuthState {
-    isAuthenticated: boolean;
-    token: string | null;
-    pubkey: string | null;
-    profile: NostrProfile | null;
-  }
-  */
 
   return (
-    <SidebarProvider
-      style={{
-        "--sidebar-width": "16rem",
-        "--header-height": "3rem",
-      } as React.CSSProperties}
-    >
-      <AppSidebar 
-        authState={{ isAuthenticated, token, pubkey, profile }}
-        activeSection={activeSection}
-        onLogout={onLogout}
-        onSectionChange={setActiveSection}
-      />
-      <SidebarInset>
-        <SiteHeader 
-          authState={{ isAuthenticated, token, pubkey, profile }}
-          onLogout={onLogout}
-          activeSection={activeSection}
-          toggleHeader={false}
-        />
+    <>
+      {/* Onboarding Modal Overlay */}
+      <OnboardingModal
+        isOpen={!!needsOnboarding['dashboard'] && !!token}
         
-        <div className="flex-1 overflow-auto p-6">
-          {activeSection === 'webrtc' && token && (
-            <WebRTCTest token={token} />
-          )}
-          {activeSection === 'calendar' && token && (
-            <CalendarPage token={token} />
-          )}
-          {activeSection === 'settings' && token && (
-            <Settings token={token} />
-          )}
-          {activeSection === 'database' && <DatabaseTest />}
-          {activeSection === 'repositories' && token && (
-            <MedicalRepos token={token} />
-          )}
-          {activeSection === 'billing' && token && (
-            <BillingPage token={token} />
-          )}
-          {activeSection === 'services' && token && (
-            <ServicesManager />
-          )}
-          {/* {activeSection === 'appointments' && authState.token && (
-            <BookingWorkflow token={authState.token} />
-          )} */}
+        title="Welcome to PlebDoc!"
+        description="Let's set up your doctor profile so patients can book with you."
+        actionLabel="Complete Profile Setup →"
+        onAction={() => {
+          // setSession(token || '', pubkey || '', profile);
+          completeOnboarding('dashboard');
+          navigate('/edit-profile');
+        }}
+      >
+        <div className="bg-[#F7F5F3] rounded-lg p-6">
+          <p className="text-[#37322F] mb-4 font-medium">This takes about 2 minutes:</p>
+          <ul className="space-y-3 text-[rgba(55,50,47,0.80)]">
+            <li className="flex items-start">
+              <span className="text-gray-600 mr-3 font-bold">•</span>
+              <span>Add bio & profile picture</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-gray-600 mr-3 font-bold">•</span>
+              <span>Set your working hours</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-gray-600 mr-3 font-bold">•</span>
+              <span>Create your first service</span>
+            </li>
+          </ul>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </OnboardingModal>
+
+      {/* Normal Dashboard */}
+      <SidebarProvider
+        style={{
+          "--sidebar-width": "16rem",
+          "--header-height": "3rem",
+        } as React.CSSProperties}
+      >
+        <AppSidebar 
+          authState={{ isAuthenticated, token, pubkey, profile }}
+          activeSection={activeSection}
+          onLogout={onLogout}
+          onSectionChange={setActiveSection}
+        />
+        <SidebarInset>
+          <SiteHeader 
+            authState={{ isAuthenticated, token, pubkey, profile }}
+            onLogout={onLogout}
+            activeSection={activeSection}
+            toggleHeader={false}
+          />
+          
+          <div className="flex-1 overflow-auto p-6">
+            {activeSection === 'webrtc' && token && (
+              <WebRTCTest token={token} />
+            )}
+            {activeSection === 'calendar' && token && (
+              <CalendarPage token={token} />
+            )}
+            {activeSection === 'settings' && token && (
+              <Settings token={token} />
+            )}
+            {activeSection === 'database' && <DatabaseTest />}
+            {activeSection === 'repositories' && token && (
+              <MedicalRepos token={token} />
+            )}
+            {activeSection === 'billing' && token && (
+              <BillingPage token={token} />
+            )}
+            {activeSection === 'services' && token && (
+              <ServicesManager />
+            )}
+            {/* {activeSection === 'appointments' && authState.token && (
+              <BookingWorkflow token={authState.token} />
+            )} */}
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </>
   );
 };
 
