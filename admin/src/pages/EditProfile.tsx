@@ -163,9 +163,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-background transition-colors">
       {/* Header with Back Button */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+      <div className="bg-card border px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center gap-4">
           <button
             onClick={() => navigate('/dashboard')}
@@ -182,9 +182,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
         </div>
       </div>
       <div className="max-w-5xl mx-auto p-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-card rounded-xl border overflow-hidden">
           {/* Tabs */}
-          <div className="border-b border-gray-200 dark:border-gray-700 flex gap-1 px-6 bg-gray-50 dark:bg-gray-800">
+          <div className="border-b flex gap-1 px-6 bg-card">
             {[
               { id: 'basic', label: 'Basic Info' },
               { id: 'credentials', label: 'License & Education' },
@@ -213,13 +213,13 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
           )}
 
           {/* Content */}
-          <div className="p-6">
+          <div className="p-6 bg-card">
             {/* Basic Info Tab */}
             {activeTab === 'basic' && (
               <div className="space-y-12">
                 <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-white/10 pb-12 md:grid-cols-3">
                   <div>
-                    <h2 className="text-base/7 font-semibold text-white">Profile</h2>
+                    <h2 className="text-base/7 font-semibold text-gray-900 dark:text-white">Profile!!!</h2>
                     <p className="mt-1 text-sm/6 text-gray-400">
                       This information will be displayed publicly.
                     </p>
@@ -272,7 +272,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                           />
                         </label>
                         {profile.profilePic === (nostrProfile && isNostrProfile(nostrProfile) ? nostrProfile.picture : undefined) && (
-                          <p className="text-xs text-gray-500 mt-1">Using your Nostr profile picture</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Using your Nostr profile picture</p>
                         )}
                       </div>
                     </div>
@@ -291,9 +291,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-white/10 pb-12 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-gray-200 dark:border-white/10 pb-12 md:grid-cols-3">
                   <div>
-                    <h2 className="text-base/7 font-semibold text-white">Personal Information</h2>
+                    <h2 className="text-base/7 font-semibold text-gray-900 dark:text-white">Personal Information</h2>
                     <p className="mt-1 text-sm/6 text-gray-400">
                       Some basic information about you.
                     </p>
@@ -349,9 +349,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-white/10 pb-12 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-gray-200 dark:border-white/10 pb-12 md:grid-cols-3">
                   <div>
-                    <h2 className="text-base/7 font-semibold text-white">Details</h2>
+                    <h2 className="text-base/7 font-semibold text-gray-900 dark:text-white">Details</h2>
                     <p className="mt-1 text-sm/6 text-gray-400">
                       Completely optional, it helps our patients know you on a deeper level.
                     </p>
@@ -423,9 +423,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
             {activeTab === 'credentials' && (
               <div className="space-y-12">
                 {/* Medical License */}
-                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-white/10 pb-12 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-gray-200 dark:border-white/10 pb-12 md:grid-cols-3">
                   <div>
-                    <h2 className="text-base/7 font-semibold text-white">Medical License</h2>
+                    <h2 className="text-base/7 font-semibold text-gray-900 dark:text-white">Medical License</h2>
                     <p className="mt-1 text-sm/6 text-gray-400">
                       State-issued license required for practice.
                     </p>
@@ -464,9 +464,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                 </div>
 
                 {/* Medical Education */}
-                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-white/10 pb-12 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-gray-200 dark:border-white/10 pb-12 md:grid-cols-3">
                   <div>
-                    <h2 className="text-base/7 font-semibold text-white">Medical Education</h2>
+                    <h2 className="text-base/7 font-semibold text-gray-900 dark:text-white">Medical Education</h2>
                     <p className="mt-1 text-sm/6 text-gray-400">
                       Provide your medical school details and degree.
                     </p>
@@ -523,9 +523,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                 </div>
 
                 {/* Specialties */}
-                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-white/10 pb-12 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-gray-200 dark:border-white/10 pb-12 md:grid-cols-3">
                   <div>
-                    <h2 className="text-base/7 font-semibold text-white">Specialties</h2>
+                    <h2 className="text-base/7 font-semibold text-gray-900 dark:text-white">Specialties</h2>
                     <p className="mt-1 text-sm/6 text-gray-400">
                       Add your primary and secondary specialties.
                     </p>
@@ -579,7 +579,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+          <div className="border-t p-6 flex justify-between items-center bg-card">
             <a
               href={`/providers/${profile.username}`}
               target="_blank"
