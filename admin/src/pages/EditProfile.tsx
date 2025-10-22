@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { profileService } from '../services/profile';
 import { ProviderProfile } from '../types/profile';
 import { ArrowLeft, UserCircle } from 'lucide-react';
@@ -12,6 +13,7 @@ interface EditProfileProps {
 
 export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
   const navigate = useNavigate();
+  const { profile: nostrProfile, setSession, pubkey } = useAuth();
   const [profile, setProfile] = useState<Partial<ProviderProfile>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,11 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
   const loadProfile = async () => {
     try {
       const data = await profileService.getProfile(token);
-      setProfile(data);
+      // setProfile(data);
+      setProfile({
+        ...data,
+        profilePic: data.profilePic || nostrProfile?.picture || ''
+      });
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
@@ -57,6 +63,19 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
 
       const data = await response.json();
       updateField('profilePic', data.url);
+
+      // Update the auth context with new profile picture
+      const currentProfile = JSON.parse(localStorage.getItem('admin_profile') || '{}');
+      const updatedProfile = { ...currentProfile, picture: data.url };
+      localStorage.setItem('admin_profile', JSON.stringify(updatedProfile));
+      
+      // Update session to trigger re-render in components using useAuth
+      setSession(token,
+        pubkey || '',
+        updatedProfile,
+        undefined // Don't change onboarding flags
+      );
+
       alert('Profile picture updated!');
     } catch (error) {
       console.error('Upload error:', error);
@@ -251,6 +270,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                             className="sr-only"
                           />
                         </label>
+                        {profile.profilePic === nostrProfile?.picture && (
+                          <p className="text-xs text-gray-500 mt-1">Using your Nostr profile picture</p>
+                        )}
                       </div>
                     </div>
                     <div className="col-span-full">

@@ -11,8 +11,17 @@ class ProfileService {
       }
     });
     
+    // Handle 404 as "user exists but no profile yet"
+    if (response.status === 404) {
+      const errorData = await response.json();
+      console.log('errorData: ', errorData);
+      return { userId: '' };
+    }
+    
+    // Handle other error statuses (401, 403, 500, etc.)
     if (!response.ok) {
-      throw new Error('Failed to fetch user info');
+      const error = await response.json();
+      throw new Error(`Failed to fetch user info: ${response.status} - ${error.error || 'Unknown error'}`);
     }
     
     return await response.json();

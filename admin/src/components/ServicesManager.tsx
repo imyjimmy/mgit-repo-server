@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { OnboardingModal } from '@/components/OnboardingModal';
 
 interface Service {
   id?: number;
@@ -27,7 +30,7 @@ const defaultService: Omit<Service, 'id'> = {
   name: '',
   duration: 30,
   price: 0,
-  currency: 'USD',
+  currency: 'sats',
   description: '',
   location: '',
   color: '#3fbd5e',
@@ -37,7 +40,14 @@ const defaultService: Omit<Service, 'id'> = {
   is_private: false
 };
 
-export const ServicesManager: React.FC = () => {
+interface ServicesProp {
+  token: string;
+}
+
+export const ServicesManager: React.FC<ServicesProp> = ({ token }) => {
+  const navigate = useNavigate();
+  const { needsOnboarding, completeOnboarding } = useAuth();
+  const [showUserRegModal, setShowUserRegModal] = useState<boolean>(false);
   const [services, setServices] = useState<Service[]>([]);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
   const [editingService, setEditingService] = useState<Service | null>(null);
@@ -71,6 +81,9 @@ export const ServicesManager: React.FC = () => {
         }));
         setServices(typedServices);
       } else {
+        if (data.message === 'Provider not found') {
+          setShowUserRegModal(true);
+        }
         throw new Error(data.message || 'Failed to load services');
       }
     } catch (err) {
@@ -190,48 +203,85 @@ export const ServicesManager: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white">Services Management</h2>
-        <button
-          onClick={startCreating}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
-        >
-          <span className="mr-2">+</span>
-          Add Service
-        </button>
+    <>
+      <OnboardingModal
+        isOpen={!!needsOnboarding['services'] && showUserRegModal && !!token}
+        title="No Provider Profile Found"
+        description="You haven't completed your provider registration yet. Complete your profile to start accepting payments and managing invoices."
+        actionLabel="Complete Profile Setup"
+        onAction={() => navigate('/edit-profile')}
+        secondaryActionLabel="Look Around First"
+        onSecondaryAction={() => { 
+          setShowUserRegModal(false) 
+          completeOnboarding('services')
+        }}
+        showCloseButton={true}
+        onClose={() => { 
+          setShowUserRegModal(false) 
+          completeOnboarding('services')
+        }}
+      >
+        <div className="bg-[#F7F5F3] rounded-lg p-6">
+          <p className="text-[#37322F] mb-4 font-medium">To enable billing features, you need to:</p>
+          <ul className="space-y-3 text-[rgba(55,50,47,0.80)]">
+            <li className="flex items-start">
+              <span className="text-gray-600 mr-3 font-bold">•</span>
+              <span>Complete your provider profile</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-gray-600 mr-3 font-bold">•</span>
+              <span>Set up payment information</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-gray-600 mr-3 font-bold">•</span>
+              <span>Configure your billing preferences</span>
+            </li>
+          </ul>
+        </div>
+      </OnboardingModal>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white">Services Management</h2>
+          <button
+            onClick={startCreating}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
+          >
+            <span className="mr-2">+</span>
+            Add Service
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-900 border border-red-600 p-3 rounded-lg mb-4">
+            <p className="text-red-200">{error}</p>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="text-gray-400">Loading services...</div>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {services.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                No services found. Create your first service to get started.
+              </div>
+            ) : (
+              services.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  categories={categories}
+                  onEdit={() => startEditing(service)}
+                  onDelete={() => service.id && deleteService(service.id)}
+                />
+              ))
+            )}
+          </div>
+        )}
       </div>
-
-      {error && (
-        <div className="bg-red-900 border border-red-600 p-3 rounded-lg mb-4">
-          <p className="text-red-200">{error}</p>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="text-center py-8">
-          <div className="text-gray-400">Loading services...</div>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {services.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              No services found. Create your first service to get started.
-            </div>
-          ) : (
-            services.map((service) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                categories={categories}
-                onEdit={() => startEditing(service)}
-                onDelete={() => service.id && deleteService(service.id)}
-              />
-            ))
-          )}
-        </div>
-      )}
-    </div>
+    </>
   );
 };
 
@@ -368,7 +418,7 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
     <div className="p-6">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">
+          <h2 className="text-2xl font-bold text-foreground">
             {isCreating ? 'Create Service' : 'Edit Service'}
           </h2>
           <button
@@ -388,7 +438,7 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">
                 Service Name *
               </label>
               <input
@@ -397,13 +447,13 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
                 value={formData.name}
                 onChange={handleInputChange}
                 required
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                 placeholder="Enter service name"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">
                 Duration (minutes) *
               </label>
               <input
@@ -413,12 +463,12 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
                 onChange={handleInputChange}
                 required
                 min="1"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">
                 Price
               </label>
               <input
@@ -428,12 +478,12 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
                 onChange={handleInputChange}
                 step="0.01"
                 min="0"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">
                 Currency
               </label>
               <input
@@ -442,20 +492,20 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
                 value={formData.currency}
                 onChange={handleInputChange}
                 maxLength={32}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                placeholder="USD"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                placeholder="sats"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">
                 Category
               </label>
               <select
                 name="id_service_categories"
                 value={formData.id_service_categories || ''}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
                 <option value="">No Category</option>
                 {categories.map(category => (
@@ -467,14 +517,14 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">
                 Availabilities Type
               </label>
               <select
                 name="availabilities_type"
                 value={formData.availabilities_type}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               >
                 <option value="flexible">Flexible</option>
                 <option value="fixed">Fixed</option>
@@ -482,7 +532,7 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">
                 Color
               </label>
               <div className="flex space-x-3">
@@ -498,8 +548,8 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
                     onClick={() => setFormData(prev => ({ ...prev, color: color.value }))}
                     className={`w-12 h-10 rounded-lg cursor-pointer border-2 transition-all ${
                       formData.color === color.value 
-                        ? 'border-white shadow-lg scale-105' 
-                        : 'border-gray-600 hover:border-gray-400'
+                        ? 'border-gray-900 dark:border-white shadow-lg scale-105' 
+                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-500 dark:hover:border-gray-400'
                     }`}
                     style={{ backgroundColor: color.value }}
                     title={color.name}
@@ -509,22 +559,8 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
             </div>
           </div>
 
-          {/* <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Location
-            </label>
-            <input
-              type="text"
-              name="location"
-              value={formData.location}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-              placeholder="Enter service location"
-            />
-          </div> */}
-
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-900 dark:text-gray-300 mb-2">
               Description
             </label>
             <textarea
@@ -532,7 +568,7 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
               value={formData.description}
               onChange={handleInputChange}
               rows={4}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               placeholder="Enter service description"
             />
           </div>
@@ -543,9 +579,9 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
               name="is_private"
               checked={formData.is_private}
               onChange={handleInputChange}
-              className="mr-2"
+              className="mr-2 h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-400"
             />
-            <label className="text-sm text-gray-300">
+            <label className="text-sm text-gray-900 dark:text-gray-300">
               Hide from public (Private service)
             </label>
           </div>
@@ -554,14 +590,14 @@ const ServiceForm: React.FC<ServiceFormProps> = ({
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 text-gray-400 hover:text-white"
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-2 rounded-lg"
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
             >
               {loading ? 'Saving...' : (isCreating ? 'Create Service' : 'Update Service')}
             </button>

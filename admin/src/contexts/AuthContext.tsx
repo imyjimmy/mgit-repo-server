@@ -1,17 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
-
-interface AuthState {
-  isAuthenticated: boolean;
-  token: string | null;
-  pubkey: string | null;
-  profile: any | null;
-  needsOnboarding: {
-    dashboard: boolean;
-    billing: boolean;
-    services: boolean;
-    telehealth: boolean;
-  };
-}
+import { AuthState } from '@/types/index';
 
 interface AuthContextType extends AuthState {
   completeOnboarding: (section: keyof AuthState['needsOnboarding']) => void;
@@ -101,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('admin_pubkey');
     localStorage.removeItem('admin_profile');
     
-    setAuthState({
+    setAuthState({...authState,
       isAuthenticated: false,
       token: null,
       pubkey: null,
@@ -114,11 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const pubkey = localStorage.getItem('admin_pubkey');
     const profile = localStorage.getItem('admin_profile');
     
-    setAuthState({
+    setAuthState({ ...authState,
       isAuthenticated: !!(token && pubkey),
       token: token,
       pubkey: pubkey,
-      profile: profile ? JSON.parse(profile) : null
+      profile: profile ? JSON.parse(profile) : null,
     });
   };
 

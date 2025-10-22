@@ -9,6 +9,12 @@ export interface AuthState {
   token: string | null;
   pubkey: string | null;
   profile: NostrProfile | null;
+  needsOnboarding: {
+    dashboard: boolean;
+    billing: boolean;
+    services: boolean;
+    telehealth: boolean;
+  };
 }
 
 export interface WebRTCState {

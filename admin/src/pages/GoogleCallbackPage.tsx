@@ -29,7 +29,17 @@ export function GoogleCallbackPage() {
         email, 
         loginMethod: 'google',
         isNewUser 
-      });
+      }, isNewUser ? ({
+          dashboard: true,
+          billing: true,
+          services: true,
+          telehealth: true
+        }) : ({
+          dashboard: false,
+          billing: false,
+          services: false,
+          telehealth: false
+        }));
       console.log('✅ Navigating to dashboard');
       // Redirect to dashboard
       navigate('/dashboard');

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '@/contexts/AuthContext';
 import { Eye, Copy, ExternalLink, Check, Send } from 'lucide-react';
 import { OnboardingModal } from '@/components/OnboardingModal';
 

@@ -26,6 +26,7 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
   const navigate = useNavigate();
   const { isAuthenticated, token, pubkey, profile, needsOnboarding, completeOnboarding } = useAuth();
+  // const [showUserRegModal, setShowUserRegModal] = useState<boolean>(false);
   const [activeSection, setActiveSection] = useState('webrtc');
 
   return (
@@ -41,6 +42,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
           // setSession(token || '', pubkey || '', profile);
           completeOnboarding('dashboard');
           navigate('/edit-profile');
+        }}
+        secondaryActionLabel="Look Around First"
+        onSecondaryAction={() => { 
+          // setShowUserRegModal(false) 
+          completeOnboarding('dashboard')
+        }}
+        showCloseButton={true}
+        onClose={() => { 
+          completeOnboarding('dashboard')
         }}
       >
         <div className="bg-[#F7F5F3] rounded-lg p-6">
@@ -70,14 +80,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
         } as React.CSSProperties}
       >
         <AppSidebar 
-          authState={{ isAuthenticated, token, pubkey, profile }}
+          authState={{ isAuthenticated, token, pubkey, profile, needsOnboarding }}
           activeSection={activeSection}
           onLogout={onLogout}
           onSectionChange={setActiveSection}
         />
         <SidebarInset>
           <SiteHeader 
-            authState={{ isAuthenticated, token, pubkey, profile }}
+            authState={{ isAuthenticated, token, pubkey, profile, needsOnboarding }}
             onLogout={onLogout}
             activeSection={activeSection}
             toggleHeader={false}
@@ -101,7 +111,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
               <BillingPage token={token} />
             )}
             {activeSection === 'services' && token && (
-              <ServicesManager />
+              <ServicesManager token={token} />
             )}
             {/* {activeSection === 'appointments' && authState.token && (
               <BookingWorkflow token={authState.token} />

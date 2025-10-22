@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { webrtcService } from '@/services/webrtc';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext'
-import { OnboardingModal } from '@/components/OnboardingModal';
+// import { useNavigate } from 'react-router-dom';
+// import { useAuth } from '@/contexts/AuthContext'
+// import { OnboardingModal } from '@/components/OnboardingModal';
 
 interface WebRTCTestProps {
   token: string;

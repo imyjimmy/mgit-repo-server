@@ -11,7 +11,13 @@ export function LandingPage() {
       isAuthenticated: false,
       token: null,
       pubkey: null,
-      profile: null
+      profile: null,
+      needsOnboarding: {
+        dashboard: false,
+        billing: false,
+        services: false,
+        telehealth: false
+      }
     });
 
   const handleNavigateToLogin = () => {
@@ -28,7 +34,13 @@ export function LandingPage() {
       isAuthenticated: false,
       token: null,
       pubkey: null,
-      profile: null
+      profile: null,
+      needsOnboarding: {
+        dashboard: false,
+        billing: false,
+        services: false,
+        telehealth: false
+      }
     });
   };
 
