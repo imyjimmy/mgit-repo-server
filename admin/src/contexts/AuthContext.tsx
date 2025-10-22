@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import { profileService } from '@/services/profile';
 import { AuthState } from '@/types/index';
 
 interface AuthContextType extends AuthState {
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   });
 
-  const setSession = (
+  const setSession = async (
     token: string, 
     pubkey: string, 
     profile: any, 
@@ -49,19 +50,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       telehealth: false
     };
 
+    // Fetch profile from existing endpoint
+    let finalProfile = profile;
+    try {
+      const providerProfile = await profileService.getProfile(token);
+      finalProfile = providerProfile;
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+      // Fall back to whatever profile was passed in
+    }
+
     setAuthState({
       isAuthenticated: true,
       token,
       pubkey,
-      profile,
+      profile: finalProfile,
       needsOnboarding: needsOnboarding 
-        ? { ...defaultOnboarding, ...needsOnboarding }  // Merge with defaults
-        : defaultOnboarding  // New user - needs all onboarding
+        ? { ...defaultOnboarding, ...needsOnboarding }
+        : defaultOnboarding
     });
 
     localStorage.setItem('admin_token', token);
     localStorage.setItem('admin_pubkey', pubkey);
-    localStorage.setItem('admin_profile', JSON.stringify(profile));
+    localStorage.setItem('admin_profile', JSON.stringify(finalProfile));
     localStorage.setItem('needs_onboarding', JSON.stringify(
       needsOnboarding || defaultOnboarding
     ));

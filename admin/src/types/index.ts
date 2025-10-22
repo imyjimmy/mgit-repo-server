@@ -1,3 +1,12 @@
+export interface GoogleProfile {
+  id: string;
+  npi?: string;
+  firstName: string;
+  lastName: string;
+  profilePic?: string;
+  email?: string;
+}
+
 export interface NostrProfile {
   display_name?: string;
   name?: string;
@@ -8,7 +17,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   token: string | null;
   pubkey: string | null;
-  profile: NostrProfile | null;
+  profile: GoogleProfile | NostrProfile | null;
   needsOnboarding: {
     dashboard: boolean;
     billing: boolean;

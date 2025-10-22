@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { profileService } from '../services/profile';
-import { ProviderProfile } from '../types/profile';
+import { profileService } from '@/services/profile';
+import { ProviderProfile } from '@/types/profile';
 import { ArrowLeft, UserCircle } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { isNostrProfile } from '@/lib/utils';
 
 interface EditProfileProps {
   token: string;
@@ -31,7 +32,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
       // setProfile(data);
       setProfile({
         ...data,
-        profilePic: data.profilePic || nostrProfile?.picture || ''
+        profilePic: data.profilePic || (nostrProfile && isNostrProfile(nostrProfile) ? nostrProfile.picture : '') || ''
       });
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -270,7 +271,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                             className="sr-only"
                           />
                         </label>
-                        {profile.profilePic === nostrProfile?.picture && (
+                        {profile.profilePic === (nostrProfile && isNostrProfile(nostrProfile) ? nostrProfile.picture : undefined) && (
                           <p className="text-xs text-gray-500 mt-1">Using your Nostr profile picture</p>
                         )}
                       </div>

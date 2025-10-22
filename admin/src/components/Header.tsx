@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import { NostrProfile } from '../types';
+import { GoogleProfile, NostrProfile } from '@/types';
+import { getDisplayName, getProfilePicture } from '@/lib/utils';
 
 interface HeaderProps {
   isAuthenticated: boolean;
-  profile: NostrProfile | null;
+  profile: GoogleProfile | NostrProfile | null;
   onLogout: () => void;
   compact?: boolean;
 }
@@ -23,9 +23,9 @@ export const Header: React.FC<HeaderProps> = ({
     navigate('/login');
   };
 
+  const displayName = getDisplayName(profile);
+  const profilePic = getProfilePicture(profile);
 
-  const displayName = profile?.display_name || profile?.name || 'administrator';
-  
   const getInitials = (name: string) => {
     if (!name) return 'A';
     return name
@@ -37,11 +37,11 @@ export const Header: React.FC<HeaderProps> = ({
   };
   
   const ProfilePicture = () => {
-    if (profile?.picture) {
+    if (profilePic) {
       return (
         <img
           className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-full object-cover`}
-          src={profile.picture}
+          src={profilePic}
           alt="admin Profile"
           onError={(e) => {
             const target = e.target as HTMLImageElement;

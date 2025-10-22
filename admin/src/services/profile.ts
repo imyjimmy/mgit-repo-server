@@ -4,7 +4,7 @@ class ProfileService {
   private baseUrl = window.location.origin;
   
   // Get current user's username
-  async getCurrentUsername(token: string): Promise<{ username?: string, userId: string }> {
+  async getCurrentUsername(token: string): Promise<{ username?: string, userId: string, email?: string }> {
     const response = await fetch(`${this.baseUrl}/api/admin/me`, {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -39,7 +39,8 @@ class ProfileService {
     }
     
     // If username exists, fetch full profile
-    return await this.getPublicProfile(meData.username);
+    const profile = await this.getPublicProfile(meData.username);
+    return { ...profile, email: meData.email };
   }
   
   // Get public profile by username
