@@ -22,7 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profile = localStorage.getItem('admin_profile');
     const onboarding = localStorage.getItem('needs_onboarding');
 
-    console.log('isAuthenticated: ', !!(token));
     return {
       isAuthenticated: !!(token),
       token: token,

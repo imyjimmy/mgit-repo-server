@@ -92,14 +92,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
 
   const fetchCurrentProvider = async () => {
     try {
-      // Get current user's pubkey from localStorage
-      const pubkey = localStorage.getItem('admin_pubkey');
-      if (!pubkey) {
-        setError('No user pubkey found');
-        return;
-      }
-
-      const response = await fetch(`/api/admin/user-lookup/${pubkey}`, {
+      // Use /api/admin/me which works for both Google and Nostr users
+      const response = await fetch('/api/admin/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -108,20 +102,50 @@ export const BillingPage: React.FC<BillingPageProps> = ({ token }) => {
       
       if (response.ok) {
         const data = await response.json();
-        if (data.status === 'success' && data.userFound && data.user) {
-          setCurrentProviderId(data.user.id);
-          completeOnboarding('billing');
-          setShowUserRegModal(false);
+        
+        // Check if user exists and is a provider
+        if (data.status === 'success' && data.user) {
+          // Check if they're a provider (have a provider role)
+          const isProvider = data.user.role && 
+            (data.user.role.slug === 'provider' || 
+            data.user.role.slug === 'admin-provider');
+          
+          if (isProvider) {
+            setCurrentProviderId(data.user.id);
+            completeOnboarding('billing');
+            setShowUserRegModal(false);
+          } else {
+
+            // User exists but is not a provider - show registration modal
+            setError('Please complete provider registration');
+            setShowUserRegModal(true);
+          }
         } else {
-          setError('Current user is not a provider');
-          setShowUserRegModal(true);
+          // User exists but is not a provider
+          // Check if this is their first time seeing ANY onboarding
+          const isFirstTimeUser = needsOnboarding.dashboard && 
+                                  needsOnboarding.billing && 
+                                  needsOnboarding.services && 
+                                  needsOnboarding.telehealth;
+          
+          if (isFirstTimeUser) {
+            // First time - show modal
+            setError('Complete registration to access billing');
+            setShowUserRegModal(true);
+          } else {
+            // They've seen a modal before - just show error
+            setError('Please complete registration');
+            setShowUserRegModal(false);
+          }
         }
       } else {
         setError('Failed to fetch user information');
+        setShowUserRegModal(true);
       }
     } catch (err) {
       console.error('Failed to fetch current provider info:', err);
       setError('Network error fetching user info');
+      setShowUserRegModal(true);
     }
   };
 
