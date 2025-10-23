@@ -45,6 +45,8 @@ services:
   plebdoc-api:
     ports:
       - "3005:3005"
+    env_file:
+      - ./.env.development
     volumes:
       - ../plebdoc-scheduler-service/api:/app
       - /app/node_modules

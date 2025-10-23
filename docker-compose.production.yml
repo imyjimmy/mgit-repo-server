@@ -44,6 +44,8 @@ services:
     platform: linux/amd64
 
   plebdoc-api:
+    env_file:
+      - ./.env.production
     ports:
       - "3005:3005"
     networks:
