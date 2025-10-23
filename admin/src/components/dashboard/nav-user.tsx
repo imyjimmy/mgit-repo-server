@@ -1,4 +1,4 @@
-import { AuthState, GoogleProfile, NostrProfile } from '@/types'
+import { AuthState } from '@/types'
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -30,54 +30,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-function isGoogleProfile(profile: GoogleProfile | NostrProfile): profile is GoogleProfile {
-  return 'firstName' in profile;
-}
-
-function getDisplayName(profile: GoogleProfile | NostrProfile | null): string {
-  if (!profile) return 'User';
-  
-  if (isGoogleProfile(profile)) {
-    return `${profile.firstName} ${profile.lastName}`.trim();
-  }
-  
-  return profile.display_name || profile.name || 'User';
-}
-
-function getInitials(profile: GoogleProfile | NostrProfile | null): string {
-  if (!profile) return 'U';
-  
-  if (isGoogleProfile(profile)) {
-    const firstInitial = profile.firstName?.[0]?.toUpperCase() || '';
-    const lastInitial = profile.lastName?.[0]?.toUpperCase() || '';
-    return `${firstInitial}${lastInitial}` || 'U';
-  }
-  
-  // For Nostr profile, take first 2 letters of display_name or name
-  const name = profile.display_name || profile.name || 'User';
-  return name.slice(0, 2).toUpperCase();
-}
-
-function getProfilePicture(profile: GoogleProfile | NostrProfile | null): string | undefined {
-  if (!profile) return undefined;
-  
-  if (isGoogleProfile(profile)) {
-    return profile.profilePic;
-  }
-  
-  return profile.picture;
-}
-
-function getEmail(profile: GoogleProfile | NostrProfile | null): string {
-  if (!profile) return '';
-  
-  if (isGoogleProfile(profile)) {
-    return profile.email || '';
-  }
-  
-  // For Nostr, could show npub or nip05 if available
-  return '';
-}
+import { getDisplayName, getEmail, getProfilePicture, getInitials } from '@/lib/utils';
 
 interface NavUserProps {
   authState: AuthState,

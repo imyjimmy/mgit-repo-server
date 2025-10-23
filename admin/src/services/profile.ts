@@ -35,6 +35,7 @@ class ProfileService {
     if (!meData.username) {
       return {
         userId: Number(meData.userId),
+        email: meData.email
       };
     }
     

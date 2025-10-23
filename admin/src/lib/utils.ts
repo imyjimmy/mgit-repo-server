@@ -6,22 +6,39 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function isNostrProfile(profile: GoogleProfile | NostrProfile): profile is NostrProfile {
-  return 'name' in profile || 'display_name' in profile;
+export function isNostrProfile(profile: any): profile is NostrProfile {
+  // Check if profile came from Nostr login
+  return profile.pubkey !== undefined;
 }
 
-export function isGoogleProfile(profile: GoogleProfile | NostrProfile): profile is GoogleProfile {
-  return 'firstName' in profile;
+export function isGoogleProfile(profile: any): profile is GoogleProfile {
+  // Check if profile came from Google login
+  return profile.loginMethod === 'google' || 
+         profile.oauthProvider === 'google' ||
+         (!profile.pubkey && profile.email);  // Has email but no pubkey
 }
 
 export function getDisplayName(profile: GoogleProfile | NostrProfile | null): string {
   if (!profile) return 'User';
   
+  // Google profiles
   if (isGoogleProfile(profile)) {
-    return `${profile.firstName} ${profile.lastName}`.trim();
+    // Try full name first
+    const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
+    if (fullName) return fullName;
+    
+    // Fallback to email prefix
+    if (profile.email) {
+      return profile.email.split('@')[0];  // "imyjimmy" from "imyjimmy@gmail.com"
+    }
   }
   
-  return profile.display_name || profile.name || 'User';
+  // Nostr profiles
+  if (isNostrProfile(profile)) {
+    return profile.display_name || profile.name || 'User';
+  }
+  
+  return 'User';
 }
 
 export function getInitials(profile: GoogleProfile | NostrProfile | null): string {

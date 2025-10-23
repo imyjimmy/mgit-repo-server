@@ -1,16 +1,20 @@
 export interface GoogleProfile {
-  id: string;
-  npi?: string;
-  firstName: string;
-  lastName: string;
+  id?: string;
+  userId: number;
   profilePic?: string;
-  email?: string;
-}
+  email: string;
+  loginMethod: 'google';
+  oauthProvider?: 'google';
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+};
 
 export interface NostrProfile {
   display_name?: string;
   name?: string;
   picture?: string;
+  pubkey: string;
 }
 
 export interface AuthState {
