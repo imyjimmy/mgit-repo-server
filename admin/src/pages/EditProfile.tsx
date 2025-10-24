@@ -341,6 +341,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                           type="text"
                           value={profile.suffix || ''}
                           onChange={(e) => updateField('suffix', e.target.value)}
+                          maxLength={3}
                           className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
                           placeholder="Jr"
                           required
