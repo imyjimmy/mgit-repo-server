@@ -40,27 +40,29 @@ FROM base
 COPY --from=builder /usr/local/bin/mgit /usr/local/bin/mgit
 COPY --from=builder /usr/local/bin/bun /usr/local/bin/bun
 
+# Create directories with proper ownership BEFORE copying files
+RUN mkdir -p /app /private_repos && \
+    chown -R node:node /app /private_repos
+
+# Switch to node user BEFORE doing heavy operations
+USER node
 WORKDIR /app
 
-# Install Node dependencies
-COPY package*.json ./
+# Install Node dependencies (now as node user)
+COPY --chown=node:node package*.json ./
 RUN npm ci --only=production
 
-# Copy application files
-COPY *.js ./
-COPY public/ ./public/
-COPY admin/ ./admin/
-COPY .env ./
+# Copy application files (now as node user)
+COPY --chown=node:node *.js ./
+COPY --chown=node:node public/ ./public/
+COPY --chown=node:node admin/ ./admin/
+COPY --chown=node:node .env ./
 
-# Build admin React app
+# Build admin React app (now as node user)
 WORKDIR /app/admin
 RUN bun install && bun run build
 
 WORKDIR /app
-RUN mkdir -p /private_repos && \
-    chown -R node:node /app /private_repos
-
-USER node
 EXPOSE 3003
 ENV REPOS_PATH=/private_repos
 CMD ["npm", "start"]
