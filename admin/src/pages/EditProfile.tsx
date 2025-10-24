@@ -14,7 +14,7 @@ interface EditProfileProps {
 
 export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
   const navigate = useNavigate();
-  const { profile: nostrProfile, setSession, pubkey } = useAuth();
+  const { profile: nostrProfile, refreshProfile, setSession, pubkey } = useAuth();
   const [profile, setProfile] = useState<Partial<ProviderProfile>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -118,6 +118,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
       };
 
       await profileService.updateProfile(token, payload);
+      await refreshProfile();
       alert('Profile saved successfully!');
       if (onSave) onSave();
     } catch (error) {

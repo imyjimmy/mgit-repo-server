@@ -86,6 +86,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({onLogout}) => {
           onSectionChange={setActiveSection}
         />
         <SidebarInset>
+          { /* 
+            MAIN AREA 
+            NOT the sidebar itself, but Components listed here are VIEWABLE in the main area
+            after being selected via the sidebar
+          */}
+
           <SiteHeader 
             authState={{ isAuthenticated, token, pubkey, profile, needsOnboarding }}
             onLogout={onLogout}

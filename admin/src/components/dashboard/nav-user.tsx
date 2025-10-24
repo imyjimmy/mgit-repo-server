@@ -2,10 +2,8 @@ import { AuthState } from '@/types'
 import { useNavigate } from 'react-router-dom';
 
 import {
-  IconCreditCard,
   IconDotsVertical,
   IconLogout,
-  IconNotification,
   IconUserCircle,
 } from "@tabler/icons-react"
 
@@ -94,14 +92,14 @@ export function NavUser({ authState, onLogout }: NavUserProps) {
                 <IconUserCircle />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/billing')}>
+              {/* <DropdownMenuItem onClick={() => navigate('/billing')}>
                 <IconCreditCard />
                 Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconNotification />
                 Notifications
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>

@@ -33,9 +33,12 @@ class ProfileService {
     
     // If no username exists yet, return empty profile structure
     if (!meData.username) {
+      const cachedProfile = JSON.parse(localStorage.getItem('admin_profile') || '{}');
+
       return {
         userId: Number(meData.userId),
-        email: meData.email
+        email: meData.email,
+        ...cachedProfile
       };
     }
     

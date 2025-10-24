@@ -56,10 +56,12 @@ export function getInitials(profile: GoogleProfile | NostrProfile | null): strin
 }
 
 export function getProfilePicture(profile: GoogleProfile | NostrProfile | null): string | undefined {
+  console.log('getProfilePicture: ', profile);
   if (!profile) return undefined;
   
   if (isGoogleProfile(profile)) {
-    return profile.profilePic;
+    const localProfile = localStorage.getItem('admin_profile') || '';
+    return profile.profilePic || JSON.parse(localProfile).picture || '';
   }
   
   return profile.picture;

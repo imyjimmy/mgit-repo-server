@@ -11,6 +11,7 @@ interface AuthContextType extends AuthState {
     needsOnboarding?: Partial<AuthState['needsOnboarding']> ) => void;
   logout: () => void;
   refreshAuth: () => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,7 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let finalProfile = profile;
     try {
       const providerProfile = await profileService.getProfile(token);
-      finalProfile = providerProfile;
+      console.log('setSession, merging profiles: ', profile, providerProfile);
+      finalProfile = { ...profile, ...providerProfile };
     } catch (error) {
       console.error('Failed to fetch profile:', error);
       // Fall back to whatever profile was passed in
@@ -120,8 +122,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const refreshProfile = async () => {
+    const token = authState.token;
+    if (!token) return;
+
+    try {
+      const providerProfile = await profileService.getProfile(token) as any;
+      console.log('refreshProfile, providerProfile: ', providerProfile);
+      setAuthState(prev => ({
+        ...prev,
+        profile: providerProfile
+      }));
+
+      // Update localStorage
+      localStorage.setItem('admin_profile', JSON.stringify(providerProfile));
+    } catch (error) {
+      console.error('Failed to refresh profile:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ ...authState, completeOnboarding, setSession, logout, refreshAuth }}>
+    <AuthContext.Provider value={{ ...authState, completeOnboarding, refreshProfile, setSession, logout, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );
