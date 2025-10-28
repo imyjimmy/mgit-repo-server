@@ -1,10 +1,11 @@
 import { ProviderProfile } from '../types/profile';
+import { UserInfo } from '@/types';
 
 class ProfileService {
   private baseUrl = window.location.origin;
   
   // Get current user's username
-  async getCurrentUsername(token: string): Promise<{ username?: string, userId: string, email?: string }> {
+  async getCurrentUsername(token: string): Promise<{ username?: string, userId: string, email?: string, nostrPubkey?: string }> {
     const response = await fetch(`${this.baseUrl}/api/admin/me`, {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -28,7 +29,7 @@ class ProfileService {
   }
   
   // Get profile (uses the same public endpoint OR creates empty profile)
-  async getProfile(token: string): Promise<Partial<ProviderProfile>> {
+  async getProfile(token: string): Promise<Partial<ProviderProfile & UserInfo>> {
     const meData = await this.getCurrentUsername(token);
     
     // If no username exists yet, return empty profile structure
@@ -38,13 +39,14 @@ class ProfileService {
       return {
         userId: Number(meData.userId),
         email: meData.email,
+        nostrPubkey: meData.nostrPubkey,
         ...cachedProfile
       };
     }
     
     // If username exists, fetch full profile
     const profile = await this.getPublicProfile(meData.username);
-    return { ...profile, email: meData.email };
+    return { ...profile, email: meData.email, nostrPubkey: meData.nostrPubkey };
   }
   
   // Get public profile by username

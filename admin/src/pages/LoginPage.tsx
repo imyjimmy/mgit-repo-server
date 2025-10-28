@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { NostrAuthService } from '@/services/auth';
-// import { UserInfo } from '@/types'
 
 export function LoginPage() {
   const { setSession } = useAuth()
@@ -45,7 +44,7 @@ export function LoginPage() {
       
       if (registrationCheck.isRegistered) {
       // Existing user - login normally
-        setSession(token, pubkey, metadata, {
+        setSession(token, pubkey, { ...metadata, pubkey }, {
           dashboard: false,
           billing: false,
           services: false,
@@ -53,7 +52,7 @@ export function LoginPage() {
         });
       } else {
         // New user - login but flag needs onboarding
-        setSession(token, pubkey, metadata, {
+        setSession(token, pubkey, { ...metadata, pubkey }, {
           dashboard: true,
           billing: true,
           services: true,

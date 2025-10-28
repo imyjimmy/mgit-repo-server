@@ -55,7 +55,7 @@ export interface UserInfo {
   timezone: string;
   language: string;
   id_roles: number;
-  nostr_pubkey: string;
+  nostrPubkey: string;
   role?: {
     id: number;
     name: string;

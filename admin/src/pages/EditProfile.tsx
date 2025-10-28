@@ -5,7 +5,7 @@ import { profileService } from '@/services/profile';
 import { ProviderProfile } from '@/types/profile';
 import { ArrowLeft, UserCircle } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { isNostrProfile } from '@/lib/utils';
+import { isNostrProfile, isGoogleProfile } from '@/lib/utils';
 
 interface EditProfileProps {
   token: string;
@@ -15,7 +15,7 @@ interface EditProfileProps {
 export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
   const navigate = useNavigate();
   const { profile: nostrProfile, refreshProfile, setSession, pubkey } = useAuth();
-  const [profile, setProfile] = useState<Partial<ProviderProfile>>({});
+  const [profile, setProfile] = useState<Partial<ProviderProfile>&{ nostrPubkey?: string | null }>({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -153,6 +153,29 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
     
     setValidationError('');
     return true;
+  };
+
+  const handleGenerateNostr = async () => {
+    try {
+      const response = await fetch('/api/auth/generate-nostr', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setProfile({...profile, nostrPubkey: data.pubkey});
+        console.log('Success', 'Nostr profile generated! You can now use WebRTC features.');
+        // Refresh user profile
+        await profileService.getProfile(token);
+      }
+    } catch (error) {
+      console.error('Error', 'Failed to generate Nostr profile');
+    }
   };
 
   if (loading) {
@@ -351,6 +374,18 @@ export const EditProfile: React.FC<EditProfileProps> = ({ token, onSave }) => {
                   </div>
                 </div>
 
+                {isGoogleProfile(nostrProfile) && (
+                  <div>
+                    {profile.nostrPubkey ? (
+                      <div>✓ Nostr: {profile.nostrPubkey.substring(0, 16)}...</div>
+                    ) : (
+                      <div>
+                        <button onClick={handleGenerateNostr}>Generate</button>
+                        {/* <button onClick={handleLinkNostr}>Link</button> */}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-gray-200 dark:border-white/10 pb-12 md:grid-cols-3">
                   <div>
                     <h2 className="text-base/7 font-semibold text-gray-900 dark:text-white">Details</h2>
